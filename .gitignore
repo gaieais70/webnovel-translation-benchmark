@@ -1,0 +1,7 @@
+corpus/passages/
+runs/
+judgments/
+manual/
+.env
+__pycache__/
+.venv/
