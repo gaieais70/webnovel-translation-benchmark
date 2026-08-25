@@ -1,18 +1,52 @@
-# Models under test. `anchor: strong` / `anchor: weak` marks the two
-# calibration models that run every time to detect drift.
+# Models under test: the opencode-go subscription roster.
+# Endpoint is OpenAI-compatible; key comes from OPENCODE_API_KEY.
 #
-# runner: api     -> OpenAI-compatible HTTP endpoint, reports real cost
-# runner: cli     -> subprocess; source on stdin, translation on stdout
-# runner: manual  -> prompts written to manual/, responses pasted back
-- id: claude-code-opus
-  runner: cli
-  command: ["claude", "-p", "--model", "opus"]
-  temperature: 0.3
+# Anchors: qwen3.8-max as the strong reference, deepseek-v4-flash as the weak
+# one. They run every time and exist to detect drift, not to be ranked.
+- id: glm-5.3
+  runner: api
+  endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  model: glm-5.3
+- id: kimi-k3
+  runner: api
+  endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  model: kimi-k3
+- id: minimax-m3
+  runner: api
+  endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  model: minimax-m3
+- id: grok-4.5
+  runner: api
+  endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  model: grok-4.5
+- id: gpt-5.6-luna
+  runner: api
+  endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  model: gpt-5.6-luna
+- id: deepseek-v4-pro
+  runner: api
+  endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  model: deepseek-v4-pro
+- id: qwen3.7-max
+  runner: api
+  endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  model: qwen3.7-max
+- id: qwen3.8-max
+  runner: api
+  endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  model: qwen3.8-max
+  anchor: strong
+- id: deepseek-v4-flash
+  runner: api
+  endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  model: deepseek-v4-flash
+  anchor: weak
 
-# Judge. Runs through the Antigravity CLI on a Gemini subscription.
+# Judge. Gemini through the Antigravity CLI on a subscription.
 # --sandbox is deliberate: a judge with tools could look up the source work
-# while scoring a translation of it.
+# while scoring a translation of it, which stops it measuring the translation.
 - id: gemini-judge
   runner: agy
   model: gemini-3.7-flash-high
+  json_schema: config/schemas/judgment.json
   sandbox: true

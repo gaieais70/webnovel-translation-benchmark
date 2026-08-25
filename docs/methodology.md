@@ -54,6 +54,36 @@ more than 5 points between runs, the judge, the prompt, or a provider has
 changed behavior, and the report marks the run **not comparable** to earlier
 runs rather than charting them together.
 
+## Head-to-head ratings
+
+Rubric scores compress: judges cluster absolute ratings in a narrow band, and
+near-equal models become indistinguishable. A second pass compares
+translations directly and fits a Bradley–Terry model to the results.
+
+Bradley–Terry rather than Elo or Glicko, because those are sequential
+algorithms whose output depends on the order matches were played, and a
+benchmark holds every comparison at once. The fit is order-independent and
+reproducible from the same data.
+
+Controls on each comparison:
+
+- **Both orders.** Every pair is judged twice with the positions swapped. A
+  judge that reverses itself is recorded as a tie, not averaged into noise.
+- **Ties are allowed.** Two renderings of one sentence are often equally good;
+  forcing a winner manufactures noise.
+- **No truncation.** EQ-Bench truncates to control length bias in free-form
+  creative writing. Translations of one source passage are naturally similar
+  in length, and truncating would conceal the omissions the fidelity axis
+  exists to catch.
+- **Adaptive pairing.** Closest-rated, least-compared pairs are judged first,
+  so an interrupted run still produces a meaningful ranking.
+- **95% bootstrap intervals** are published with every rating. Where the top
+  two intervals overlap, the report says so: the ordering is not established.
+
+Ratings use a scale on which 400 points is 10:1 odds. Only the offset is
+arbitrary — it is pinned to the weak calibration anchor so numbers stay
+comparable as models join or leave the pool.
+
 ## Judge bias
 
 A single pinned judge, temperature 0, structured JSON output validated

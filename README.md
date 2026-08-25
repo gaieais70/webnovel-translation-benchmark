@@ -41,6 +41,18 @@ That chains fetch → run → judge → report and writes
 (`ati fetch`, `ati run`, `ati judge`, `ati report`) and every stage is
 resumable — work already done is skipped.
 
+Then run the head-to-head pass, which is separate because it is the expensive
+part:
+
+```bash
+ati pairwise --run 2026-08 --max-comparisons 200
+```
+
+Every comparison is checkpointed as it completes. If the judge subscription
+hits a usage limit the stage stops cleanly and prints how far it got; rerun
+the same command later and it resumes without repeating work. Rerun
+`ati report` afterwards to fold the ratings into the leaderboard.
+
 Set `OPENROUTER_API_KEY` for API-backed models. Subscription-backed models
 are configured as `runner: cli` in `config/models.yaml` and report cost as
 N/A. Defaults live in `config/ati.yaml`.
