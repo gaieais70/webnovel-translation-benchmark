@@ -12,7 +12,7 @@ from pathlib import Path
 
 import httpx
 
-from ati.config import ModelConfig, load_models, load_weights
+from ati.config import ModelConfig, load_defaults, load_models, load_weights
 from ati.corpus import (
     HashMismatch,
     PassageMissing,
@@ -22,6 +22,7 @@ from ati.corpus import (
     sha256_text,
 )
 from ati.judgestage import judge_run
+from ati.intake import DEFAULT_CHARS, KINDS, IntakeError, add_files
 from ati.report import aggregate, anchor_drift, is_comparable, render_markdown
 from ati.runners.api import ApiRunner
 from ati.runners.cli import CliRunner
@@ -31,6 +32,8 @@ from ati.tasks import expand, load_tasks
 from ati.textmetrics import load_slop_list
 
 DEFAULT_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
+DEFAULT_JUDGE_MODEL = "anthropic/claude-sonnet-5"
+DEFAULT_ITERATIONS = 1
 
 
 def build_runner(model: ModelConfig, api_key: str | None, manual_root: Path):
@@ -44,6 +47,37 @@ def build_runner(model: ModelConfig, api_key: str | None, manual_root: Path):
     if model.runner == "cli":
         return CliRunner(command=model.command or [])
     return ManualRunner(root=manual_root, model_id=model.id)
+
+
+def cmd_add(args) -> int:
+    """Ingest local chapter files into the corpus and the task suite."""
+    try:
+        result = add_files(
+            files=args.files,
+            work=args.work,
+            lang=args.lang,
+            genre=args.genre,
+            kind=args.type,
+            url=args.url,
+            corpus_root=Path(args.corpus),
+            manifest_path=Path(args.manifest),
+            tasks_path=Path(args.tasks),
+            chars=args.chars,
+            has_reference=args.reference,
+        )
+    except IntakeError as exc:
+        print(f"error: {exc}")
+        return 1
+
+    for pid in result.added:
+        print(f"  added      {pid}")
+    for pid in result.unchanged:
+        print(f"  unchanged  {pid}")
+    print(
+        f"{len(result.added)} added, {len(result.unchanged)} unchanged; "
+        f"task '{result.task_id}' updated in {args.tasks}"
+    )
+    return 0
 
 
 def cmd_fetch(args) -> int:
@@ -198,6 +232,28 @@ def cmd_report(args) -> int:
     return 0
 
 
+def cmd_bench(args) -> int:
+    """Run the whole pipeline: fetch, run, judge, report."""
+    print("== fetch ==")
+    if cmd_fetch(args) != 0:
+        print(
+            "stopping: corpus is incomplete or has changed. Scoring against a "
+            "broken corpus would produce meaningless results."
+        )
+        return 1
+
+    if not args.skip_run:
+        print("== run ==")
+        cmd_run(args)
+
+    if not args.skip_judge:
+        print("== judge ==")
+        cmd_judge(args)
+
+    print("== report ==")
+    return cmd_report(args)
+
+
 def main(argv: list[str] | None = None) -> int:
     # Shared options live on a parent parser so they are accepted both before
     # and after the subcommand: `ati --run r1 report` and `ati report --run r1`.
@@ -210,8 +266,12 @@ def main(argv: list[str] | None = None) -> int:
     common.add_argument("--slop", default="config/slop_list.txt")
     common.add_argument("--prompt", default="config/prompts/translate.md")
     common.add_argument("--judge-prompt", default="config/prompts/judge.md")
-    common.add_argument("--judge-model", default="anthropic/claude-sonnet-5")
-    common.add_argument("--judge-endpoint", default=DEFAULT_ENDPOINT)
+    common.add_argument("--judge-model", default=None)
+    common.add_argument("--judge-endpoint", default=None)
+    common.add_argument("--iterations", type=int, default=None)
+    common.add_argument("--model", action="append", help="limit to model id")
+    common.add_argument("--task", action="append", help="limit to task id")
+    common.add_argument("--defaults", default="config/ati.yaml")
     common.add_argument("--runs", default="runs")
     common.add_argument("--judgments", default="judgments")
     common.add_argument("--results", default="results")
@@ -231,28 +291,51 @@ def main(argv: list[str] | None = None) -> int:
         parents=[common],
     )
 
-    run_parser = sub.add_parser(
-        "run", help="translate every task instance", parents=[common]
-    )
-    run_parser.add_argument("--model", action="append", help="limit to model id")
-    run_parser.add_argument("--task", action="append", help="limit to task id")
-    run_parser.add_argument("--iterations", type=int, default=1)
+    sub.add_parser("run", help="translate every task instance", parents=[common])
 
     sub.add_parser("judge", help="score run outputs", parents=[common])
     sub.add_parser(
         "report", help="aggregate into results and leaderboard", parents=[common]
     )
 
+    add_parser = sub.add_parser(
+        "add", help="ingest local chapter files into the corpus", parents=[common]
+    )
+    add_parser.add_argument("files", nargs="+", help="chapter text files")
+    add_parser.add_argument("--work", required=True, help="short work slug, e.g. skyfall")
+    add_parser.add_argument("--lang", required=True, help="source language, e.g. zh")
+    add_parser.add_argument("--genre", required=True, help="e.g. xianxia")
+    add_parser.add_argument("--type", required=True, choices=list(KINDS))
+    add_parser.add_argument("--url", required=True, help="source URL")
+    add_parser.add_argument("--chars", type=int, default=DEFAULT_CHARS)
+    add_parser.add_argument("--reference", action="store_true")
+
+    bench_parser = sub.add_parser(
+        "bench", help="fetch, run, judge, and report in one command", parents=[common]
+    )
+    bench_parser.add_argument("--skip-run", action="store_true")
+    bench_parser.add_argument("--skip-judge", action="store_true")
+
     args = parser.parse_args(argv)
     if not args.command:
         parser.print_usage()
         return 2
 
+    defaults = load_defaults(Path(args.defaults))
+    if args.judge_model is None:
+        args.judge_model = defaults.get("judge_model", DEFAULT_JUDGE_MODEL)
+    if args.judge_endpoint is None:
+        args.judge_endpoint = defaults.get("judge_endpoint", DEFAULT_ENDPOINT)
+    if args.iterations is None:
+        args.iterations = int(defaults.get("iterations", DEFAULT_ITERATIONS))
+
     handlers = {
+        "add": cmd_add,
         "fetch": cmd_fetch,
         "run": cmd_run,
         "judge": cmd_judge,
         "report": cmd_report,
+        "bench": cmd_bench,
     }
     return handlers[args.command](args)
 

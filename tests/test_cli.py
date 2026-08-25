@@ -103,3 +103,110 @@ def test_report_command_writes_leaderboard(tmp_path, monkeypatch):
     assert leaderboard.exists()
     assert "m1" in leaderboard.read_text(encoding="utf-8")
     assert (tmp_path / "results" / "r1.json").exists()
+
+
+def test_load_defaults_returns_empty_dict_when_absent(tmp_path):
+    from ati.config import load_defaults
+
+    assert load_defaults(tmp_path / "nope.yaml") == {}
+
+
+def test_load_defaults_reads_yaml(tmp_path):
+    from ati.config import load_defaults
+
+    p = tmp_path / "ati.yaml"
+    p.write_text("judge_model: some/judge\niterations: 3\n", encoding="utf-8")
+    d = load_defaults(p)
+    assert d["judge_model"] == "some/judge"
+    assert d["iterations"] == 3
+
+
+def test_add_command_registers_passage_and_task(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    raw = tmp_path / "ch1.txt"
+    raw.write_text("云澈抬起头", encoding="utf-8")
+
+    rc = main(
+        [
+            "add",
+            str(raw),
+            "--work",
+            "skyfall",
+            "--lang",
+            "zh",
+            "--genre",
+            "xianxia",
+            "--type",
+            "passage",
+            "--url",
+            "https://example.invalid/skyfall",
+        ]
+    )
+    assert rc == 0
+
+    manifest = json.loads(
+        (tmp_path / "corpus" / "manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["passages"][0]["id"] == "skyfall-01"
+    assert (tmp_path / "corpus" / "passages" / "skyfall-01.txt").exists()
+
+    import yaml
+
+    tasks = yaml.safe_load(
+        (tmp_path / "config" / "tasks.yaml").read_text(encoding="utf-8")
+    )
+    assert tasks[0]["id"] == "skyfall-passage"
+
+
+def test_add_command_reports_changed_text_without_traceback(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    raw = tmp_path / "ch1.txt"
+    raw.write_text("original", encoding="utf-8")
+    args = [
+        "add",
+        str(raw),
+        "--work",
+        "skyfall",
+        "--lang",
+        "zh",
+        "--genre",
+        "x",
+        "--type",
+        "passage",
+        "--url",
+        "u",
+    ]
+    assert main(args) == 0
+    raw.write_text("changed", encoding="utf-8")
+    assert main(args) != 0
+    assert "already registered" in capsys.readouterr().out
+
+
+def test_bench_stops_when_fetch_reports_missing_passages(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "corpus").mkdir()
+    (tmp_path / "corpus" / "manifest.json").write_text(
+        json.dumps(
+            {
+                "passages": [
+                    {
+                        "id": "gone-01",
+                        "lang": "zh",
+                        "genre": "x",
+                        "source_url": "u",
+                        "chapter": "1",
+                        "start": 0,
+                        "end": 3,
+                        "sha256": "0" * 64,
+                        "has_reference": False,
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    rc = main(["bench", "--run", "r1"])
+    assert rc != 0
+    out = capsys.readouterr().out
+    assert "MISSING" in out
+    assert "stopping" in out.lower()

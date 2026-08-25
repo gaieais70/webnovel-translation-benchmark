@@ -1,0 +1,4 @@
+# Operator defaults. CLI flags override these; these override built-ins.
+judge_model: anthropic/claude-sonnet-5
+judge_endpoint: https://openrouter.ai/api/v1/chat/completions
+iterations: 1

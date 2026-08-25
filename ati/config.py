@@ -96,3 +96,18 @@ def load_weights(path: Path) -> dict[str, float]:
     if abs(total - 1.0) > 1e-6:
         raise ConfigError(f"weights must sum to 1.0, got {total}")
     return weights
+
+
+def load_defaults(path: Path) -> dict:
+    """Operator defaults from config/ati.yaml. Absent file means no defaults.
+
+    Precedence is: explicit CLI flag, then this file, then the built-in
+    default baked into the CLI.
+    """
+    p = Path(path)
+    if not p.exists():
+        return {}
+    raw = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+    if not isinstance(raw, dict):
+        raise ConfigError("ati.yaml must contain a mapping")
+    return raw
