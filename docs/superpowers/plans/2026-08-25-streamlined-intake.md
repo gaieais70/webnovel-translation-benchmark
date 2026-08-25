@@ -119,6 +119,7 @@ def test_add_files_writes_passage_text_and_manifest_entry(tmp_path):
     assert entry["start"] == 0
     assert entry["end"] == 5
     assert entry["has_reference"] is False
+    assert entry["source_file"] == "a.txt"
 
 
 def test_add_files_slices_passages_to_chars(tmp_path):
@@ -300,11 +301,21 @@ def _load_tasks(path: Path) -> list[dict]:
 
 
 def _next_index(manifest: dict, work: str, kind: str) -> int:
+    """Highest existing index for this work and kind, plus one.
+
+    Uses the maximum rather than the count so that a manually removed entry
+    does not cause a later add to reuse a retired id.
+    """
     prefix = make_id(work, kind, 0)[:-2]
-    existing = [
-        entry["id"] for entry in manifest["passages"] if entry["id"].startswith(prefix)
-    ]
-    return len(existing) + 1
+    highest = 0
+    for entry in manifest["passages"]:
+        pid = entry["id"]
+        if not pid.startswith(prefix):
+            continue
+        suffix = pid[len(prefix) :]
+        if suffix.isdigit():
+            highest = max(highest, int(suffix))
+    return highest + 1
 
 
 def add_files(
@@ -324,8 +335,16 @@ def add_files(
         raise IntakeError(f"unknown kind {kind!r}; expected one of {KINDS}")
 
     manifest = _load_manifest(manifest_path)
-    by_id = {entry["id"]: entry for entry in manifest["passages"]}
     result = IntakeResult(task_id=f"{work}-{kind}")
+
+    # Identity is the source file name, not a positional counter: re-running
+    # add on the same files must recognize them rather than allocate new ids.
+    # Two raw files sharing a base name are treated as the same passage.
+    by_source = {
+        entry["source_file"]: entry
+        for entry in manifest["passages"]
+        if entry.get("source_file")
+    }
 
     index = _next_index(manifest, work, kind)
     for source in sorted(Path(f) for f in files):
@@ -337,22 +356,23 @@ def add_files(
         text = raw[:end]
         digest = sha256_text(text)
 
-        # An id already present is either the same text - a no-op - or
-        # different text, which would silently invalidate every score
-        # recorded against it. The second case must stop the run.
-        existing = by_id.get(make_id(work, kind, index))
-        candidate_id = make_id(work, kind, index)
+        # A file already registered is either unchanged - a no-op - or
+        # changed, which would silently invalidate every score recorded
+        # against its id. The second case must stop the run.
+        existing = by_source.get(source.name)
         if existing is not None:
             if existing["sha256"] == digest:
-                result.unchanged.append(candidate_id)
-                index += 1
+                result.unchanged.append(existing["id"])
                 continue
             raise IntakeError(
-                f"{candidate_id}: already registered with different text. "
-                f"Remove the manifest entry deliberately if the source really "
-                f"changed - rescoring against altered text would corrupt "
-                f"existing results."
+                f"{existing['id']}: already registered from {source.name} with "
+                f"different text. Rescoring against altered text would corrupt "
+                f"results already recorded against this id; remove the manifest "
+                f"entry deliberately if the source really changed."
             )
+
+        candidate_id = make_id(work, kind, index)
+        index += 1
 
         target = passage_path(corpus_root, candidate_id)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -368,15 +388,15 @@ def add_files(
             "end": end,
             "sha256": digest,
             "has_reference": has_reference,
+            "source_file": source.name,
         }
         if kind == "consistency":
             entry["series"] = work
             entry["series_index"] = index
 
         manifest["passages"].append(entry)
-        by_id[candidate_id] = entry
+        by_source[source.name] = entry
         result.added.append(candidate_id)
-        index += 1
 
     Path(manifest_path).parent.mkdir(parents=True, exist_ok=True)
     Path(manifest_path).write_text(
