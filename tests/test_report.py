@@ -295,3 +295,28 @@ def test_render_markdown_warns_when_intervals_overlap(tmp_path):
         pairwise_ci={"m1": (1100.0, 1300.0), "m2": (1090.0, 1290.0)},
     )
     assert "overlap" in md.lower()
+
+
+def test_render_markdown_labels_a_pinned_anchor_interval(tmp_path):
+    """A zero-width interval is the pinned scale, not certainty about the anchor."""
+    seed(tmp_path, "m1", "t.cn-01.0")
+    results = run_aggregate(tmp_path)
+    md = render_markdown(
+        "r1",
+        results,
+        {},
+        True,
+        {"judge_id": "j", "date": "d"},
+        pairwise={"m1": 1000.0},
+        pairwise_ci={"m1": (1000.0, 1000.0)},
+    )
+    assert "pinned" in md
+    assert "1000 – 1000" not in md
+
+
+def test_notes_distinguish_subscription_from_unknown_cost(tmp_path):
+    seed(tmp_path, "m1", "t.cn-01.0")
+    results = run_aggregate(tmp_path)
+    md = render_markdown("r1", results, {}, True, {"judge_id": "j", "date": "d"})
+    assert "`sub`" in md
+    assert "billed" in md.lower()

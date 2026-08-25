@@ -271,9 +271,17 @@ def render_markdown(
         )
         for model_id, rating in ranked_pairwise:
             interval = (pairwise_ci or {}).get(model_id)
-            span = (
-                f"{interval[0]:.0f} – {interval[1]:.0f}" if interval else "N/A"
-            )
+            if not interval:
+                span = "N/A"
+            elif abs(interval[1] - interval[0]) < 0.5:
+                # The scale is pinned to this model, so every bootstrap
+                # replicate lands on the same value. Printing a zero-width
+                # interval would read as certainty about the anchor; the
+                # uncertainty is real but lives in the other ratings, which
+                # are measured relative to it.
+                span = "pinned"
+            else:
+                span = f"{interval[0]:.0f} – {interval[1]:.0f}"
             lines.append(f"| {model_id} | {rating:.0f} | {span} |")
 
         if pairwise_ci and len(ranked_pairwise) > 1:
@@ -291,8 +299,9 @@ def render_markdown(
         "",
         "## Notes",
         "",
-        "- **Cost N/A** means access was subscription-backed and per-call cost "
-        "is unknown. It does not mean free.",
+        "- **Cost `sub`** means a subscription covered the call, so it billed "
+        "zero. That is not the same as the model being free to run. **`N/A`** "
+        "means the access path reports no cost at all. Neither is a price.",
         "- **Slop** counts LLM-tell and translationese phrases per 1,000 words. "
         "**Repetition** is top-n-gram concentration. Neither enters the "
         "composite; both are diagnostics.",
