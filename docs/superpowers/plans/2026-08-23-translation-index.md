@@ -394,7 +394,7 @@ Create `config/models.yaml`:
 - [ ] **Step 6: Run tests to verify they pass**
 
 Run: `python -m pip install -e ".[dev]"` then `python -m pytest tests/test_config.py -v`
-Expected: all 10 tests PASS
+Expected: all 11 tests PASS
 
 - [ ] **Step 7: Commit**
 
@@ -2112,7 +2112,7 @@ def rationale_quote_violations(judgment: Judgment) -> list[str]:
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `python -m pytest tests/test_judge.py -v`
-Expected: all 13 tests PASS
+Expected: all 14 tests PASS
 
 - [ ] **Step 5: Write the rubric and judge template**
 

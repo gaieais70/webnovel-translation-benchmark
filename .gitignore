@@ -5,3 +5,5 @@ manual/
 .env
 __pycache__/
 .venv/
+ati.egg-info/
+*.egg-info/
