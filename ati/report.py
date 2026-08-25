@@ -49,6 +49,20 @@ def fmt(value: float | None, places: int = 1) -> str:
     return f"{value:.{places}f}"
 
 
+def fmt_cost(value: float | None) -> str:
+    """Unknown, subscription-covered, and priced are three different things.
+
+    None means the access path reports no cost at all. Zero means the call
+    really did bill zero because a subscription covered it. Printing either as
+    "0.0000" would read as "free", which misleads the value comparison.
+    """
+    if value is None:
+        return "N/A"
+    if value == 0:
+        return "sub"
+    return f"{value:.4f}"
+
+
 def _load_all(root: Path) -> list[dict]:
     return [
         json.loads(p.read_text(encoding="utf-8")) for p in sorted(root.rglob("*.json"))
@@ -174,6 +188,8 @@ def render_markdown(
     drift: dict[str, float],
     comparable: bool,
     metadata: dict,
+    pairwise: dict[str, float] | None = None,
+    pairwise_ci: dict[str, tuple[float, float]] | None = None,
 ) -> str:
     ranked = [r for r in results if not r.incomplete]
     incomplete = [r for r in results if r.incomplete]
@@ -210,7 +226,7 @@ def render_markdown(
         label = r.model_id + (f" _{r.anchor} anchor_" if r.anchor else "")
         lines.append(
             f"| {i} | {label} | {fmt(r.composite)} | {fmt(r.refusal_rate)} | "
-            f"{fmt(r.cost_per_1k, 4)} | {fmt(r.speed_per_1k)} | "
+            f"{fmt_cost(r.cost_per_1k)} | {fmt(r.speed_per_1k)} | "
             f"{fmt(r.value, 0)} | {fmt(r.slop, 2)} | {fmt(r.repetition, 3)} |"
         )
 
@@ -234,8 +250,42 @@ def render_markdown(
             "| Model | Failed | Total |",
             "|---|---|---|",
         ]
-        for r in incomplete:
-            lines.append(f"| {r.model_id} | {r.failed_tasks} | {r.total_tasks} |")
+    for r in incomplete:
+        lines.append(f"| {r.model_id} | {r.failed_tasks} | {r.total_tasks} |")
+
+    if pairwise:
+        lines += [
+            "",
+            "## Head-to-head (Bradley–Terry)",
+            "",
+            "Ratings from blind pairwise comparison, judged in both orders. "
+            "400 points is 10:1 odds; only the offset is arbitrary. Ties are "
+            "allowed and a judge that reverses itself when the order flips is "
+            "recorded as a tie.",
+            "",
+            "| Model | Rating | 95% interval |",
+            "|---|---|---|",
+        ]
+        ranked_pairwise = sorted(
+            pairwise.items(), key=lambda kv: -kv[1]
+        )
+        for model_id, rating in ranked_pairwise:
+            interval = (pairwise_ci or {}).get(model_id)
+            span = (
+                f"{interval[0]:.0f} – {interval[1]:.0f}" if interval else "N/A"
+            )
+            lines.append(f"| {model_id} | {rating:.0f} | {span} |")
+
+        if pairwise_ci and len(ranked_pairwise) > 1:
+            top, second = ranked_pairwise[0][0], ranked_pairwise[1][0]
+            first_ci, second_ci = pairwise_ci.get(top), pairwise_ci.get(second)
+            if first_ci and second_ci and first_ci[0] <= second_ci[1]:
+                lines += [
+                    "",
+                    f"> The intervals for **{top}** and **{second}** overlap, so "
+                    "their ordering is not established by this data. More "
+                    "comparisons would be needed to separate them.",
+                ]
 
     lines += [
         "",

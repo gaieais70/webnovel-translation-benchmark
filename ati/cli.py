@@ -19,6 +19,7 @@ from ati.config import (
     load_models,
     load_weights,
 )
+from ati.bradleyterry import bootstrap_ci, fit, to_elo
 from ati.corpus import (
     HashMismatch,
     PassageMissing,
@@ -29,6 +30,7 @@ from ati.corpus import (
 )
 from ati.judgestage import judge_run
 from ati.intake import DEFAULT_CHARS, KINDS, IntakeError, add_files
+from ati.pairwise import load_comparisons, run_pairwise
 from ati.report import aggregate, anchor_drift, is_comparable, render_markdown
 from ati.runners.api import ApiRunner
 from ati.runners.agy import AgyRunner
@@ -199,6 +201,48 @@ def cmd_judge(args) -> int:
     return 0
 
 
+def cmd_pairwise(args) -> int:
+    judge_runner = build_judge_runner(
+        args.judge_model,
+        args.models,
+        args.judge_endpoint,
+        Path(args.manual),
+        os.environ.get("OPENROUTER_API_KEY"),
+    )
+    declared = load_models(Path(args.models))
+    pool = [m.id for m in declared if m.runner != "agy"]
+    if args.model:
+        pool = [m for m in pool if m in args.model]
+
+    passages = {p.id: p for p in load_manifest(Path(args.manifest))}
+    template = Path(args.pairwise_prompt).read_text(encoding="utf-8")
+
+    existing = load_comparisons(Path(args.pairwise), args.run)
+    ratings = to_elo(fit(existing)) if existing else {}
+
+    executed = run_pairwise(
+        judge_runner=judge_runner,
+        run_id=args.run,
+        runs_root=Path(args.runs),
+        pairwise_root=Path(args.pairwise),
+        corpus_root=Path(args.corpus),
+        passages=passages,
+        template=template,
+        models=pool,
+        max_comparisons=args.max_comparisons,
+        ratings=ratings,
+    )
+    print(f"{executed} comparisons executed")
+
+    comparisons = load_comparisons(Path(args.pairwise), args.run)
+    if comparisons:
+        anchor = next((m.id for m in declared if m.anchor == "weak"), None)
+        final = to_elo(fit(comparisons), anchor_id=anchor)
+        for model_id, rating in sorted(final.items(), key=lambda kv: -kv[1]):
+            print(f"  {rating:7.0f}  {model_id}")
+    return 0
+
+
 def cmd_report(args) -> int:
     weights = load_weights(Path(args.weights))
     slop_list = load_slop_list(Path(args.slop))
@@ -242,8 +286,25 @@ def cmd_report(args) -> int:
         ),
         encoding="utf-8",
     )
+    comparisons = load_comparisons(Path(args.pairwise), args.run)
+    pairwise_ratings, pairwise_intervals = {}, {}
+    if comparisons:
+        anchor = next(
+            (m.id for m in load_models(Path(args.models)) if m.anchor == "weak"), None
+        )
+        pairwise_ratings = to_elo(fit(comparisons), anchor_id=anchor)
+        pairwise_intervals = bootstrap_ci(comparisons, anchor_id=anchor)
+
     (results_dir / "leaderboard.md").write_text(
-        render_markdown(args.run, results, drift, comparable, metadata),
+        render_markdown(
+            args.run,
+            results,
+            drift,
+            comparable,
+            metadata,
+            pairwise_ratings,
+            pairwise_intervals,
+        ),
         encoding="utf-8",
     )
     prev_path.write_text(
@@ -310,6 +371,9 @@ def main(argv: list[str] | None = None) -> int:
     common.add_argument("--judgments", default="judgments")
     common.add_argument("--results", default="results")
     common.add_argument("--manual", default="manual")
+    common.add_argument("--pairwise", default="pairwise")
+    common.add_argument("--pairwise-prompt", default="config/prompts/pairwise.md")
+    common.add_argument("--max-comparisons", type=int, default=50)
     common.add_argument("--run", default="latest", help="run id")
     common.add_argument("--force", action="store_true")
 
@@ -328,6 +392,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("run", help="translate every task instance", parents=[common])
 
     sub.add_parser("judge", help="score run outputs", parents=[common])
+    sub.add_parser(
+        "pairwise", help="blind head-to-head comparison", parents=[common]
+    )
     sub.add_parser(
         "report", help="aggregate into results and leaderboard", parents=[common]
     )
@@ -368,6 +435,7 @@ def main(argv: list[str] | None = None) -> int:
         "fetch": cmd_fetch,
         "run": cmd_run,
         "judge": cmd_judge,
+        "pairwise": cmd_pairwise,
         "report": cmd_report,
         "bench": cmd_bench,
     }

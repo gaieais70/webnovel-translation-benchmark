@@ -245,3 +245,53 @@ def test_render_markdown_lists_incomplete_models_separately(tmp_path):
     md = render_markdown("r1", results, {}, True, {"judge_id": "j", "date": "d"})
     assert "Incomplete" in md
     assert "broken" in md
+
+
+def test_fmt_cost_labels_subscription_zero():
+    from ati.report import fmt_cost
+
+    assert fmt_cost(None) == "N/A"
+    assert fmt_cost(0.0) == "sub"
+    assert fmt_cost(0.0031) == "0.0031"
+
+
+def test_render_markdown_includes_pairwise_ratings_when_present(tmp_path):
+    seed(tmp_path, "m1", "t.cn-01.0")
+    results = run_aggregate(tmp_path)
+    md = render_markdown(
+        run_id="r1",
+        results=results,
+        drift={},
+        comparable=True,
+        metadata={"judge_id": "gemini-judge", "date": "2026-08-25"},
+        pairwise={"m1": 1240.0},
+        pairwise_ci={"m1": (1180.0, 1300.0)},
+    )
+    assert "Head-to-head" in md
+    assert "1240" in md
+    assert "1180" in md
+
+
+def test_render_markdown_omits_pairwise_section_when_absent(tmp_path):
+    seed(tmp_path, "m1", "t.cn-01.0")
+    results = run_aggregate(tmp_path)
+    md = render_markdown(
+        "r1", results, {}, True, {"judge_id": "j", "date": "d"}
+    )
+    assert "Head-to-head" not in md
+
+
+def test_render_markdown_warns_when_intervals_overlap(tmp_path):
+    seed(tmp_path, "m1", "t.cn-01.0")
+    seed(tmp_path, "m2", "t.cn-01.0", scores={axis: 3 for axis in AXES})
+    results = run_aggregate(tmp_path)
+    md = render_markdown(
+        "r1",
+        results,
+        {},
+        True,
+        {"judge_id": "j", "date": "d"},
+        pairwise={"m1": 1200.0, "m2": 1190.0},
+        pairwise_ci={"m1": (1100.0, 1300.0), "m2": (1090.0, 1290.0)},
+    )
+    assert "overlap" in md.lower()

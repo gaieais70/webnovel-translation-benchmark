@@ -266,3 +266,21 @@ def test_build_judge_runner_falls_back_to_api_for_unknown_id(tmp_path):
         "anthropic/claude-sonnet-5", p, "http://x", tmp_path, "key"
     )
     assert isinstance(runner, ApiRunner)
+
+
+def test_pairwise_command_reports_when_nothing_to_compare(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "config").mkdir(exist_ok=True)
+    (tmp_path / "config" / "models.yaml").write_text(
+        "- id: gemini-judge\n  runner: agy\n  model: gemini-3.7-flash-high\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "config" / "prompts").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "config" / "prompts" / "pairwise.md").write_text("T", encoding="utf-8")
+    (tmp_path / "corpus").mkdir(exist_ok=True)
+    (tmp_path / "corpus" / "manifest.json").write_text(
+        json.dumps({"passages": []}), encoding="utf-8"
+    )
+    rc = main(["pairwise", "--run", "empty", "--judge-model", "gemini-judge"])
+    assert rc == 0
+    assert "0 comparisons" in capsys.readouterr().out

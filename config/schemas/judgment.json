@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "properties": {
+    "scores": {
+      "type": "object",
+      "properties": {
+        "accuracy": {"type": "integer"},
+        "terminology": {"type": "integer"},
+        "register": {"type": "integer"},
+        "fluency": {"type": "integer"},
+        "fidelity": {"type": "integer"},
+        "sanitization": {"type": "integer"}
+      },
+      "required": [
+        "accuracy", "terminology", "register",
+        "fluency", "fidelity", "sanitization"
+      ]
+    },
+    "rationales": {"type": "object"},
+    "term_table": {"type": "object"}
+  },
+  "required": ["scores", "rationales"]
+}
