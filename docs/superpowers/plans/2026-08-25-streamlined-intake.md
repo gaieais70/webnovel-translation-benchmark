@@ -140,6 +140,7 @@ def test_add_files_keeps_whole_chapter_for_consistency(tmp_path):
     assert entry["end"] == 2000
     assert entry["series"] == "skyfall"
     assert entry["series_index"] == 1
+    assert entry["chapter"] == "1"
 
 
 def test_add_files_is_idempotent_for_identical_text(tmp_path):
@@ -371,7 +372,10 @@ def add_files(
                 f"entry deliberately if the source really changed."
             )
 
-        candidate_id = make_id(work, kind, index)
+        # Capture the position before advancing: chapter and series_index
+        # below must record THIS passage's number, not the next one's.
+        position = index
+        candidate_id = make_id(work, kind, position)
         index += 1
 
         target = passage_path(corpus_root, candidate_id)
@@ -383,7 +387,7 @@ def add_files(
             "lang": lang,
             "genre": genre,
             "source_url": url,
-            "chapter": str(index),
+            "chapter": str(position),
             "start": 0,
             "end": end,
             "sha256": digest,
@@ -392,7 +396,7 @@ def add_files(
         }
         if kind == "consistency":
             entry["series"] = work
-            entry["series_index"] = index
+            entry["series_index"] = position
 
         manifest["passages"].append(entry)
         by_source[source.name] = entry
