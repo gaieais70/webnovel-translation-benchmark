@@ -7,3 +7,11 @@ __pycache__/
 .venv/
 ati.egg-info/
 *.egg-info/
+
+# Operator's local corpus working material. Never committed: this project
+# publishes rankings, not source text. Anything here is raw novel content or
+# scraped metadata staged for `ati add`.
+Novel Sources/
+raw/
+novel_titles.json
+wiki_data.json
