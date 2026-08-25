@@ -14,12 +14,16 @@ published or committed — the repository stores only pointers and hashes, and
 
 ## Pipeline
 
+0. `ati add` — register locally saved chapter files: hash, slice, and record
+   pointers. Source text stays in the gitignored corpus directory.
 1. `ati fetch` — verify the local corpus against `corpus/manifest.json`.
 2. `ati run` — every model translates every passage, once per iteration.
 3. `ati judge` — a pinned judge model scores each output 1–5 on six axes.
 4. `ati report` — aggregate into `results/` and `results/leaderboard.md`.
 
 Stages are idempotent. Adding one model costs only that model's calls.
+
+`ati bench` runs steps 1–4 in one command.
 
 ## Axes and weights
 

@@ -13,29 +13,37 @@ translation text is committed or published.
 
 ## Usage
 
+Install:
+
 ```bash
 pip install -e ".[dev]"
 ```
 
-```bash
-ati fetch
-```
+Add chapter text you have saved locally. This hashes each file, slices it,
+writes the manifest entry, and registers the task — no JSON by hand:
 
 ```bash
-ati run --run 2026-08 --iterations 1
+ati add ./raw/ch*.txt --work skyfall --lang zh --genre xianxia --type consistency --url https://example.com/skyfall
 ```
 
-```bash
-ati judge --run 2026-08
-```
+`--type passage` takes the first 800 characters of each file; `--type
+consistency` keeps whole chapters for the multi-chapter terminology test;
+`--type refusal` is for passages with violent or sexual content.
+
+Then run everything:
 
 ```bash
-ati report --run 2026-08
+ati bench --run 2026-08
 ```
+
+That chains fetch → run → judge → report and writes
+`results/leaderboard.md`. The individual stages remain available
+(`ati fetch`, `ati run`, `ati judge`, `ati report`) and every stage is
+resumable — work already done is skipped.
 
 Set `OPENROUTER_API_KEY` for API-backed models. Subscription-backed models
 are configured as `runner: cli` in `config/models.yaml` and report cost as
-N/A.
+N/A. Defaults live in `config/ati.yaml`.
 
 ## Reweighting
 
