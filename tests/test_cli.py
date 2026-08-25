@@ -210,3 +210,59 @@ def test_bench_stops_when_fetch_reports_missing_passages(tmp_path, monkeypatch, 
     out = capsys.readouterr().out
     assert "MISSING" in out
     assert "stopping" in out.lower()
+
+
+def test_build_runner_returns_agy_runner_for_agy_models(tmp_path):
+    from ati.runners.agy import AgyRunner
+
+    m = ModelConfig(id="judge", runner="agy", model="gemini-3.7-flash-high")
+    assert isinstance(build_runner(m, None, tmp_path), AgyRunner)
+
+
+def test_load_models_accepts_agy_runner(tmp_path):
+    from ati.config import load_models
+
+    p = tmp_path / "models.yaml"
+    p.write_text(
+        "- id: judge\n  runner: agy\n  model: gemini-3.7-flash-high\n"
+        "  json_schema: config/schemas/judgment.json\n  sandbox: true\n",
+        encoding="utf-8",
+    )
+    m = load_models(p)[0]
+    assert m.runner == "agy"
+    assert m.json_schema == "config/schemas/judgment.json"
+    assert m.sandbox is True
+
+
+def test_load_models_rejects_agy_entry_without_model(tmp_path):
+    from ati.config import ConfigError, load_models
+
+    p = tmp_path / "models.yaml"
+    p.write_text("- id: judge\n  runner: agy\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="requires 'model'"):
+        load_models(p)
+
+
+def test_build_judge_runner_uses_models_yaml_entry(tmp_path):
+    from ati.cli import build_judge_runner
+    from ati.runners.agy import AgyRunner
+
+    p = tmp_path / "models.yaml"
+    p.write_text(
+        "- id: gem-judge\n  runner: agy\n  model: gemini-3.7-flash-high\n",
+        encoding="utf-8",
+    )
+    runner = build_judge_runner("gem-judge", p, None, tmp_path, None)
+    assert isinstance(runner, AgyRunner)
+
+
+def test_build_judge_runner_falls_back_to_api_for_unknown_id(tmp_path):
+    from ati.cli import build_judge_runner
+    from ati.runners.api import ApiRunner
+
+    p = tmp_path / "models.yaml"
+    p.write_text("- id: other\n  runner: cli\n  command: [\"x\"]\n", encoding="utf-8")
+    runner = build_judge_runner(
+        "anthropic/claude-sonnet-5", p, "http://x", tmp_path, "key"
+    )
+    assert isinstance(runner, ApiRunner)

@@ -8,3 +8,11 @@
   runner: cli
   command: ["claude", "-p", "--model", "opus"]
   temperature: 0.3
+
+# Judge. Runs through the Antigravity CLI on a Gemini subscription.
+# --sandbox is deliberate: a judge with tools could look up the source work
+# while scoring a translation of it.
+- id: gemini-judge
+  runner: agy
+  model: gemini-3.7-flash-high
+  sandbox: true

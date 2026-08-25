@@ -16,7 +16,7 @@ AXES: tuple[str, ...] = (
     "sanitization",
 )
 
-VALID_RUNNERS = ("api", "cli", "manual")
+VALID_RUNNERS = ("api", "cli", "manual", "agy")
 VALID_ANCHORS = ("strong", "weak")
 DEFAULT_TEMPERATURE = 0.3
 
@@ -34,6 +34,8 @@ class ModelConfig:
     command: list[str] | None = None
     temperature: float = DEFAULT_TEMPERATURE
     anchor: str | None = None
+    json_schema: str | None = None
+    sandbox: bool = True
 
 
 def load_models(path: Path) -> list[ModelConfig]:
@@ -58,6 +60,8 @@ def load_models(path: Path) -> list[ModelConfig]:
             raise ConfigError(f"model {model_id}: runner 'api' requires 'model'")
         if runner == "cli" and not entry.get("command"):
             raise ConfigError(f"model {model_id}: runner 'cli' requires 'command'")
+        if runner == "agy" and not entry.get("model"):
+            raise ConfigError(f"model {model_id}: runner 'agy' requires 'model'")
 
         anchor = entry.get("anchor")
         if anchor is not None and anchor not in VALID_ANCHORS:
@@ -74,6 +78,8 @@ def load_models(path: Path) -> list[ModelConfig]:
                 command=entry.get("command"),
                 temperature=float(entry.get("temperature", DEFAULT_TEMPERATURE)),
                 anchor=anchor,
+                json_schema=entry.get("json_schema"),
+                sandbox=bool(entry.get("sandbox", True)),
             )
         )
     return models

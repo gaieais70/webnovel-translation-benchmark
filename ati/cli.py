@@ -12,7 +12,13 @@ from pathlib import Path
 
 import httpx
 
-from ati.config import ModelConfig, load_defaults, load_models, load_weights
+from ati.config import (
+    ConfigError,
+    ModelConfig,
+    load_defaults,
+    load_models,
+    load_weights,
+)
 from ati.corpus import (
     HashMismatch,
     PassageMissing,
@@ -25,6 +31,7 @@ from ati.judgestage import judge_run
 from ati.intake import DEFAULT_CHARS, KINDS, IntakeError, add_files
 from ati.report import aggregate, anchor_drift, is_comparable, render_markdown
 from ati.runners.api import ApiRunner
+from ati.runners.agy import AgyRunner
 from ati.runners.cli import CliRunner
 from ati.runners.manual import ManualRunner
 from ati.runstage import run_model
@@ -46,6 +53,12 @@ def build_runner(model: ModelConfig, api_key: str | None, manual_root: Path):
         )
     if model.runner == "cli":
         return CliRunner(command=model.command or [])
+    if model.runner == "agy":
+        return AgyRunner(
+            model=model.model or model.id,
+            json_schema=model.json_schema,
+            sandbox=model.sandbox,
+        )
     return ManualRunner(root=manual_root, model_id=model.id)
 
 
@@ -140,13 +153,34 @@ def cmd_run(args) -> int:
     return 0
 
 
-def cmd_judge(args) -> int:
-    api_key = os.environ.get("OPENROUTER_API_KEY")
-    judge_runner = ApiRunner(
-        endpoint=args.judge_endpoint,
-        model=args.judge_model,
+def build_judge_runner(judge_id, models_path, endpoint, manual_root, api_key):
+    """Resolve the judge against models.yaml, falling back to a plain API call.
+
+    The judge was previously hardcoded to ApiRunner, which made a
+    subscription-backed CLI judge impossible. Declaring it in models.yaml like
+    any other model also gets the secondary judge for free.
+    """
+    try:
+        declared = {m.id: m for m in load_models(Path(models_path))}
+    except (OSError, ConfigError):
+        declared = {}
+    if judge_id in declared:
+        return build_runner(declared[judge_id], api_key, Path(manual_root))
+    return ApiRunner(
+        endpoint=endpoint or DEFAULT_ENDPOINT,
+        model=judge_id,
         api_key=api_key or "",
         temperature=0.0,
+    )
+
+
+def cmd_judge(args) -> int:
+    judge_runner = build_judge_runner(
+        args.judge_model,
+        args.models,
+        args.judge_endpoint,
+        Path(args.manual),
+        os.environ.get("OPENROUTER_API_KEY"),
     )
     passages = {p.id: p for p in load_manifest(Path(args.manifest))}
     template = Path(args.judge_prompt).read_text(encoding="utf-8")
