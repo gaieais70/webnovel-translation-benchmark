@@ -1,0 +1,47 @@
+# Phrases over-represented in LLM output, plus translationese markers common
+# in machine-translated web fiction. One phrase per line, lowercase.
+# Lines starting with # are comments.
+#
+# Seeded from the approach used by EQ-Bench's slop score:
+# https://eqbench.com/about.html
+
+# --- general LLM tells ---
+a testament to
+couldn't help but
+could not help but
+a mix of
+a mixture of
+sent shivers down
+sent a shiver down
+barely above a whisper
+a mixture of fear and
+little did he know
+little did she know
+little did they know
+in that moment
+at that moment
+it was clear that
+a wave of
+washed over
+eyes narrowed
+lips curled
+let out a breath
+he didn't know
+the air was thick with
+
+# --- translationese markers ---
+as expected of
+is it not
+i see, so that's how it is
+in other words
+that being said
+so to speak
+at this time
+at this moment in time
+the current situation
+it seems that
+it appears that
+this humble one
+this king
+this young master
+the so-called

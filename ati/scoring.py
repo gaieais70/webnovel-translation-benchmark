@@ -77,3 +77,37 @@ def value_score(
     if composite_value is None or cost is None or cost <= 0:
         return None
     return composite_value / cost
+
+
+def term_stability(term_tables: list[dict[str, str]]) -> float | None:
+    """Fraction of recurring source terms rendered identically everywhere.
+
+    Deliberately computed rather than judged: asking a judge to hold ten
+    chapters in mind is less reliable than counting the term tables it
+    extracted from each chapter separately.
+
+    Terms appearing in only one chapter are excluded - a term used once
+    cannot be inconsistent, and counting it inflates the score.
+    """
+    renderings: dict[str, set[str]] = {}
+    for table in term_tables:
+        for term, rendering in table.items():
+            renderings.setdefault(term, set()).add(rendering.strip().lower())
+
+    counts: dict[str, int] = {}
+    for table in term_tables:
+        for term in table:
+            counts[term] = counts.get(term, 0) + 1
+
+    recurring = [term for term, count in counts.items() if count > 1]
+    if not recurring:
+        return None
+    stable = sum(1 for term in recurring if len(renderings[term]) == 1)
+    return stable / len(recurring)
+
+
+def stability_to_axis_score(stability: float | None) -> float | None:
+    """Map 0.0-1.0 stability onto the 1-5 axis scale used by every axis."""
+    if stability is None:
+        return None
+    return 1.0 + 4.0 * stability
