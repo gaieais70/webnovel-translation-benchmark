@@ -20,6 +20,7 @@ class RunResult:
     tokens_in: int | None = None
     tokens_out: int | None = None
     cost_usd: float | None = None
+    reasoning_tokens: int | None = None
     refused: bool = False
     error: str | None = None
 

@@ -101,3 +101,83 @@ def test_api_runner_flags_refusals():
     client = httpx.Client(transport=httpx.MockTransport(handler))
     runner = ApiRunner("http://x", "m", "k", 0.3, client=client)
     assert runner.run("sys", "src").refused is True
+
+
+def test_api_runner_reads_top_level_cost():
+    """opencode-go returns cost outside usage, unlike OpenRouter."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [{"message": {"content": "t"}}],
+                "cost": 0.0031,
+                "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+            },
+        )
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner("http://x", "m", "k", 0.3, client=client)
+    assert runner.run("s", "u").cost_usd == 0.0031
+
+
+def test_api_runner_prefers_usage_cost_over_top_level():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [{"message": {"content": "t"}}],
+                "cost": 9.99,
+                "usage": {"prompt_tokens": 1, "completion_tokens": 1, "cost": 0.5},
+            },
+        )
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner("http://x", "m", "k", 0.3, client=client)
+    assert runner.run("s", "u").cost_usd == 0.5
+
+
+def test_api_runner_keeps_zero_cost_distinct_from_unknown():
+    """Subscription access bills zero. That is not the same as unknown."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "t"}}], "cost": 0},
+        )
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner("http://x", "m", "k", 0.3, client=client)
+    assert runner.run("s", "u").cost_usd == 0.0
+
+
+def test_api_runner_captures_reasoning_tokens():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [{"message": {"content": "t"}}],
+                "usage": {
+                    "prompt_tokens": 43,
+                    "completion_tokens": 178,
+                    "completion_tokens_details": {"reasoning_tokens": 153},
+                },
+            },
+        )
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner("http://x", "m", "k", 0.3, client=client)
+    result = runner.run("s", "u")
+    assert result.reasoning_tokens == 153
+    assert result.tokens_out == 178
+
+
+def test_api_runner_reasoning_tokens_none_when_absent():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200, json={"choices": [{"message": {"content": "t"}}], "usage": {}}
+        )
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner("http://x", "m", "k", 0.3, client=client)
+    assert runner.run("s", "u").reasoning_tokens is None

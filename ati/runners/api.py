@@ -63,12 +63,19 @@ class ApiRunner:
             )
 
         usage = body.get("usage") or {}
+        # OpenRouter reports cost inside usage; opencode-go reports it at the
+        # top level. Zero is a real value on subscription access and must not
+        # collapse into None, which means "unknown".
         cost = usage.get("cost")
+        if cost is None:
+            cost = body.get("cost")
+        details = usage.get("completion_tokens_details") or {}
         return RunResult(
             text=text,
             latency_s=latency,
             tokens_in=usage.get("prompt_tokens"),
             tokens_out=usage.get("completion_tokens"),
+            reasoning_tokens=details.get("reasoning_tokens"),
             cost_usd=float(cost) if cost is not None else None,
             refused=looks_like_refusal(text),
         )
