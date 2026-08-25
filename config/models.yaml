@@ -1,0 +1,10 @@
+# Models under test. `anchor: strong` / `anchor: weak` marks the two
+# calibration models that run every time to detect drift.
+#
+# runner: api     -> OpenAI-compatible HTTP endpoint, reports real cost
+# runner: cli     -> subprocess; source on stdin, translation on stdout
+# runner: manual  -> prompts written to manual/, responses pasted back
+- id: claude-code-opus
+  runner: cli
+  command: ["claude", "-p", "--model", "opus"]
+  temperature: 0.3

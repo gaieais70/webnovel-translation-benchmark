@@ -1,0 +1,8 @@
+# Axis weights for the quality composite. Must sum to 1.0.
+# Reweight and rerun `ati report` to recompute rankings without rerunning models.
+accuracy: 0.25
+terminology: 0.20
+register: 0.15
+fluency: 0.15
+fidelity: 0.15
+sanitization: 0.10
