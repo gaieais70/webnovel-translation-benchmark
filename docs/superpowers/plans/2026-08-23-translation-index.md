@@ -2951,7 +2951,10 @@ import re
 from collections import Counter
 from pathlib import Path
 
-_WORD_RE = re.compile(r"[a-z']+")
+# Digits are part of a word: web serials are full of numerals ("3,000 years",
+# "Level 7"). Dropping them also undercounts the denominator in slop_score's
+# per-1,000-words normalization, which would inflate every slop rate.
+_WORD_RE = re.compile(r"[a-z0-9']+")
 _TOP_N = 20
 
 
