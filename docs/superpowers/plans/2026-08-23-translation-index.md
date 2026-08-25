@@ -2558,7 +2558,10 @@ def test_aggregate_axis_computes_mean_and_stdev():
     stats = aggregate_axis([4, 4, 5, 3])
     assert stats.mean == 4.0
     assert stats.n == 4
-    assert stats.stdev == pytest.approx(0.8164965809, rel=1e-6)
+    # population stdev, matching aggregate_axis: with 2-3 iterations the
+    # sample form inflates spread (by ~41% at n=2) and this number describes
+    # the runs actually performed, not an inference about a wider population
+    assert stats.stdev == pytest.approx(0.7071067812, rel=1e-6)
 
 
 def test_aggregate_axis_of_single_score_has_zero_stdev():
