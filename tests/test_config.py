@@ -151,9 +151,14 @@ def test_load_weights_rejects_missing_axis(tmp_path):
         load_weights(p)
 
 
-def test_model_timeout_defaults_to_twenty_minutes(tmp_path):
+def test_model_timeout_defaults_above_measured_chapter_time(tmp_path):
+    """Measured chapter translations return in 60-90s; 240s leaves headroom.
+
+    Deliberately not huge: the observed failure mode is a hung connection,
+    which retrying recovers and waiting does not.
+    """
     p = write(tmp_path, "models.yaml", "- id: m\n  runner: cli\n  command: [\"x\"]\n")
-    assert load_models(p)[0].timeout_s == 1200.0
+    assert load_models(p)[0].timeout_s == 240.0
 
 
 def test_model_timeout_can_be_overridden(tmp_path):
