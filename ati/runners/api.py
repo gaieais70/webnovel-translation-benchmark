@@ -8,11 +8,13 @@ import httpx
 
 from ati.runners.base import RunResult, looks_like_refusal
 
-# A full web-novel chapter is several thousand source characters, and a
-# reasoning model may think for minutes before emitting any of the
-# translation. The old 300s default cut legitimate work off mid-generation
-# and recorded it as a failure.
-TIMEOUT_S = 1200.0
+# Measured: a full 7.4k-character chapter returns in 60-90s. The timeout is
+# set well above that but not enormous, because the real failure mode is a
+# hung connection rather than a slow one, and hangs are recovered by retrying,
+# not by waiting.
+TIMEOUT_S = 240.0
+ATTEMPTS = 3
+RETRY_BACKOFF_S = 5.0
 
 
 class ApiRunner:
@@ -24,12 +26,16 @@ class ApiRunner:
         temperature: float,
         client: httpx.Client | None = None,
         timeout_s: float = TIMEOUT_S,
+        attempts: int = ATTEMPTS,
+        retry_backoff_s: float = RETRY_BACKOFF_S,
     ) -> None:
         self._endpoint = endpoint
         self._model = model
         self._api_key = api_key
         self._temperature = temperature
         self._client = client or httpx.Client(timeout=timeout_s)
+        self._attempts = max(1, attempts)
+        self._retry_backoff_s = retry_backoff_s
 
     def run(self, system_prompt: str, source_text: str) -> RunResult:
         payload = {
@@ -42,13 +48,27 @@ class ApiRunner:
         }
         headers = {"Authorization": f"Bearer {self._api_key}"}
         started = time.monotonic()
-        try:
-            response = self._client.post(
-                self._endpoint, json=payload, headers=headers
-            )
-        except httpx.HTTPError as exc:
+        # The endpoint intermittently accepts a request and never answers.
+        # Measured successful calls return in 60-90s, so a connection still
+        # silent at the timeout is hung, not slow — waiting longer never
+        # rescues it. Retry instead, and give up after a few attempts so one
+        # bad model cannot stall the whole run.
+        last_error: str | None = None
+        for attempt in range(self._attempts):
+            try:
+                response = self._client.post(
+                    self._endpoint, json=payload, headers=headers
+                )
+                break
+            except httpx.HTTPError as exc:
+                last_error = f"{type(exc).__name__}: {exc}"
+                if attempt + 1 < self._attempts:
+                    time.sleep(self._retry_backoff_s * (attempt + 1))
+        else:
             return RunResult(
-                text="", latency_s=time.monotonic() - started, error=str(exc)
+                text="",
+                latency_s=time.monotonic() - started,
+                error=f"failed after {self._attempts} attempts: {last_error}",
             )
         latency = time.monotonic() - started
 

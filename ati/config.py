@@ -19,9 +19,9 @@ AXES: tuple[str, ...] = (
 VALID_RUNNERS = ("api", "cli", "manual", "agy")
 VALID_ANCHORS = ("strong", "weak")
 DEFAULT_TEMPERATURE = 0.3
-# Generous by default: a full chapter through a reasoning model can take
-# many minutes, and a timeout is recorded as a failed task.
-DEFAULT_TIMEOUT_S = 1200.0
+# Measured: a full chapter returns in 60-90s. Set above that with headroom,
+# but not enormous - a hung connection is recovered by retrying, not waiting.
+DEFAULT_TIMEOUT_S = 240.0
 
 
 class ConfigError(Exception):

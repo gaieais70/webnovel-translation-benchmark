@@ -181,3 +181,51 @@ def test_api_runner_reasoning_tokens_none_when_absent():
     client = httpx.Client(transport=httpx.MockTransport(handler))
     runner = ApiRunner("http://x", "m", "k", 0.3, client=client)
     assert runner.run("s", "u").reasoning_tokens is None
+
+
+def test_api_runner_retries_a_hung_connection():
+    """A hung connection is recovered by retrying, never by waiting longer."""
+    attempts = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        attempts["n"] += 1
+        if attempts["n"] < 3:
+            raise httpx.ReadTimeout("hung", request=request)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner("http://x", "m", "k", 0.3, client=client, retry_backoff_s=0)
+    result = runner.run("s", "u")
+    assert result.text == "ok"
+    assert result.error is None
+    assert attempts["n"] == 3
+
+
+def test_api_runner_gives_up_after_the_attempt_limit():
+    attempts = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        attempts["n"] += 1
+        raise httpx.ReadTimeout("hung", request=request)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner(
+        "http://x", "m", "k", 0.3, client=client, attempts=3, retry_backoff_s=0
+    )
+    result = runner.run("s", "u")
+    assert attempts["n"] == 3
+    assert "failed after 3 attempts" in result.error
+    assert result.text == ""
+
+
+def test_api_runner_does_not_retry_a_successful_call():
+    attempts = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        attempts["n"] += 1
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner("http://x", "m", "k", 0.3, client=client, retry_backoff_s=0)
+    runner.run("s", "u")
+    assert attempts["n"] == 1
