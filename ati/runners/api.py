@@ -8,7 +8,11 @@ import httpx
 
 from ati.runners.base import RunResult, looks_like_refusal
 
-TIMEOUT_S = 300.0
+# A full web-novel chapter is several thousand source characters, and a
+# reasoning model may think for minutes before emitting any of the
+# translation. The old 300s default cut legitimate work off mid-generation
+# and recorded it as a failure.
+TIMEOUT_S = 1200.0
 
 
 class ApiRunner:
@@ -19,12 +23,13 @@ class ApiRunner:
         api_key: str,
         temperature: float,
         client: httpx.Client | None = None,
+        timeout_s: float = TIMEOUT_S,
     ) -> None:
         self._endpoint = endpoint
         self._model = model
         self._api_key = api_key
         self._temperature = temperature
-        self._client = client or httpx.Client(timeout=TIMEOUT_S)
+        self._client = client or httpx.Client(timeout=timeout_s)
 
     def run(self, system_prompt: str, source_text: str) -> RunResult:
         payload = {

@@ -52,14 +52,16 @@ def build_runner(model: ModelConfig, api_key: str | None, manual_root: Path):
             model=model.model or model.id,
             api_key=api_key or "",
             temperature=model.temperature,
+            timeout_s=model.timeout_s,
         )
     if model.runner == "cli":
-        return CliRunner(command=model.command or [])
+        return CliRunner(command=model.command or [], timeout_s=model.timeout_s)
     if model.runner == "agy":
         return AgyRunner(
             model=model.model or model.id,
             json_schema=model.json_schema,
             sandbox=model.sandbox,
+            timeout_s=model.timeout_s,
         )
     return ManualRunner(root=manual_root, model_id=model.id)
 

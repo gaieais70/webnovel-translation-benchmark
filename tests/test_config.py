@@ -149,3 +149,17 @@ def test_load_weights_rejects_missing_axis(tmp_path):
     p = write(tmp_path, "weights.yaml", "accuracy: 1.0\n")
     with pytest.raises(ConfigError, match="missing axis"):
         load_weights(p)
+
+
+def test_model_timeout_defaults_to_twenty_minutes(tmp_path):
+    p = write(tmp_path, "models.yaml", "- id: m\n  runner: cli\n  command: [\"x\"]\n")
+    assert load_models(p)[0].timeout_s == 1200.0
+
+
+def test_model_timeout_can_be_overridden(tmp_path):
+    p = write(
+        tmp_path,
+        "models.yaml",
+        "- id: m\n  runner: cli\n  command: [\"x\"]\n  timeout_s: 60\n",
+    )
+    assert load_models(p)[0].timeout_s == 60.0

@@ -19,6 +19,9 @@ AXES: tuple[str, ...] = (
 VALID_RUNNERS = ("api", "cli", "manual", "agy")
 VALID_ANCHORS = ("strong", "weak")
 DEFAULT_TEMPERATURE = 0.3
+# Generous by default: a full chapter through a reasoning model can take
+# many minutes, and a timeout is recorded as a failed task.
+DEFAULT_TIMEOUT_S = 1200.0
 
 
 class ConfigError(Exception):
@@ -36,6 +39,7 @@ class ModelConfig:
     anchor: str | None = None
     json_schema: str | None = None
     sandbox: bool = True
+    timeout_s: float = DEFAULT_TIMEOUT_S
 
 
 def load_models(path: Path) -> list[ModelConfig]:
@@ -80,6 +84,7 @@ def load_models(path: Path) -> list[ModelConfig]:
                 anchor=anchor,
                 json_schema=entry.get("json_schema"),
                 sandbox=bool(entry.get("sandbox", True)),
+                timeout_s=float(entry.get("timeout_s", DEFAULT_TIMEOUT_S)),
             )
         )
     return models
