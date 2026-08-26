@@ -186,3 +186,80 @@ def test_run_model_sets_task_id_on_manual_runner(tmp_path):
         run_id="r1",
     )
     assert runner.task_ids == ["t.cn-01.0"]
+
+
+def test_is_usage_limit_recognizes_quota_errors():
+    from ati.runstage import is_usage_limit
+
+    assert is_usage_limit('HTTP 429: {"type":"GoUsageLimitError"}')
+    assert is_usage_limit("5-hour usage limit reached")
+    assert not is_usage_limit("The read operation timed out")
+    assert not is_usage_limit(None)
+
+
+def test_run_model_retries_a_previously_failed_task(tmp_path):
+    """A recorded error is not finished work; a rerun must redo it."""
+    passage = make_passage(tmp_path, "cn-01", "源文")
+    task = Task(id="t", type="passage", passage_ids=["cn-01"])
+    instances = [TaskInstance(task=task, passage_id="cn-01", iteration=0)]
+    common = dict(
+        model_id="m1",
+        instances=instances,
+        passages={passage.id: passage},
+        corpus_root=tmp_path / "corpus",
+        system_prompt="SYS",
+        runs_root=tmp_path / "runs",
+        run_id="r1",
+    )
+    run_model(runner=FakeRunner(error="HTTP 429: usage limit"), **common)
+
+    second = FakeRunner(responses=["recovered translation"])
+    count = run_model(runner=second, **common)
+    assert count == 1
+    out = run_output_path(tmp_path / "runs", "r1", "m1", "t.cn-01.0")
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["text"] == "recovered translation"
+    assert data["error"] is None
+
+
+def test_run_model_still_skips_successful_tasks(tmp_path):
+    passage = make_passage(tmp_path, "cn-01", "源文")
+    task = Task(id="t", type="passage", passage_ids=["cn-01"])
+    instances = [TaskInstance(task=task, passage_id="cn-01", iteration=0)]
+    common = dict(
+        model_id="m1",
+        instances=instances,
+        passages={passage.id: passage},
+        corpus_root=tmp_path / "corpus",
+        system_prompt="SYS",
+        runs_root=tmp_path / "runs",
+        run_id="r1",
+    )
+    run_model(runner=FakeRunner(responses=["first"]), **common)
+    second = FakeRunner(responses=["second"])
+    assert run_model(runner=second, **common) == 0
+    assert second.calls == []
+
+
+def test_run_model_stops_the_whole_model_on_a_usage_limit(tmp_path):
+    """Every remaining call would hit the same limit, so stop instead."""
+    p1 = make_passage(tmp_path, "cn-01", "一")
+    p2 = make_passage(tmp_path, "cn-02", "二")
+    task = Task(id="t", type="passage", passage_ids=["cn-01", "cn-02"])
+    instances = [
+        TaskInstance(task=task, passage_id="cn-01", iteration=0),
+        TaskInstance(task=task, passage_id="cn-02", iteration=0),
+    ]
+    runner = FakeRunner(error="HTTP 429: 5-hour usage limit reached")
+    count = run_model(
+        runner=runner,
+        model_id="m1",
+        instances=instances,
+        passages={p1.id: p1, p2.id: p2},
+        corpus_root=tmp_path / "corpus",
+        system_prompt="SYS",
+        runs_root=tmp_path / "runs",
+        run_id="r1",
+    )
+    assert count == 1
+    assert len(runner.calls) == 1

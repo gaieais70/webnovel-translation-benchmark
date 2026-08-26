@@ -20,6 +20,35 @@ def run_output_path(
     return Path(runs_root) / run_id / safe_model / f"{instance_id}.json"
 
 
+USAGE_LIMIT_MARKERS = ("usage limit", "quota", "429", "rate limit")
+
+
+def is_usage_limit(error: str | None) -> bool:
+    """Whether a failure means the provider cut us off rather than misbehaved."""
+    if not error:
+        return False
+    lowered = error.lower()
+    return any(marker in lowered for marker in USAGE_LIMIT_MARKERS)
+
+
+def _is_complete(path: Path) -> bool:
+    """Whether an existing run file represents finished work.
+
+    A recorded error is NOT finished work. Checkpointing failures as if they
+    were complete would make a rerun skip them, so a run interrupted by a
+    usage limit could never be resumed - it would silently produce nothing.
+    A passage marked unavailable is different: the corpus itself is wrong, and
+    retrying cannot help until that is fixed.
+    """
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        return False
+    if data.get("unavailable"):
+        return True
+    return not data.get("error")
+
+
 def _write(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -41,7 +70,7 @@ def run_model(
         out_path = run_output_path(
             runs_root, run_id, model_id, instance.instance_id
         )
-        if out_path.exists() and not force:
+        if out_path.exists() and not force and _is_complete(out_path):
             continue
 
         base = {
@@ -115,4 +144,14 @@ def run_model(
             },
         )
         executed += 1
+
+        # A usage limit is not a per-task failure - every remaining call will
+        # hit it too. Stop now so the run can be resumed when the quota
+        # resets, rather than marking the whole suite failed.
+        if is_usage_limit(result.error):
+            print(
+                f"{model_id}: stopping - provider usage limit reached. "
+                f"Rerun the same command once it resets; completed work is kept."
+            )
+            return executed
     return executed
