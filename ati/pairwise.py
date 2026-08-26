@@ -12,6 +12,8 @@ Ratings come from a Bradley-Terry fit rather than Elo or Glicko; see
   the omissions the fidelity axis exists to catch.
 - Pairs are chosen **adaptively**, closest-rated and least-compared first, so
   a run interrupted by a usage limit still yields a meaningful ranking.
+- Both passage and consistency outputs are comparable. Whole chapters cost the
+  judge more per comparison than short excerpts, so budget accordingly.
 
 Every comparison is written to disk the moment it resolves, so an interrupted
 run resumes having lost at most the comparison in flight.
@@ -112,7 +114,7 @@ def _load_outputs(runs_root: Path, run_id: str):
     outputs: dict[str, dict[str, str]] = {}
     for path in sorted((Path(runs_root) / run_id).rglob("*.json")):
         data = json.loads(path.read_text(encoding="utf-8"))
-        if data.get("task_type") != "passage":
+        if data.get("task_type") not in ("passage", "consistency"):
             continue
         if data.get("error") or data.get("unavailable") or data.get("refused"):
             continue

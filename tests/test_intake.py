@@ -185,3 +185,75 @@ def test_add_files_rejects_empty_file(tmp_path):
     f = write_raw(tmp_path, "a.txt", "   \n  ")
     with pytest.raises(IntakeError, match="empty"):
         call(tmp_path, [f])
+
+
+SCRAPED = (
+    "괴담에 떨어져도 출근을 해야 하는구나 - 284화\n"
+    "\n글자\n-\n16px\n+\n기본\n"
+    "괴담에 떨어져도 출근을 해야 하는구나 284화\n"
+    "\n괴담에 떨어져도 출근을 해야 하는구나 284화\n"
+    "\n“이만큼 탐사 횟수가 쌓였으니.”\n\n호유원의 목소리는 이상했다.\n"
+)
+
+
+def test_title_stem_drops_the_chapter_marker():
+    from ati.intake import title_stem
+
+    assert title_stem("괴담에 떨어져도 출근을 해야 하는구나 - 284화") == "괴담에 떨어져도 출근을 해야 하는구나"
+    assert title_stem("Some Novel chapter 12") == "Some Novel"
+
+
+def test_strip_boilerplate_removes_reader_chrome_and_repeated_titles():
+    from ati.intake import strip_boilerplate
+
+    out = strip_boilerplate(SCRAPED)
+    assert out.startswith("“이만큼")
+    assert "16px" not in out
+    assert "글자" not in out
+    assert "284화" not in out
+    assert "호유원의 목소리는 이상했다." in out
+
+
+def test_strip_boilerplate_leaves_clean_prose_alone():
+    from ati.intake import strip_boilerplate
+
+    clean = "그는 검을 뽑았다.\n\n바람이 불었다.\n"
+    assert strip_boilerplate(clean) == clean
+
+
+def test_add_files_strips_headers_before_hashing(tmp_path):
+    from ati.corpus import passage_path
+
+    f = write_raw(tmp_path, "chapter_284.txt", SCRAPED)
+    call(tmp_path, [f], kind="consistency")
+    stored = passage_path(tmp_path / "corpus", "skyfall-ch01").read_text(encoding="utf-8")
+    assert "16px" not in stored
+    assert stored.startswith("“이만큼")
+
+
+def test_add_files_can_keep_headers_when_asked(tmp_path):
+    from ati.corpus import passage_path
+    from ati.intake import add_files
+
+    f = write_raw(tmp_path, "chapter_284.txt", SCRAPED)
+    add_files(
+        files=[f],
+        work="keepme",
+        lang="ko",
+        genre="x",
+        kind="consistency",
+        url="u",
+        corpus_root=tmp_path / "corpus",
+        manifest_path=tmp_path / "corpus" / "manifest.json",
+        tasks_path=tmp_path / "config" / "tasks.yaml",
+        strip_headers=False,
+    )
+    stored = passage_path(tmp_path / "corpus", "keepme-ch01").read_text(encoding="utf-8")
+    assert "16px" in stored
+
+
+def test_chars_zero_takes_the_whole_file(tmp_path):
+    f = write_raw(tmp_path, "a.txt", "그는 검을 뽑았다. " * 300)
+    call(tmp_path, [f], kind="passage", chars=0)
+    entry = read_manifest(tmp_path)["passages"][0]
+    assert entry["end"] > 800

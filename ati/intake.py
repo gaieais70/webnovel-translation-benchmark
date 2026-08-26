@@ -10,6 +10,7 @@ hashes and pointers are recorded.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -39,6 +40,69 @@ def normalize(raw: str) -> str:
     differently and looks like a changed source.
     """
     return raw.lstrip("﻿").replace("\r\n", "\n")
+
+
+HEADER_SCAN_LINES = 25
+# Reader-UI furniture that scrapers pick up along with the prose. These are
+# the font-size control on Korean web-novel readers.
+CHROME_TOKENS = {"글자", "기본", "-", "+", "가", "원래대로"}
+_FONT_SIZE_RE = re.compile(r"^\d+\s*px$", re.IGNORECASE)
+# " - 284화", " 284화", " chapter 284", " 第284章"
+_CHAPTER_SUFFIX_RE = re.compile(
+    r"\s*[-–—]?\s*(?:"
+    r"(?:제\s*)?\d+\s*(?:화|장|회|章|話)"  # 284화, 제3장
+    r"|(?:chapter|chap\.?|ch\.?|episode|ep\.?)\s*\d+"  # chapter 12
+    r")\s*$",
+    re.IGNORECASE,
+)
+
+
+def title_stem(line: str) -> str:
+    """The work title with any trailing chapter marker removed."""
+    return _CHAPTER_SUFFIX_RE.sub("", line.strip()).strip()
+
+
+def strip_boilerplate(text: str) -> str:
+    """Remove scraped reader chrome from the top of a chapter file.
+
+    Scraped chapters arrive with the site's font-size widget and the title
+    repeated two or three times before the prose starts. Left in place the
+    models dutifully translate "Text / - / 16px / + / Default", and the judge
+    then scores them on how well they rendered a font-size control.
+
+    Only the first few lines are examined, and only lines that repeat the
+    title or match known chrome are dropped, so a chapter that happens to open
+    with short dialogue is left alone.
+    """
+    lines = text.split("\n")
+    if not lines:
+        return text
+
+    stem = title_stem(lines[0])
+    last_header = -1
+    chrome_hits = 0
+    stem_hits = 0
+    for i, line in enumerate(lines[:HEADER_SCAN_LINES]):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        is_chrome = stripped in CHROME_TOKENS or bool(_FONT_SIZE_RE.match(stripped))
+        is_title = len(stem) > 3 and stem in stripped
+        if is_chrome:
+            chrome_hits += 1
+        if is_title:
+            stem_hits += 1
+        if is_chrome or is_title:
+            last_header = i
+
+    # Evidence is required before cutting anything. A first line that merely
+    # looks like a title is not enough - in a clean file that first line is
+    # the opening sentence, and stripping it would silently delete prose.
+    # Real scraped chrome shows up either as widget tokens or as the title
+    # repeated more than once.
+    if last_header < 0 or (chrome_hits == 0 and stem_hits < 2):
+        return text
+    return "\n".join(lines[last_header + 1 :]).lstrip("\n")
 
 
 def make_id(work: str, kind: str, index: int) -> str:
@@ -89,6 +153,7 @@ def add_files(
     tasks_path: Path,
     chars: int = DEFAULT_CHARS,
     has_reference: bool = False,
+    strip_headers: bool = True,
 ) -> IntakeResult:
     if kind not in KINDS:
         raise IntakeError(f"unknown kind {kind!r}; expected one of {KINDS}")
@@ -108,10 +173,16 @@ def add_files(
     index = _next_index(manifest, work, kind)
     for source in sorted(Path(f) for f in files):
         raw = normalize(source.read_text(encoding="utf-8"))
+        if strip_headers:
+            raw = strip_boilerplate(raw)
         if not raw.strip():
             raise IntakeError(f"{source}: file is empty")
 
-        end = len(raw) if kind == "consistency" else min(chars, len(raw))
+        # chars <= 0 means take the whole file, whatever its length.
+        if kind == "consistency" or chars <= 0:
+            end = len(raw)
+        else:
+            end = min(chars, len(raw))
         text = raw[:end]
         digest = sha256_text(text)
 
