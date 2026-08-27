@@ -1,3 +1,19 @@
-# Task suite. Passage ids reference corpus/manifest.json.
-# Populate once the corpus is selected - see the spec's deferred decisions.
-[]
+- id: ghost-commute-consistency
+  type: consistency
+  passages:
+  - ghost-commute-ch01
+  - ghost-commute-ch02
+  - ghost-commute-ch03
+  - ghost-commute-ch04
+  - ghost-commute-ch05
+  - ghost-commute-ch06
+  - ghost-commute-ch07
+  - ghost-commute-ch08
+  - ghost-commute-ch09
+  - ghost-commute-ch10
+  - ghost-commute-ch11
+- id: smoke-consistency
+  type: consistency
+  passages:
+  - ghost-commute-ch01
+  - ghost-commute-ch02

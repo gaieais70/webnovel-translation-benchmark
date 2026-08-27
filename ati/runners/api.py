@@ -8,10 +8,11 @@ import httpx
 
 from ati.runners.base import RunResult, looks_like_refusal
 
-# Measured on real chapters: ~6,000 input tokens produce ~3,600 output tokens
-# in about 60 seconds. 240s therefore leaves generous headroom for a bounded
-# call.
-TIMEOUT_S = 240.0
+# Measured across models on real chapters: 190-240s is normal, and the fastest
+# observed was 60s. Because max_tokens now bounds the response, the worst case
+# is bounded too - roughly MAX_OUTPUT_TOKENS at observed throughput - so a
+# generous timeout no longer risks waiting out a runaway.
+TIMEOUT_S = 600.0
 ATTEMPTS = 3
 RETRY_BACKOFF_S = 5.0
 
@@ -21,7 +22,11 @@ RETRY_BACKOFF_S = 5.0
 # correctly. A translation cannot legitimately be much longer than its source,
 # so the budget is derived from the input and clamped.
 TOKENS_PER_SOURCE_CHAR = 1.5
-MAX_OUTPUT_TOKENS = 24576
+# hy3 used 22,323 output tokens on a single 7,300-character chapter, within 9%
+# of the previous 24,576 ceiling. Verbose-but-legitimate models were about to
+# start failing as "truncated", so the cap is raised while staying well under
+# the 65,536 provider limit that produced the runaway bills.
+MAX_OUTPUT_TOKENS = 32768
 # Hidden reasoning counts toward completion_tokens, and therefore toward
 # max_tokens, but it does not scale with the source: an 800-character passage
 # was observed spending 15,312 completion tokens with only ~450 of visible

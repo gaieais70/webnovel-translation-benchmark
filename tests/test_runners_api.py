@@ -244,7 +244,7 @@ def test_output_budget_scales_with_source_and_is_clamped():
     assert output_token_budget("") == REASONING_HEADROOM_TOKENS
     assert output_token_budget("x" * 100) > REASONING_HEADROOM_TOKENS
     # translation estimate (11,100) plus the fixed reasoning allowance
-    assert output_token_budget("x" * 7400) == 24576
+    assert output_token_budget("x" * 7400) == 27484
     assert output_token_budget("x" * 10_000_000) == MAX_OUTPUT_TOKENS
 
 
@@ -260,7 +260,7 @@ def test_api_runner_sends_a_max_tokens_ceiling():
     client = httpx.Client(transport=httpx.MockTransport(handler))
     runner = ApiRunner("http://x", "m", "k", 0.3, client=client)
     runner.run("s", "x" * 7400)
-    assert seen["max_tokens"] == 24576
+    assert seen["max_tokens"] == 27484
 
 
 def test_api_runner_max_tokens_can_be_overridden():

@@ -1,59 +1,104 @@
 # Models under test: the opencode-go subscription roster.
-# Endpoint is OpenAI-compatible; key comes from OPENCODE_API_KEY.
+# Endpoint is OpenAI-compatible; the key comes from OPENCODE_API_KEY.
 #
-# Anchors: qwen3.8-max as the strong reference, deepseek-v4-flash as the weak
-# one. They run every time and exist to detect drift, not to be ranked.
-- id: glm-5.3
+# Ordered cheapest first, by published output price per 1M tokens, because
+# `ati run` works down this list and a run interrupted by a usage limit should
+# have spent the window on the models that cost least. glm-5.3, qwen3.7-max
+# and kimi-k3 are held to the end deliberately, ahead of their price order.
+#
+# Anchors: hy3 as the weak reference, qwen3.8-max as the strong one. They run
+# every time to detect drift and are not there to be ranked. Both are already
+# in the pool, so marking them costs nothing extra.
+
+# --- cheap tier -------------------------------------------------------------
+- id: hy3                              # $0.0175 / $0.0725 per 1M
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
   api_key_env: OPENCODE_API_KEY
-  model: glm-5.3
-- id: kimi-k3
+  model: hy3
+  anchor: weak
+- id: glm-5.3-flash                    # new; flash tier, no published price
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
   api_key_env: OPENCODE_API_KEY
-  model: kimi-k3
-- id: minimax-m3
+  model: glm-5.3-flash
+- id: muse-spark-1.2-contributor       # $0.10 / $0.20
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
   api_key_env: OPENCODE_API_KEY
-  model: minimax-m3
-- id: grok-4.5
+  model: muse-spark-1.2-contributor
+- id: deepseek-v4-flash                # $0.22 / $0.66
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
   api_key_env: OPENCODE_API_KEY
-  model: grok-4.5
-- id: gpt-5.6-luna
+  model: deepseek-v4-flash
+- id: mimo-v2.5-pro                    # $0.435 / $0.87
+  runner: api
+  endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  api_key_env: OPENCODE_API_KEY
+  model: mimo-v2.5-pro
+
+# --- mid tier ---------------------------------------------------------------
+- id: gpt-5.6-luna                     # $0.20 / $1.20
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
   api_key_env: OPENCODE_API_KEY
   model: gpt-5.6-luna
-- id: deepseek-v4-pro
+- id: minimax-m3                       # $0.30 / $1.20
+  runner: api
+  endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  api_key_env: OPENCODE_API_KEY
+  model: minimax-m3
+- id: longcat-2.0                      # $0.30 / $1.20
+  runner: api
+  endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  api_key_env: OPENCODE_API_KEY
+  model: longcat-2.0
+- id: deepseek-v4-pro                  # $0.66 / $1.98
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
   api_key_env: OPENCODE_API_KEY
   model: deepseek-v4-pro
-- id: qwen3.7-max
+
+# --- expensive tier ---------------------------------------------------------
+- id: kimi-k2.6                        # $0.95 / $4.00
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
   api_key_env: OPENCODE_API_KEY
-  model: qwen3.7-max
-- id: qwen3.8-max
+  model: kimi-k2.6
+- id: grok-4.6                         # new; no published price
+  runner: api
+  endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  api_key_env: OPENCODE_API_KEY
+  model: grok-4.6
+- id: qwen3.8-max                      # $2.00 / $6.00
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
   api_key_env: OPENCODE_API_KEY
   model: qwen3.8-max
   anchor: strong
-- id: deepseek-v4-flash
+
+# --- held for last, by request ----------------------------------------------
+- id: glm-5.3                          # $1.40 / $4.40
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
   api_key_env: OPENCODE_API_KEY
-  model: deepseek-v4-flash
-  anchor: weak
+  model: glm-5.3
+- id: qwen3.7-max                      # $2.50 / $7.50
+  runner: api
+  endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  api_key_env: OPENCODE_API_KEY
+  model: qwen3.7-max
+- id: kimi-k3                          # $3.00 / $15.00
+  runner: api
+  endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  api_key_env: OPENCODE_API_KEY
+  model: kimi-k3
 
-# Judge. Gemini through the Antigravity CLI on a subscription.
-# --sandbox is deliberate: a judge with tools could look up the source work
-# while scoring a translation of it, which stops it measuring the translation.
+# --- judge ------------------------------------------------------------------
+# Gemini through the Antigravity CLI on a subscription. --sandbox is
+# deliberate: a judge with tools could look up the source work while scoring a
+# translation of it, which stops it measuring the translation.
 - id: gemini-judge
   runner: agy
   model: gemini-3.7-flash-high

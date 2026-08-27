@@ -19,9 +19,9 @@ AXES: tuple[str, ...] = (
 VALID_RUNNERS = ("api", "cli", "manual", "agy")
 VALID_ANCHORS = ("strong", "weak")
 DEFAULT_TEMPERATURE = 0.3
-# Measured: a full chapter returns in 60-90s. Set above that with headroom,
-# but not enormous - a hung connection is recovered by retrying, not waiting.
-DEFAULT_TIMEOUT_S = 240.0
+# Measured across models: 190-240s per chapter is normal. Safe to be generous
+# now that max_tokens bounds how much a model can generate in one call.
+DEFAULT_TIMEOUT_S = 600.0
 # Each provider needs its own credential. Defaulting every model to one env
 # var means a mixed pool sends the wrong key to one of them and gets 401s.
 DEFAULT_API_KEY_ENV = "OPENROUTER_API_KEY"

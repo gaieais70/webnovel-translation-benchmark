@@ -158,7 +158,7 @@ def test_model_timeout_defaults_above_measured_chapter_time(tmp_path):
     which retrying recovers and waiting does not.
     """
     p = write(tmp_path, "models.yaml", "- id: m\n  runner: cli\n  command: [\"x\"]\n")
-    assert load_models(p)[0].timeout_s == 240.0
+    assert load_models(p)[0].timeout_s == 600.0
 
 
 def test_model_timeout_can_be_overridden(tmp_path):
