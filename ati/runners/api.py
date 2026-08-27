@@ -21,19 +21,27 @@ RETRY_BACKOFF_S = 5.0
 # correctly. A translation cannot legitimately be much longer than its source,
 # so the budget is derived from the input and clamped.
 TOKENS_PER_SOURCE_CHAR = 1.5
-MIN_OUTPUT_TOKENS = 1024
-MAX_OUTPUT_TOKENS = 16384
+MAX_OUTPUT_TOKENS = 24576
+# Hidden reasoning counts toward completion_tokens, and therefore toward
+# max_tokens, but it does not scale with the source: an 800-character passage
+# was observed spending 15,312 completion tokens with only ~450 of visible
+# translation. Budgeting from source length alone would truncate every short
+# task on a reasoning model. This allowance is added on top, and the clamp
+# still sits far below the provider ceiling of 65,536 that produced the
+# runaway bills.
+REASONING_HEADROOM_TOKENS = 16384
 
 
 def output_token_budget(source_text: str) -> int:
-    """A ceiling proportional to the source, since translation length tracks it.
+    """A ceiling covering the translation plus a fixed reasoning allowance.
 
     Generous by design - the point is to stop runaway generation, not to
-    truncate honest work. A 7,400-character chapter needed ~3,600 tokens and
-    is allowed ~11,000 here.
+    truncate honest work. A 7,400-character chapter needed ~3,600 visible
+    tokens; a short passage on the same model needed ~15,000 mostly-hidden
+    ones. Both fit under this ceiling; 65,536 does not.
     """
     estimate = int(len(source_text) * TOKENS_PER_SOURCE_CHAR)
-    return max(MIN_OUTPUT_TOKENS, min(MAX_OUTPUT_TOKENS, estimate))
+    return min(MAX_OUTPUT_TOKENS, estimate + REASONING_HEADROOM_TOKENS)
 
 
 class ApiRunner:
@@ -108,7 +116,7 @@ class ApiRunner:
             body = response.json()
             choice = body["choices"][0]
             text = choice["message"]["content"]
-        except (ValueError, KeyError, IndexError) as exc:
+        except (ValueError, KeyError, IndexError, AttributeError, TypeError) as exc:
             return RunResult(
                 text="", latency_s=latency, error=f"malformed response: {exc}"
             )
@@ -143,6 +151,7 @@ class ApiRunner:
                 tokens_out=result.tokens_out,
                 reasoning_tokens=result.reasoning_tokens,
                 cost_usd=result.cost_usd,
+                refused=result.refused,
                 error=(
                     f"truncated at the output limit "
                     f"({payload['max_tokens']} tokens); translation incomplete"

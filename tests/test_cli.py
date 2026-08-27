@@ -284,3 +284,22 @@ def test_pairwise_command_reports_when_nothing_to_compare(tmp_path, monkeypatch,
     rc = main(["pairwise", "--run", "empty", "--judge-model", "gemini-judge"])
     assert rc == 0
     assert "0 comparisons" in capsys.readouterr().out
+
+
+def test_resolve_api_key_reads_the_models_own_env_var(monkeypatch):
+    from ati.cli import resolve_api_key
+
+    monkeypatch.setenv("OPENCODE_API_KEY", "opencode-secret")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "openrouter-secret")
+    m = ModelConfig(
+        id="m", runner="api", model="x", api_key_env="OPENCODE_API_KEY"
+    )
+    assert resolve_api_key(m) == "opencode-secret"
+
+
+def test_resolve_api_key_falls_back_when_unset(monkeypatch):
+    from ati.cli import resolve_api_key
+
+    monkeypatch.delenv("NOPE_KEY", raising=False)
+    m = ModelConfig(id="m", runner="api", model="x", api_key_env="NOPE_KEY")
+    assert resolve_api_key(m, "fallback") == "fallback"

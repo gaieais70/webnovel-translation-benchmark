@@ -29,6 +29,12 @@ from ati.corpus import HashMismatch, PassageMissing, load_passage
 
 VERDICTS = ("A", "B", "tie")
 
+# One comparison sends the source plus both translations. Whole chapters run
+# to ~40,000 characters per prompt, and each pair is judged twice for order,
+# so an unguarded run drains a judge subscription far faster than the short
+# excerpts this stage was designed around.
+MAX_COMPARE_CHARS = 60000
+
 
 def comparison_path(root: Path, run_id: str, a: str, b: str, passage_id: str) -> Path:
     first, second = sorted([a, b])
@@ -144,6 +150,7 @@ def run_pairwise(
     models: list[str],
     max_comparisons: int = 100,
     ratings: dict | None = None,
+    max_compare_chars: int = MAX_COMPARE_CHARS,
 ) -> int:
     outputs = _load_outputs(runs_root, run_id)
     eligible = [m for m in models if outputs.get(m)]
@@ -159,54 +166,82 @@ def run_pairwise(
     ratings = ratings or {}
     executed = 0
 
-    for a, b in select_pairs(eligible, ratings, counts, k=max_comparisons):
-        shared = sorted(set(outputs[a]) & set(outputs[b]))
-        for passage_id in shared:
-            if executed >= max_comparisons:
-                return executed
+    # Rank every eligible pair, then take one passage from each in turn.
+    # Passing the comparison budget as the pair count would spend it all on
+    # the first few pairs, leaving most of the field unjudged and the
+    # Bradley-Terry fit resting on a nearly disconnected comparison graph.
+    ranked = select_pairs(eligible, ratings, counts, k=len(eligible) ** 2)
+    shared_by_pair = {
+        (a, b): sorted(set(outputs[a]) & set(outputs[b])) for a, b in ranked
+    }
+    deepest = max((len(v) for v in shared_by_pair.values()), default=0)
 
-            out_path = comparison_path(pairwise_root, run_id, a, b, passage_id)
-            if out_path.exists():
+    schedule = []
+    for depth in range(deepest):
+        for a, b in ranked:
+            passages_for_pair = shared_by_pair[(a, b)]
+            if depth < len(passages_for_pair):
+                schedule.append((a, b, passages_for_pair[depth]))
+
+    oversized = 0
+    for a, b, passage_id in schedule:
+        if executed >= max_comparisons:
+            break
+
+        out_path = comparison_path(pairwise_root, run_id, a, b, passage_id)
+        if out_path.exists():
+            continue
+
+        source = ""
+        passage = passages.get(passage_id)
+        if passage is not None:
+            try:
+                source = load_passage(corpus_root, passage)
+            except (HashMismatch, PassageMissing):
                 continue
 
-            source = ""
-            passage = passages.get(passage_id)
-            if passage is not None:
-                try:
-                    source = load_passage(corpus_root, passage)
-                except (HashMismatch, PassageMissing):
-                    continue
+        text_a, text_b = outputs[a][passage_id], outputs[b][passage_id]
+        if len(source) + len(text_a) + len(text_b) > max_compare_chars:
+            oversized += 1
+            continue
 
-            try:
-                forward, reverse, outcome = compare(
-                    judge_runner,
-                    template,
-                    source,
-                    outputs[a][passage_id],
-                    outputs[b][passage_id],
-                )
-            except (RuntimeError, ValueError) as exc:
-                # A usage limit or a malformed verdict stops the stage. Work
-                # already written stays on disk; rerunning resumes from here.
-                print(f"stopping after {executed} comparisons: {exc}")
-                return executed
-
-            out_path.parent.mkdir(parents=True, exist_ok=True)
-            out_path.write_text(
-                json.dumps(
-                    {
-                        "a": a,
-                        "b": b,
-                        "passage_id": passage_id,
-                        "forward": forward,
-                        "reverse": reverse,
-                        "outcome": outcome,
-                    },
-                    ensure_ascii=False,
-                    indent=2,
-                ),
-                encoding="utf-8",
+        try:
+            forward, reverse, outcome = compare(
+                judge_runner, template, source, text_a, text_b
             )
-            executed += 1
+        except ValueError as exc:
+            # One unparseable verdict is a transient glitch, not a reason
+            # to abandon the remaining comparisons.
+            print(f"  skipping {a} vs {b} on {passage_id}: {exc}")
+            continue
+        except RuntimeError as exc:
+            # The judge itself failed - a usage limit, most likely. Every
+            # remaining comparison would fail the same way. Work already
+            # written stays on disk; rerunning resumes from here.
+            print(f"stopping after {executed} comparisons: {exc}")
+            return executed
 
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(
+            json.dumps(
+                {
+                    "a": a,
+                    "b": b,
+                    "passage_id": passage_id,
+                    "forward": forward,
+                    "reverse": reverse,
+                    "outcome": outcome,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        executed += 1
+
+    if oversized:
+        print(
+            f"  {oversized} comparisons skipped: combined text exceeded "
+            f"{max_compare_chars} characters"
+        )
     return executed

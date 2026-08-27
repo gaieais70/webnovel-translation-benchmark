@@ -6,39 +6,48 @@
 - id: glm-5.3
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  api_key_env: OPENCODE_API_KEY
   model: glm-5.3
 - id: kimi-k3
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  api_key_env: OPENCODE_API_KEY
   model: kimi-k3
 - id: minimax-m3
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  api_key_env: OPENCODE_API_KEY
   model: minimax-m3
 - id: grok-4.5
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  api_key_env: OPENCODE_API_KEY
   model: grok-4.5
 - id: gpt-5.6-luna
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  api_key_env: OPENCODE_API_KEY
   model: gpt-5.6-luna
 - id: deepseek-v4-pro
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  api_key_env: OPENCODE_API_KEY
   model: deepseek-v4-pro
 - id: qwen3.7-max
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  api_key_env: OPENCODE_API_KEY
   model: qwen3.7-max
 - id: qwen3.8-max
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  api_key_env: OPENCODE_API_KEY
   model: qwen3.8-max
   anchor: strong
 - id: deepseek-v4-flash
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  api_key_env: OPENCODE_API_KEY
   model: deepseek-v4-flash
   anchor: weak
 

@@ -105,7 +105,7 @@ def test_select_pairs_is_deterministic():
     )
 
 
-def seed_run(tmp_path, model_id, text, passage_id="cn-01"):
+def seed_run(tmp_path, model_id, text, passage_id="cn-01"):  # noqa: D401
     payload = {
         "model_id": model_id,
         "task_id": "t",
@@ -201,3 +201,53 @@ def test_load_comparisons_reads_back_outcomes(tmp_path):
     run_pairwise(**pairwise_args(tmp_path, FakeRunner(responses=[verdict("A"), verdict("B")])))
     comparisons = load_comparisons(tmp_path / "pairwise", "r1")
     assert comparisons == [("m1", "m2", "a")]
+
+
+def test_run_pairwise_spreads_the_budget_across_pairs(tmp_path):
+    """Budget must not drain on the first pair: an unjudged pair leaves the
+    Bradley-Terry graph disconnected and the ratings mostly regularization."""
+    for model in ("m1", "m2", "m3"):
+        for pid in ("cn-01", "cn-02", "cn-03"):
+            seed_run(tmp_path, model, f"text-{model}-{pid}", passage_id=pid)
+
+    runner = FakeRunner(responses=[verdict("A"), verdict("B")] * 20)
+    run_pairwise(
+        **pairwise_args(
+            tmp_path, runner, models=["m1", "m2", "m3"], max_comparisons=3
+        )
+    )
+    pairs = set()
+    for p in (tmp_path / "pairwise" / "r1").glob("*.json"):
+        d = json.loads(p.read_text(encoding="utf-8"))
+        pairs.add((d["a"], d["b"]))
+    assert len(pairs) == 3, f"budget landed on {pairs}"
+
+
+def test_run_pairwise_skips_oversized_comparisons(tmp_path):
+    seed_run(tmp_path, "m1", "x" * 40000)
+    seed_run(tmp_path, "m2", "y" * 40000)
+    runner = FakeRunner(responses=[verdict("A"), verdict("B")])
+    count = run_pairwise(
+        **pairwise_args(tmp_path, runner, max_compare_chars=1000)
+    )
+    assert count == 0
+    assert runner.calls == []
+
+
+def test_run_pairwise_continues_past_one_malformed_verdict(tmp_path):
+    """A single unparseable verdict is a glitch, not a reason to stop."""
+    for pid in ("cn-01", "cn-02"):
+        seed_run(tmp_path, "m1", f"a-{pid}", passage_id=pid)
+        seed_run(tmp_path, "m2", f"b-{pid}", passage_id=pid)
+
+    # a failed verdict consumes one response; the next comparison needs two
+    runner = FakeRunner(responses=["not json", verdict("A"), verdict("B")])
+    count = run_pairwise(**pairwise_args(tmp_path, runner, max_comparisons=5))
+    assert count == 1
+
+
+def test_run_pairwise_stops_on_a_judge_failure(tmp_path):
+    seed_run(tmp_path, "m1", "alpha")
+    seed_run(tmp_path, "m2", "beta")
+    runner = FakeRunner(error="HTTP 429: usage limit reached")
+    assert run_pairwise(**pairwise_args(tmp_path, runner)) == 0

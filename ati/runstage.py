@@ -44,9 +44,12 @@ def _is_complete(path: Path) -> bool:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (ValueError, OSError):
         return False
-    if data.get("unavailable"):
-        return True
-    return not data.get("error")
+    # An unavailable passage is not finished work either. Re-checking costs
+    # nothing - no model is called when the hash still mismatches - and
+    # treating it as done would permanently exclude the passage from the run
+    # once the corpus is repaired, silently scoring that model on fewer tasks
+    # than its peers.
+    return not data.get("error") and not data.get("unavailable")
 
 
 def _write(path: Path, payload: dict) -> None:

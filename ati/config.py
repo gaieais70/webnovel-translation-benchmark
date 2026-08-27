@@ -22,6 +22,9 @@ DEFAULT_TEMPERATURE = 0.3
 # Measured: a full chapter returns in 60-90s. Set above that with headroom,
 # but not enormous - a hung connection is recovered by retrying, not waiting.
 DEFAULT_TIMEOUT_S = 240.0
+# Each provider needs its own credential. Defaulting every model to one env
+# var means a mixed pool sends the wrong key to one of them and gets 401s.
+DEFAULT_API_KEY_ENV = "OPENROUTER_API_KEY"
 
 
 class ConfigError(Exception):
@@ -40,6 +43,7 @@ class ModelConfig:
     json_schema: str | None = None
     sandbox: bool = True
     timeout_s: float = DEFAULT_TIMEOUT_S
+    api_key_env: str = DEFAULT_API_KEY_ENV
 
 
 def load_models(path: Path) -> list[ModelConfig]:
@@ -85,6 +89,7 @@ def load_models(path: Path) -> list[ModelConfig]:
                 json_schema=entry.get("json_schema"),
                 sandbox=bool(entry.get("sandbox", True)),
                 timeout_s=float(entry.get("timeout_s", DEFAULT_TIMEOUT_S)),
+                api_key_env=entry.get("api_key_env", DEFAULT_API_KEY_ENV),
             )
         )
     return models

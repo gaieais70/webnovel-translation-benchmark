@@ -236,13 +236,15 @@ def test_api_runner_does_not_retry_a_successful_call():
 def test_output_budget_scales_with_source_and_is_clamped():
     from ati.runners.api import (
         MAX_OUTPUT_TOKENS,
-        MIN_OUTPUT_TOKENS,
+        REASONING_HEADROOM_TOKENS,
         output_token_budget,
     )
 
-    assert output_token_budget("") == MIN_OUTPUT_TOKENS
-    assert output_token_budget("x" * 100) == MIN_OUTPUT_TOKENS
-    assert output_token_budget("x" * 7400) == 11100
+    # the reasoning allowance is the floor; it does not scale with the source
+    assert output_token_budget("") == REASONING_HEADROOM_TOKENS
+    assert output_token_budget("x" * 100) > REASONING_HEADROOM_TOKENS
+    # translation estimate (11,100) plus the fixed reasoning allowance
+    assert output_token_budget("x" * 7400) == 24576
     assert output_token_budget("x" * 10_000_000) == MAX_OUTPUT_TOKENS
 
 
@@ -258,7 +260,7 @@ def test_api_runner_sends_a_max_tokens_ceiling():
     client = httpx.Client(transport=httpx.MockTransport(handler))
     runner = ApiRunner("http://x", "m", "k", 0.3, client=client)
     runner.run("s", "x" * 7400)
-    assert seen["max_tokens"] == 11100
+    assert seen["max_tokens"] == 24576
 
 
 def test_api_runner_max_tokens_can_be_overridden():
@@ -345,3 +347,50 @@ def test_api_runner_still_retries_connection_failures():
     result = runner.run("s", "u")
     assert attempts["n"] == 3
     assert result.text == "ok"
+
+
+def test_budget_covers_observed_reasoning_on_a_short_source():
+    """An 800-char passage was seen using 15,312 completion tokens, nearly all
+    hidden reasoning. Budgeting from source length alone would truncate it."""
+    from ati.runners.api import output_token_budget
+
+    assert output_token_budget("x" * 800) > 15312
+
+
+def test_budget_still_blocks_the_runaway_ceiling():
+    from ati.runners.api import MAX_OUTPUT_TOKENS, output_token_budget
+
+    assert output_token_budget("x" * 100_000) == MAX_OUTPUT_TOKENS
+    assert MAX_OUTPUT_TOKENS < 65536
+
+
+def test_truncated_result_keeps_the_refusal_flag():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {"content": "I can't help with that request"},
+                        "finish_reason": "length",
+                    }
+                ]
+            },
+        )
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner("http://x", "m", "k", 0.3, client=client)
+    result = runner.run("s", "u")
+    assert result.error is not None
+    assert result.refused is True
+
+
+def test_non_dict_choice_is_recorded_not_raised():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"choices": ["not a dict"]})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner("http://x", "m", "k", 0.3, client=client)
+    result = runner.run("s", "u")
+    assert result.error is not None
+    assert "malformed response" in result.error

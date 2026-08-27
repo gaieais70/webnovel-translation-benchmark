@@ -45,12 +45,21 @@ DEFAULT_JUDGE_MODEL = "anthropic/claude-sonnet-5"
 DEFAULT_ITERATIONS = 1
 
 
+def resolve_api_key(model: ModelConfig, fallback: str | None = None) -> str | None:
+    """The credential for this model's provider.
+
+    Read per model so a pool mixing opencode-go and OpenRouter does not send
+    one provider's key to the other and collect 401s.
+    """
+    return os.environ.get(model.api_key_env) or fallback
+
+
 def build_runner(model: ModelConfig, api_key: str | None, manual_root: Path):
     if model.runner == "api":
         return ApiRunner(
             endpoint=model.endpoint or DEFAULT_ENDPOINT,
             model=model.model or model.id,
-            api_key=api_key or "",
+            api_key=resolve_api_key(model, api_key) or "",
             temperature=model.temperature,
             timeout_s=model.timeout_s,
         )
