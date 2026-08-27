@@ -6,7 +6,7 @@ import argparse
 import json
 import os
 import sys
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import date
 from pathlib import Path
 
@@ -166,7 +166,9 @@ def cmd_run(args) -> int:
     return 0
 
 
-def build_judge_runner(judge_id, models_path, endpoint, manual_root, api_key):
+def build_judge_runner(
+    judge_id, models_path, endpoint, manual_root, api_key, json_schema=None
+):
     """Resolve the judge against models.yaml, falling back to a plain API call.
 
     The judge was previously hardcoded to ApiRunner, which made a
@@ -178,7 +180,14 @@ def build_judge_runner(judge_id, models_path, endpoint, manual_root, api_key):
     except (OSError, ConfigError):
         declared = {}
     if judge_id in declared:
-        return build_runner(declared[judge_id], api_key, Path(manual_root))
+        model = declared[judge_id]
+        # Each stage enforces its own output shape. The judge entry pins the
+        # rubric schema; a pairwise verdict forced into that shape contains no
+        # "winner" field at all, so every comparison would be discarded and
+        # the stage would report zero work with no error.
+        if json_schema is not None:
+            model = replace(model, json_schema=json_schema)
+        return build_runner(model, api_key, Path(manual_root))
     return ApiRunner(
         endpoint=endpoint or DEFAULT_ENDPOINT,
         model=judge_id,
@@ -219,6 +228,7 @@ def cmd_pairwise(args) -> int:
         args.judge_endpoint,
         Path(args.manual),
         os.environ.get("OPENROUTER_API_KEY"),
+        json_schema=args.pairwise_schema,
     )
     declared = load_models(Path(args.models))
     pool = [m.id for m in declared if m.runner != "agy"]
@@ -384,6 +394,7 @@ def main(argv: list[str] | None = None) -> int:
     common.add_argument("--manual", default="manual")
     common.add_argument("--pairwise", default="pairwise")
     common.add_argument("--pairwise-prompt", default="config/prompts/pairwise.md")
+    common.add_argument("--pairwise-schema", default="config/schemas/pairwise.json")
     common.add_argument("--max-comparisons", type=int, default=50)
     common.add_argument("--run", default="latest", help="run id")
     common.add_argument("--force", action="store_true")

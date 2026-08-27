@@ -146,3 +146,34 @@ def test_judge_run_flags_overlong_quotes_in_rationales(tmp_path):
     out = judgment_output_path(tmp_path / "judgments", "r1", "m1", "t.cn-01.0")
     data = json.loads(out.read_text(encoding="utf-8"))
     assert data["quote_violations"] == ["accuracy"]
+
+
+def test_judge_run_passes_a_reference_translation_when_one_exists(tmp_path):
+    """has_reference was carried in the manifest but never read, so the
+    calibration the methodology describes was not actually happening."""
+    text = "源文"
+    p = Passage(
+        id="cn-01", lang="zh", genre="x", source_url="u", chapter="1",
+        start=0, end=len(text), sha256=sha256_text(text), has_reference=True,
+    )
+    path = passage_path(tmp_path / "corpus", p.id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    ref = tmp_path / "corpus" / "references" / "cn-01.txt"
+    ref.parent.mkdir(parents=True, exist_ok=True)
+    ref.write_text("PUBLISHED REFERENCE", encoding="utf-8")
+
+    seed_run(tmp_path)
+    runner = FakeRunner(responses=[valid_judge_reply()])
+    judge_run(**common_args(tmp_path, p, runner))
+    _, prompt = runner.calls[0]
+    assert "PUBLISHED REFERENCE" in prompt
+    assert "REFERENCE TRANSLATION" in prompt
+
+
+def test_judge_run_omits_the_reference_when_absent(tmp_path):
+    p = seed_run(tmp_path)
+    runner = FakeRunner(responses=[valid_judge_reply()])
+    judge_run(**common_args(tmp_path, p, runner))
+    _, prompt = runner.calls[0]
+    assert "REFERENCE TRANSLATION" not in prompt

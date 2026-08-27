@@ -89,12 +89,24 @@ def judge_run(
             judged += 1
             continue
 
+        # A published reference, where one exists, calibrates the judge's sense
+        # of a good result. The manifest has always carried has_reference; it
+        # was never read, so the calibration described in the methodology was
+        # not happening.
+        reference = None
+        if passage.has_reference:
+            reference_file = (
+                Path(corpus_root) / "references" / f"{passage.id}.txt"
+            )
+            if reference_file.exists():
+                reference = reference_file.read_text(encoding="utf-8")
+
         expect_term_table = run_data["task_type"] == "consistency"
         prompt = build_judge_prompt(
             template=template,
             source_text=source_text,
             translation=run_data["text"],
-            reference=None,
+            reference=reference,
             expect_term_table=expect_term_table,
         )
 

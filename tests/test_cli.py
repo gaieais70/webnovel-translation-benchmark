@@ -303,3 +303,34 @@ def test_resolve_api_key_falls_back_when_unset(monkeypatch):
     monkeypatch.delenv("NOPE_KEY", raising=False)
     m = ModelConfig(id="m", runner="api", model="x", api_key_env="NOPE_KEY")
     assert resolve_api_key(m, "fallback") == "fallback"
+
+
+def test_pairwise_judge_gets_the_pairwise_schema_not_the_rubric_one(tmp_path):
+    """A verdict forced into the rubric schema has no 'winner' field, so every
+    comparison would be discarded and the stage would report zero silently."""
+    from ati.cli import build_judge_runner
+
+    p = tmp_path / "models.yaml"
+    p.write_text(
+        "- id: gemini-judge\n  runner: agy\n  model: gemini-3.7-flash-high\n"
+        "  json_schema: config/schemas/judgment.json\n",
+        encoding="utf-8",
+    )
+    runner = build_judge_runner(
+        "gemini-judge", p, None, tmp_path, None,
+        json_schema="config/schemas/pairwise.json",
+    )
+    assert runner._schema == "config/schemas/pairwise.json"
+
+
+def test_judge_runner_keeps_its_declared_schema_by_default(tmp_path):
+    from ati.cli import build_judge_runner
+
+    p = tmp_path / "models.yaml"
+    p.write_text(
+        "- id: gemini-judge\n  runner: agy\n  model: gemini-3.7-flash-high\n"
+        "  json_schema: config/schemas/judgment.json\n",
+        encoding="utf-8",
+    )
+    runner = build_judge_runner("gemini-judge", p, None, tmp_path, None)
+    assert runner._schema == "config/schemas/judgment.json"
