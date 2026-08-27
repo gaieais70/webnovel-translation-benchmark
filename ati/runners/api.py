@@ -8,13 +8,32 @@ import httpx
 
 from ati.runners.base import RunResult, looks_like_refusal
 
-# Measured: a full 7.4k-character chapter returns in 60-90s. The timeout is
-# set well above that but not enormous, because the real failure mode is a
-# hung connection rather than a slow one, and hangs are recovered by retrying,
-# not by waiting.
+# Measured on real chapters: ~6,000 input tokens produce ~3,600 output tokens
+# in about 60 seconds. 240s therefore leaves generous headroom for a bounded
+# call.
 TIMEOUT_S = 240.0
 ATTEMPTS = 3
 RETRY_BACKOFF_S = 5.0
+
+# Without an explicit ceiling a model can generate until it reaches the
+# provider's own cap. Observed: twelve calls that each ran to exactly 65,536
+# output tokens and cost $0.29, against $0.02 for the same work done
+# correctly. A translation cannot legitimately be much longer than its source,
+# so the budget is derived from the input and clamped.
+TOKENS_PER_SOURCE_CHAR = 1.5
+MIN_OUTPUT_TOKENS = 1024
+MAX_OUTPUT_TOKENS = 16384
+
+
+def output_token_budget(source_text: str) -> int:
+    """A ceiling proportional to the source, since translation length tracks it.
+
+    Generous by design - the point is to stop runaway generation, not to
+    truncate honest work. A 7,400-character chapter needed ~3,600 tokens and
+    is allowed ~11,000 here.
+    """
+    estimate = int(len(source_text) * TOKENS_PER_SOURCE_CHAR)
+    return max(MIN_OUTPUT_TOKENS, min(MAX_OUTPUT_TOKENS, estimate))
 
 
 class ApiRunner:
@@ -28,6 +47,7 @@ class ApiRunner:
         timeout_s: float = TIMEOUT_S,
         attempts: int = ATTEMPTS,
         retry_backoff_s: float = RETRY_BACKOFF_S,
+        max_output_tokens: int | None = None,
     ) -> None:
         self._endpoint = endpoint
         self._model = model
@@ -36,11 +56,34 @@ class ApiRunner:
         self._client = client or httpx.Client(timeout=timeout_s)
         self._attempts = max(1, attempts)
         self._retry_backoff_s = retry_backoff_s
+        self._max_output_tokens = max_output_tokens
+
+    def _post(self, payload: dict, headers: dict):
+        """Send the request, retrying only failures that cost nothing to redo.
+
+        A read timeout is NOT retried. The server may still be generating, and
+        a retry then pays for the same runaway output a second and third time.
+        Connection-level failures never reached a model, so they are safe to
+        repeat.
+        """
+        last_error: str | None = None
+        for attempt in range(self._attempts):
+            try:
+                return self._client.post(self._endpoint, json=payload, headers=headers), None
+            except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+                last_error = f"{type(exc).__name__}: {exc}"
+                if attempt + 1 < self._attempts:
+                    time.sleep(self._retry_backoff_s * (attempt + 1))
+            except httpx.HTTPError as exc:
+                return None, f"{type(exc).__name__}: {exc}"
+        return None, f"failed after {self._attempts} attempts: {last_error}"
 
     def run(self, system_prompt: str, source_text: str) -> RunResult:
         payload = {
             "model": self._model,
             "temperature": self._temperature,
+            "max_tokens": self._max_output_tokens
+            or output_token_budget(source_text),
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": source_text},
@@ -48,29 +91,11 @@ class ApiRunner:
         }
         headers = {"Authorization": f"Bearer {self._api_key}"}
         started = time.monotonic()
-        # The endpoint intermittently accepts a request and never answers.
-        # Measured successful calls return in 60-90s, so a connection still
-        # silent at the timeout is hung, not slow — waiting longer never
-        # rescues it. Retry instead, and give up after a few attempts so one
-        # bad model cannot stall the whole run.
-        last_error: str | None = None
-        for attempt in range(self._attempts):
-            try:
-                response = self._client.post(
-                    self._endpoint, json=payload, headers=headers
-                )
-                break
-            except httpx.HTTPError as exc:
-                last_error = f"{type(exc).__name__}: {exc}"
-                if attempt + 1 < self._attempts:
-                    time.sleep(self._retry_backoff_s * (attempt + 1))
-        else:
-            return RunResult(
-                text="",
-                latency_s=time.monotonic() - started,
-                error=f"failed after {self._attempts} attempts: {last_error}",
-            )
+
+        response, error = self._post(payload, headers)
         latency = time.monotonic() - started
+        if response is None:
+            return RunResult(text="", latency_s=latency, error=error)
 
         if response.status_code != 200:
             return RunResult(
@@ -81,7 +106,8 @@ class ApiRunner:
 
         try:
             body = response.json()
-            text = body["choices"][0]["message"]["content"]
+            choice = body["choices"][0]
+            text = choice["message"]["content"]
         except (ValueError, KeyError, IndexError) as exc:
             return RunResult(
                 text="", latency_s=latency, error=f"malformed response: {exc}"
@@ -95,7 +121,8 @@ class ApiRunner:
         if cost is None:
             cost = body.get("cost")
         details = usage.get("completion_tokens_details") or {}
-        return RunResult(
+
+        result = RunResult(
             text=text,
             latency_s=latency,
             tokens_in=usage.get("prompt_tokens"),
@@ -104,3 +131,21 @@ class ApiRunner:
             cost_usd=float(cost) if cost is not None else None,
             refused=looks_like_refusal(text),
         )
+
+        # A response cut off at the token ceiling is an incomplete translation.
+        # Scoring it would penalize the model on fidelity for text it was never
+        # allowed to finish, so record it as a failure instead.
+        if choice.get("finish_reason") == "length":
+            return RunResult(
+                text="",
+                latency_s=latency,
+                tokens_in=result.tokens_in,
+                tokens_out=result.tokens_out,
+                reasoning_tokens=result.reasoning_tokens,
+                cost_usd=result.cost_usd,
+                error=(
+                    f"truncated at the output limit "
+                    f"({payload['max_tokens']} tokens); translation incomplete"
+                ),
+            )
+        return result

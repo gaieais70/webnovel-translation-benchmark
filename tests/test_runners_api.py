@@ -1,3 +1,4 @@
+import json
 import httpx
 import pytest
 
@@ -183,22 +184,23 @@ def test_api_runner_reasoning_tokens_none_when_absent():
     assert runner.run("s", "u").reasoning_tokens is None
 
 
-def test_api_runner_retries_a_hung_connection():
-    """A hung connection is recovered by retrying, never by waiting longer."""
+def test_api_runner_surfaces_a_read_timeout_without_retrying():
+    """Superseded an earlier test that retried read timeouts.
+
+    Retrying one meant paying for the same runaway generation up to three
+    times, which is how twelve 65,536-token calls were billed.
+    """
     attempts = {"n": 0}
 
     def handler(request: httpx.Request) -> httpx.Response:
         attempts["n"] += 1
-        if attempts["n"] < 3:
-            raise httpx.ReadTimeout("hung", request=request)
-        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+        raise httpx.ReadTimeout("still generating", request=request)
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
     runner = ApiRunner("http://x", "m", "k", 0.3, client=client, retry_backoff_s=0)
     result = runner.run("s", "u")
-    assert result.text == "ok"
-    assert result.error is None
-    assert attempts["n"] == 3
+    assert attempts["n"] == 1
+    assert result.error is not None
 
 
 def test_api_runner_gives_up_after_the_attempt_limit():
@@ -206,7 +208,7 @@ def test_api_runner_gives_up_after_the_attempt_limit():
 
     def handler(request: httpx.Request) -> httpx.Response:
         attempts["n"] += 1
-        raise httpx.ReadTimeout("hung", request=request)
+        raise httpx.ConnectError("refused", request=request)
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
     runner = ApiRunner(
@@ -229,3 +231,117 @@ def test_api_runner_does_not_retry_a_successful_call():
     runner = ApiRunner("http://x", "m", "k", 0.3, client=client, retry_backoff_s=0)
     runner.run("s", "u")
     assert attempts["n"] == 1
+
+
+def test_output_budget_scales_with_source_and_is_clamped():
+    from ati.runners.api import (
+        MAX_OUTPUT_TOKENS,
+        MIN_OUTPUT_TOKENS,
+        output_token_budget,
+    )
+
+    assert output_token_budget("") == MIN_OUTPUT_TOKENS
+    assert output_token_budget("x" * 100) == MIN_OUTPUT_TOKENS
+    assert output_token_budget("x" * 7400) == 11100
+    assert output_token_budget("x" * 10_000_000) == MAX_OUTPUT_TOKENS
+
+
+def test_api_runner_sends_a_max_tokens_ceiling():
+    """Without this a model can generate to the provider cap: 65,536 tokens
+    at $0.29 a call, against $0.02 for the same work bounded."""
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner("http://x", "m", "k", 0.3, client=client)
+    runner.run("s", "x" * 7400)
+    assert seen["max_tokens"] == 11100
+
+
+def test_api_runner_max_tokens_can_be_overridden():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner("http://x", "m", "k", 0.3, client=client, max_output_tokens=500)
+    runner.run("s", "x" * 7400)
+    assert seen["max_tokens"] == 500
+
+
+def test_api_runner_records_truncation_as_a_failure():
+    """A translation cut off at the ceiling is incomplete, not a bad answer."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {"message": {"content": "half a trans"}, "finish_reason": "length"}
+                ],
+                "usage": {"prompt_tokens": 10, "completion_tokens": 65536},
+            },
+        )
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner("http://x", "m", "k", 0.3, client=client)
+    result = runner.run("s", "u")
+    assert result.error is not None
+    assert "truncated" in result.error
+    assert result.text == ""
+    assert result.tokens_out == 65536
+
+
+def test_api_runner_keeps_a_normally_finished_response():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {"message": {"content": "complete"}, "finish_reason": "stop"}
+                ]
+            },
+        )
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner("http://x", "m", "k", 0.3, client=client)
+    result = runner.run("s", "u")
+    assert result.text == "complete"
+    assert result.error is None
+
+
+def test_api_runner_does_not_retry_a_read_timeout():
+    """The server may still be generating; a retry pays for it again."""
+    attempts = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        attempts["n"] += 1
+        raise httpx.ReadTimeout("still generating", request=request)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner("http://x", "m", "k", 0.3, client=client, retry_backoff_s=0)
+    result = runner.run("s", "u")
+    assert attempts["n"] == 1
+    assert "ReadTimeout" in result.error
+
+
+def test_api_runner_still_retries_connection_failures():
+    """These never reached a model, so repeating them costs nothing."""
+    attempts = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        attempts["n"] += 1
+        if attempts["n"] < 3:
+            raise httpx.ConnectError("refused", request=request)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner("http://x", "m", "k", 0.3, client=client, retry_backoff_s=0)
+    result = runner.run("s", "u")
+    assert attempts["n"] == 3
+    assert result.text == "ok"
