@@ -309,6 +309,7 @@ def cmd_report(args) -> int:
     )
     comparisons = load_comparisons(Path(args.pairwise), args.run)
     pairwise_ratings, pairwise_intervals = {}, {}
+    anchor = None
     if comparisons:
         anchor = next(
             (m.id for m in load_models(Path(args.models)) if m.anchor == "weak"), None
@@ -325,6 +326,7 @@ def cmd_report(args) -> int:
             metadata,
             pairwise_ratings,
             pairwise_intervals,
+            anchor,
         ),
         encoding="utf-8",
     )

@@ -190,6 +190,7 @@ def render_markdown(
     metadata: dict,
     pairwise: dict[str, float] | None = None,
     pairwise_ci: dict[str, tuple[float, float]] | None = None,
+    pairwise_anchor: str | None = None,
 ) -> str:
     ranked = [r for r in results if not r.incomplete]
     incomplete = [r for r in results if r.incomplete]
@@ -273,13 +274,15 @@ def render_markdown(
             interval = (pairwise_ci or {}).get(model_id)
             if not interval:
                 span = "N/A"
-            elif abs(interval[1] - interval[0]) < 0.5:
+            elif abs(interval[1] - interval[0]) < 0.5 and model_id == pairwise_anchor:
                 # The scale is pinned to this model, so every bootstrap
-                # replicate lands on the same value. Printing a zero-width
-                # interval would read as certainty about the anchor; the
-                # uncertainty is real but lives in the other ratings, which
-                # are measured relative to it.
+                # replicate lands on the same value.
                 span = "pinned"
+            elif abs(interval[1] - interval[0]) < 0.5:
+                # Zero width here is not certainty - it means every resample
+                # drew the same handful of comparisons. Printing a tight
+                # interval would imply a precision the data does not support.
+                span = "too few comparisons"
             else:
                 span = f"{interval[0]:.0f} – {interval[1]:.0f}"
             lines.append(f"| {model_id} | {rating:.0f} | {span} |")

@@ -309,9 +309,29 @@ def test_render_markdown_labels_a_pinned_anchor_interval(tmp_path):
         {"judge_id": "j", "date": "d"},
         pairwise={"m1": 1000.0},
         pairwise_ci={"m1": (1000.0, 1000.0)},
+        pairwise_anchor="m1",
     )
     assert "pinned" in md
     assert "1000 – 1000" not in md
+
+
+def test_zero_width_interval_without_an_anchor_says_too_few(tmp_path):
+    """Zero width for a non-anchor means every resample drew the same handful
+    of comparisons, not that the rating is certain."""
+    seed(tmp_path, "m1", "t.cn-01.0")
+    results = run_aggregate(tmp_path)
+    md = render_markdown(
+        "r1",
+        results,
+        {},
+        True,
+        {"judge_id": "j", "date": "d"},
+        pairwise={"m1": 1191.0},
+        pairwise_ci={"m1": (1191.0, 1191.0)},
+        pairwise_anchor="other-model",
+    )
+    assert "too few comparisons" in md
+    assert "pinned" not in md
 
 
 def test_notes_distinguish_subscription_from_unknown_cost(tmp_path):

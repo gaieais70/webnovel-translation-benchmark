@@ -177,3 +177,28 @@ def test_judge_run_omits_the_reference_when_absent(tmp_path):
     judge_run(**common_args(tmp_path, p, runner))
     _, prompt = runner.calls[0]
     assert "REFERENCE TRANSLATION" not in prompt
+
+
+def test_judge_run_rejudges_a_run_that_has_since_succeeded(tmp_path):
+    """A judgment recorded as skipped because the translation failed is stale
+    once that translation succeeds; skipping on file existence alone would
+    leave the repaired work permanently unjudged."""
+    p = seed_run(tmp_path, error="timed out", text="", unavailable=False)
+    judge_run(**common_args(tmp_path, p, FakeRunner(responses=[valid_judge_reply()])))
+    out = judgment_output_path(tmp_path / "judgments", "r1", "m1", "t.cn-01.0")
+    assert json.loads(out.read_text(encoding="utf-8"))["skipped"] is True
+
+    seed_run(tmp_path, error=None, text="a recovered translation")
+    runner = FakeRunner(responses=[valid_judge_reply()])
+    judge_run(**common_args(tmp_path, p, runner))
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["skipped"] is False
+    assert data["scores"]["accuracy"] == 4
+
+
+def test_judge_run_leaves_a_current_judgment_alone(tmp_path):
+    p = seed_run(tmp_path)
+    judge_run(**common_args(tmp_path, p, FakeRunner(responses=[valid_judge_reply()])))
+    second = FakeRunner(responses=[valid_judge_reply(score=1)])
+    assert judge_run(**common_args(tmp_path, p, second)) == 0
+    assert second.calls == []

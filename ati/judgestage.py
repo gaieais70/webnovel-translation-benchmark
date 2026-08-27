@@ -21,6 +21,26 @@ def judgment_output_path(
     return Path(judgments_root) / run_id / safe_model / f"{instance_id}.json"
 
 
+def _judgment_is_current(path: Path, run_data: dict) -> bool:
+    """Whether an existing judgment still describes the run beside it.
+
+    A judgment recorded as skipped because the translation had failed becomes
+    stale the moment that translation succeeds on a later run. Skipping on
+    mere file existence would leave the repaired work permanently unjudged,
+    scoring the model on fewer tasks than its peers with no indication.
+    """
+    try:
+        judgment = json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        return False
+    run_unusable = bool(
+        run_data.get("error") or run_data.get("unavailable") or run_data.get("refused")
+    )
+    if judgment.get("skipped") and not run_unusable:
+        return False
+    return True
+
+
 def _write(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -47,7 +67,7 @@ def judge_run(
         out_path = judgment_output_path(
             judgments_root, run_id, model_id, instance_id
         )
-        if out_path.exists() and not force:
+        if out_path.exists() and not force and _judgment_is_current(out_path, run_data):
             continue
 
         base = {
