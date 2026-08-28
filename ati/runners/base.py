@@ -50,5 +50,7 @@ def looks_like_refusal(text: str) -> bool:
     Only the opening is checked: a refusal states itself up front, whereas a
     long translation may legitimately contain similar words in dialogue.
     """
+    if not isinstance(text, str):
+        return False
     head = text[:400].lower()
     return any(marker in head for marker in REFUSAL_MARKERS)

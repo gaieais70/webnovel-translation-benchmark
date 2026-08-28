@@ -152,13 +152,14 @@ def test_load_weights_rejects_missing_axis(tmp_path):
 
 
 def test_model_timeout_defaults_above_measured_chapter_time(tmp_path):
-    """Measured chapter translations return in 60-90s; 240s leaves headroom.
+    """Sized from the output ceiling, not from the typical chapter.
 
-    Deliberately not huge: the observed failure mode is a hung connection,
-    which retrying recovers and waiting does not.
+    A normal chapter returns in 190-420s, but the timeout has to cover the
+    slowest call the token budget still permits: 49,152 tokens at the 60
+    tokens/sec floor measured on this corpus is ~820s.
     """
     p = write(tmp_path, "models.yaml", "- id: m\n  runner: cli\n  command: [\"x\"]\n")
-    assert load_models(p)[0].timeout_s == 600.0
+    assert load_models(p)[0].timeout_s == 900.0
 
 
 def test_model_timeout_can_be_overridden(tmp_path):

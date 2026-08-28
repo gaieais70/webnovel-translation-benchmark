@@ -21,7 +21,12 @@ VALID_ANCHORS = ("strong", "weak")
 DEFAULT_TEMPERATURE = 0.3
 # Measured across models: 190-240s per chapter is normal. Safe to be generous
 # now that max_tokens bounds how much a model can generate in one call.
-DEFAULT_TIMEOUT_S = 600.0
+# Raised from 600 once the output budget grew. Measured throughput on this
+# corpus is 60-72 completion tokens/sec, so a call allowed to reach the
+# 49,152-token clamp needs up to ~820s. At 600 the budget increase would have
+# converted truncations into read timeouts, which are deliberately not
+# retried, and the run would have failed the same models for a new reason.
+DEFAULT_TIMEOUT_S = 900.0
 # Each provider needs its own credential. Defaulting every model to one env
 # var means a mixed pool sends the wrong key to one of them and gets 401s.
 DEFAULT_API_KEY_ENV = "OPENROUTER_API_KEY"

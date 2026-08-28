@@ -1,0 +1,83 @@
+{
+  "run_id": "smoke",
+  "metadata": {
+    "judge_id": "gemini-judge",
+    "date": "2026-08-26"
+  },
+  "weights": {
+    "accuracy": 0.25,
+    "terminology": 0.2,
+    "register": 0.15,
+    "fluency": 0.15,
+    "fidelity": 0.15,
+    "sanitization": 0.1
+  },
+  "anchor_drift": {
+    "hy3": 0.0
+  },
+  "comparable": true,
+  "results": [
+    {
+      "model_id": "glm-5.3-flash",
+      "composite": 100.0,
+      "axis_means": {
+        "accuracy": 5.0,
+        "terminology": 5.0,
+        "register": 5.0,
+        "fluency": 5.0,
+        "fidelity": 5.0,
+        "sanitization": 5.0
+      },
+      "axis_stdevs": {
+        "accuracy": 0.0,
+        "terminology": 0.0,
+        "register": 0.0,
+        "fluency": 0.0,
+        "fidelity": 0.0,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": 0.0,
+      "speed_per_1k": 62.530206896551356,
+      "value": null,
+      "slop": 0.0,
+      "repetition": 0.1409359261447801,
+      "judge_errors": 0,
+      "failed_tasks": 1,
+      "total_tasks": 2,
+      "anchor": null,
+      "incomplete": true
+    },
+    {
+      "model_id": "hy3",
+      "composite": 62.083333333333336,
+      "axis_means": {
+        "accuracy": 3.0,
+        "terminology": 3.6666666666666665,
+        "register": 4.0,
+        "fluency": 3.0,
+        "fidelity": 3.0,
+        "sanitization": 5.0
+      },
+      "axis_stdevs": {
+        "accuracy": 0.0,
+        "terminology": 0.0,
+        "register": 0.0,
+        "fluency": 0.0,
+        "fidelity": 2.0,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": 0.0,
+      "speed_per_1k": 43.079330596606354,
+      "value": null,
+      "slop": 0.2720348204570185,
+      "repetition": 0.13357946139197566,
+      "judge_errors": 0,
+      "failed_tasks": 0,
+      "total_tasks": 2,
+      "anchor": "weak",
+      "incomplete": false
+    }
+  ]
+}

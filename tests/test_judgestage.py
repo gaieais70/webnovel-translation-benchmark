@@ -202,3 +202,66 @@ def test_judge_run_leaves_a_current_judgment_alone(tmp_path):
     second = FakeRunner(responses=[valid_judge_reply(score=1)])
     assert judge_run(**common_args(tmp_path, p, second)) == 0
     assert second.calls == []
+
+
+def test_a_scored_judgment_is_rejudged_when_its_run_becomes_unusable(tmp_path):
+    """Staleness has to work in both directions.
+
+    grok-4.6 returned a 152-character stub for an 8,705-character chapter. It
+    was judged and scored before the guard existed; reclassifying the run as a
+    failure afterwards left the scores in place, because only the
+    skipped-then-succeeded direction was checked. Those scores then counted
+    toward the model's composite with nothing to clear them.
+    """
+    p_ = seed_run(tmp_path)
+    judge_run(**common_args(tmp_path, p_, FakeRunner(responses=[valid_judge_reply()])))
+    out = judgment_output_path(tmp_path / "judgments", "r1", "m1", "t.cn-01.0")
+    assert json.loads(out.read_text(encoding="utf-8"))["scores"]["accuracy"] == 4
+
+    # the run is later reclassified as a failure
+    run_path = run_output_path(tmp_path / "runs", "r1", "m1", "t.cn-01.0")
+    data = json.loads(run_path.read_text(encoding="utf-8"))
+    data["error"] = "output came up short (152 characters); not a translation"
+    data["text"] = ""
+    run_path.write_text(json.dumps(data), encoding="utf-8")
+
+    runner = FakeRunner(responses=[valid_judge_reply()])
+    count = judge_run(**common_args(tmp_path, p_, runner))
+
+    assert count == 1
+    assert runner.calls == []  # nothing to judge; it is recorded as skipped
+    refreshed = json.loads(out.read_text(encoding="utf-8"))
+    assert refreshed["skipped"] is True
+    assert refreshed["scores"] == {}
+
+
+def test_a_judgment_is_stale_when_the_translation_changes(tmp_path):
+    """Re-running a model replaces the text; the old scores must not survive.
+
+    gpt-5.6-luna and muse-spark were re-run through a different provider with
+    --force. Both stayed clean and scored, so the skipped/unusable check saw
+    nothing wrong, and their opencode-route scores would have been reported
+    against Command Code translations.
+    """
+    p_ = seed_run(tmp_path)
+    judge_run(**common_args(tmp_path, p_, FakeRunner(responses=[valid_judge_reply()])))
+
+    run_path = run_output_path(tmp_path / "runs", "r1", "m1", "t.cn-01.0")
+    data = json.loads(run_path.read_text(encoding="utf-8"))
+    data["text"] = "A completely different translation from another provider."
+    run_path.write_text(json.dumps(data), encoding="utf-8")
+
+    runner = FakeRunner(responses=[valid_judge_reply(score=2)])
+    count = judge_run(**common_args(tmp_path, p_, runner))
+
+    assert count == 1
+    out = judgment_output_path(tmp_path / "judgments", "r1", "m1", "t.cn-01.0")
+    assert json.loads(out.read_text(encoding="utf-8"))["scores"]["accuracy"] == 2
+
+
+def test_an_unchanged_translation_is_not_rejudged(tmp_path):
+    p_ = seed_run(tmp_path)
+    judge_run(**common_args(tmp_path, p_, FakeRunner(responses=[valid_judge_reply()])))
+    second = FakeRunner(responses=[valid_judge_reply(score=1)])
+    assert judge_run(**common_args(tmp_path, p_, second)) == 0
+    assert second.calls == []

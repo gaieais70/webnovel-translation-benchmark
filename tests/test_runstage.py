@@ -2,7 +2,7 @@ import json
 
 from ati.corpus import Passage, passage_path, sha256_text
 from ati.runners.fake import FakeRunner
-from ati.runstage import run_model, run_output_path
+from ati.runstage import came_up_short, ran_away, run_model, run_output_path
 from ati.tasks import Task, TaskInstance
 
 
@@ -263,3 +263,109 @@ def test_run_model_stops_the_whole_model_on_a_usage_limit(tmp_path):
     )
     assert count == 1
     assert len(runner.calls) == 1
+
+
+def test_runaway_output_is_recorded_as_a_failure(tmp_path):
+    """A runner with no token ceiling can loop; that is not a translation.
+
+    gpt-5.6-luna returned 141,842 characters for a 6,987-character chapter
+    through the opencode CLI, which exposes no max_tokens. Left unflagged it
+    was written as a clean run and would have been handed to the judge and
+    scored on the rubric like real prose.
+    """
+    source = "源" * 1000
+    passage = make_passage(tmp_path, "cn-01", source)
+    task = Task(id="t", type="passage", passage_ids=["cn-01"])
+    instances = [TaskInstance(task=task, passage_id="cn-01", iteration=0)]
+    runner = FakeRunner(responses=["x" * 9000])  # 9.0x the source
+
+    run_model(
+        runner=runner,
+        model_id="m1",
+        instances=instances,
+        passages={passage.id: passage},
+        corpus_root=tmp_path / "corpus",
+        system_prompt="SYS",
+        runs_root=tmp_path / "runs",
+        run_id="r1",
+    )
+
+    out = run_output_path(tmp_path / "runs", "r1", "m1", "t.cn-01.0")
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert "ran away" in data["error"]
+    assert data["text"] == ""
+
+
+def test_a_normal_expansion_is_not_flagged(tmp_path):
+    """Korean-to-English ran 1.85x-2.28x across this corpus; that must pass."""
+    source = "源" * 1000
+    passage = make_passage(tmp_path, "cn-01", source)
+    task = Task(id="t", type="passage", passage_ids=["cn-01"])
+    instances = [TaskInstance(task=task, passage_id="cn-01", iteration=0)]
+    runner = FakeRunner(responses=["x" * 2280])  # 2.28x, the widest seen
+
+    run_model(
+        runner=runner,
+        model_id="m1",
+        instances=instances,
+        passages={passage.id: passage},
+        corpus_root=tmp_path / "corpus",
+        system_prompt="SYS",
+        runs_root=tmp_path / "runs",
+        run_id="r1",
+    )
+
+    out = run_output_path(tmp_path / "runs", "r1", "m1", "t.cn-01.0")
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["error"] is None
+    assert len(data["text"]) == 2280
+
+
+def test_short_sources_are_exempt_from_the_expansion_check():
+    """The ratio is meaningless when the source is a few characters long."""
+    assert not ran_away("English output", 2)
+    assert not ran_away("x" * 900, 199)
+    # at the floor the check applies again
+    assert ran_away("x" * 900, 200)
+
+
+def test_stub_output_is_recorded_as_a_failure(tmp_path):
+    """The mirror of the runaway guard: output far too short to be prose.
+
+    grok-4.6 returned 152 characters for an 8,705-character chapter - the
+    agent announcing it would load a skill, then stopping when that tool was
+    denied. Nothing flagged it, so it was judged as a translation and dragged
+    the model's fidelity score down to 2.5.
+    """
+    source = "源" * 1000
+    passage = make_passage(tmp_path, "cn-01", source)
+    task = Task(id="t", type="passage", passage_ids=["cn-01"])
+    instances = [TaskInstance(task=task, passage_id="cn-01", iteration=0)]
+    runner = FakeRunner(responses=["I'll load the translation skill and apply"])
+
+    run_model(
+        runner=runner,
+        model_id="m1",
+        instances=instances,
+        passages={passage.id: passage},
+        corpus_root=tmp_path / "corpus",
+        system_prompt="SYS",
+        runs_root=tmp_path / "runs",
+        run_id="r1",
+    )
+
+    out = run_output_path(tmp_path / "runs", "r1", "m1", "t.cn-01.0")
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert "came up short" in data["error"]
+    assert data["text"] == ""
+
+
+def test_a_refusal_is_not_treated_as_short_output():
+    """On the refusal task type a short answer IS the measurement."""
+    assert came_up_short("x" * 10, 1000, refused=False)
+    assert not came_up_short("x" * 10, 1000, refused=True)
+
+
+def test_short_sources_are_exempt_from_the_minimum_check():
+    assert not came_up_short("x", 199)
+    assert came_up_short("x", 200)

@@ -22,6 +22,46 @@ def run_output_path(
 
 USAGE_LIMIT_MARKERS = ("usage limit", "quota", "429", "rate limit")
 
+# A translation is bounded in length by its source. The api runner already
+# refuses to score generation that hit its token ceiling; runners that expose
+# no such ceiling - the opencode CLI among them - need the same protection
+# measured on the output itself, or a degenerate run is scored as a real
+# translation. gpt-5.6-luna returned 141,842 characters for a 6,987-character
+# chapter, a 20x expansion, while every honest Korean-to-English chapter in
+# this corpus landed between 1.85x and 2.28x. 4.0 sits at nearly double the
+# widest legitimate ratio observed, so it catches runaway looping without
+# touching a verbose-but-real translation.
+MAX_OUTPUT_EXPANSION = 4.0
+# A ratio means nothing on a short source: a handful of characters can expand
+# many times over for entirely ordinary reasons - a two-character title, a
+# single interjection rendered as a phrase. Below this the check is off, which
+# also keeps it clear of the 800-character `passage` tasks' noisier end.
+MIN_SOURCE_CHARS_FOR_EXPANSION = 200
+
+
+# The mirror of the expansion cap. Korean-to-English ran 1.85x-2.28x across
+# every model and chapter here, so output shorter than half its source is not
+# a translation of it. grok-4.6 returned 152 characters for an 8,705-character
+# chapter - the agent announcing it would load a skill, then stopping when the
+# tool was denied - and it was scored on the rubric as though it were prose.
+# A genuine refusal is exempt: on the refusal task type a short answer is the
+# measurement, and `refused` already records it.
+MIN_OUTPUT_RATIO = 0.5
+
+
+def came_up_short(text: str, source_chars: int, refused: bool = False) -> bool:
+    """Whether output is too short to be a translation of this source."""
+    if refused or source_chars < MIN_SOURCE_CHARS_FOR_EXPANSION:
+        return False
+    return len(text) / source_chars < MIN_OUTPUT_RATIO
+
+
+def ran_away(text: str, source_chars: int) -> bool:
+    """Whether output is too long to be a translation of this source."""
+    if not text or source_chars < MIN_SOURCE_CHARS_FOR_EXPANSION:
+        return False
+    return len(text) / source_chars > MAX_OUTPUT_EXPANSION
+
 
 def is_usage_limit(error: str | None) -> bool:
     """Whether a failure means the provider cut us off rather than misbehaved."""
@@ -132,18 +172,38 @@ def run_model(
             set_task_id(instance.instance_id)
 
         result = runner.run(system_prompt, source_text)
+        error = result.error
+        text = result.text
+        # Recorded as a failure, not scored: judging a degenerate loop would
+        # hand the model rubric scores for text that is not a translation.
+        # The text is dropped for the same reason the api runner drops
+        # truncated output - it cannot be partially credited.
+        if not error and came_up_short(text, len(source_text), result.refused):
+            error = (
+                f"output came up short ({len(text)} characters from "
+                f"{len(source_text)} of source, "
+                f"{len(text) / len(source_text):.2f}x); not a translation"
+            )
+            text = ""
+        if not error and ran_away(text, len(source_text)):
+            error = (
+                f"output ran away ({len(text)} characters from "
+                f"{len(source_text)} of source, "
+                f"{len(text) / len(source_text):.1f}x); not a translation"
+            )
+            text = ""
         _write(
             out_path,
             {
                 **base,
-                "text": result.text,
+                "text": text,
                 "source_chars": len(source_text),
                 "latency_s": result.latency_s,
                 "tokens_in": result.tokens_in,
                 "tokens_out": result.tokens_out,
                 "cost_usd": result.cost_usd,
                 "refused": result.refused,
-                "error": result.error,
+                "error": error,
             },
         )
         executed += 1

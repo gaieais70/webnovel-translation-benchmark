@@ -233,6 +233,71 @@ def test_api_runner_does_not_retry_a_successful_call():
     assert attempts["n"] == 1
 
 
+def test_api_runner_retries_a_server_error():
+    """A 5xx means the server produced nothing, so redoing it costs nothing.
+
+    Previously any 5xx was permanent: one blip marked that chapter failed for
+    the whole run, and enough of them put a working model in the Incomplete
+    table as though the model were at fault.
+    """
+    attempts = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        attempts["n"] += 1
+        if attempts["n"] < 3:
+            return httpx.Response(503, text="upstream unavailable")
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner("http://x", "m", "k", 0.3, client=client, retry_backoff_s=0)
+    result = runner.run("s", "u")
+    assert attempts["n"] == 3
+    assert result.error is None
+    assert result.text == "ok"
+
+
+def test_api_runner_reports_the_real_status_when_a_server_error_persists():
+    """Exhausting the retries must still name the status the server returned.
+
+    muse-spark-1.2-contributor answered 500 to every call; a run log saying
+    only "failed after 3 attempts" would not distinguish that from the model
+    being unreachable.
+    """
+    attempts = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        attempts["n"] += 1
+        return httpx.Response(500, text='{"error":"Internal server error"}')
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner(
+        "http://x", "m", "k", 0.3, client=client, attempts=3, retry_backoff_s=0
+    )
+    result = runner.run("s", "u")
+    assert attempts["n"] == 3
+    assert result.error.startswith("HTTP 500:")
+    assert result.text == ""
+
+
+def test_api_runner_does_not_retry_a_usage_limit():
+    """429 is the subscription window, not a transient fault.
+
+    The run stage detects it and stops cleanly; retrying would only spend the
+    remaining window faster.
+    """
+    attempts = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        attempts["n"] += 1
+        return httpx.Response(429, text="usage limit reached")
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner("http://x", "m", "k", 0.3, client=client, retry_backoff_s=0)
+    result = runner.run("s", "u")
+    assert attempts["n"] == 1
+    assert result.error.startswith("HTTP 429:")
+
+
 def test_output_budget_scales_with_source_and_is_clamped():
     from ati.runners.api import (
         MAX_OUTPUT_TOKENS,
@@ -243,8 +308,8 @@ def test_output_budget_scales_with_source_and_is_clamped():
     # the reasoning allowance is the floor; it does not scale with the source
     assert output_token_budget("") == REASONING_HEADROOM_TOKENS
     assert output_token_budget("x" * 100) > REASONING_HEADROOM_TOKENS
-    # translation estimate (11,100) plus the fixed reasoning allowance
-    assert output_token_budget("x" * 7400) == 27484
+    # translation estimate (18,500) plus the fixed reasoning allowance
+    assert output_token_budget("x" * 7400) == 43076
     assert output_token_budget("x" * 10_000_000) == MAX_OUTPUT_TOKENS
 
 
@@ -260,7 +325,7 @@ def test_api_runner_sends_a_max_tokens_ceiling():
     client = httpx.Client(transport=httpx.MockTransport(handler))
     runner = ApiRunner("http://x", "m", "k", 0.3, client=client)
     runner.run("s", "x" * 7400)
-    assert seen["max_tokens"] == 27484
+    assert seen["max_tokens"] == 43076
 
 
 def test_api_runner_max_tokens_can_be_overridden():
@@ -394,3 +459,48 @@ def test_non_dict_choice_is_recorded_not_raised():
     result = runner.run("s", "u")
     assert result.error is not None
     assert "malformed response" in result.error
+
+
+def test_api_runner_retries_a_cloudflare_origin_timeout():
+    """524 fronts Command Code's API and means the provider produced nothing.
+
+    Its body says so outright - "temporarily unavailable, please try again in
+    a moment" - but it sat outside the 5xx tuple, so six anchor calls in a row
+    were recorded as permanent failures.
+    """
+    attempts = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        attempts["n"] += 1
+        if attempts["n"] < 2:
+            return httpx.Response(524, text='{"error":{"type":"server_error"}}')
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner("http://x", "m", "k", 0.3, client=client, retry_backoff_s=0)
+    result = runner.run("s", "u")
+    assert attempts["n"] == 2
+    assert result.error is None
+    assert result.text == "ok"
+
+
+def test_null_content_is_empty_text_not_a_crash():
+    """A model can return content: null after spending its budget on reasoning.
+
+    glm-5.3-flash does exactly that through Command Code. The None reached
+    looks_like_refusal, raised TypeError out of runner.run, and would have
+    aborted run_model along with every model still queued behind it.
+    """
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={
+            "choices": [{"message": {"role": "assistant", "content": None},
+                         "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 40000},
+        })
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner("http://x", "m", "k", 0.3, client=client)
+    result = runner.run("s", "u")
+    assert result.text == ""
+    assert result.refused is False
+    assert result.tokens_out == 40000

@@ -1,33 +1,44 @@
 # Models under test: the opencode-go subscription roster.
 # Endpoint is OpenAI-compatible; the key comes from OPENCODE_API_KEY.
 #
-# Ordered cheapest first, by published output price per 1M tokens, because
-# `ati run` works down this list and a run interrupted by a usage limit should
-# have spent the window on the models that cost least. glm-5.3, qwen3.7-max
-# and kimi-k3 are held to the end deliberately, ahead of their price order.
+# Ordered cheapest first by published OUTPUT price per 1M tokens (Pricing.xlsx,
+# 2026-08-26), because `ati run` works down this list and a run interrupted by a
+# usage limit should have spent the window on the models that cost least.
+# Output is the right key: translation is output-heavy, roughly one output token
+# per input token, and output is the dearer side on every model here.
+#
+# Prices below are input / output per 1M tokens. DeepSeek rows are the off-peak
+# rate; peak is exactly 2x and the ordering is unchanged by it. Ties on output
+# are broken on input, then on cached-read.
 #
 # Anchors: hy3 as the weak reference, qwen3.8-max as the strong one. They run
 # every time to detect drift and are not there to be ranked. Both are already
 # in the pool, so marking them costs nothing extra.
 
 # --- cheap tier -------------------------------------------------------------
-- id: hy3                              # $0.0175 / $0.0725 per 1M
+- id: muse-spark-1.2-contributor       # $0.10 / $0.20
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  model: meta/muse-spark-1.2-contributor
+# Kept on opencode deliberately. ch03 and ch08 time out there, but the other
+# two routes are worse, not better: Command Code timed out on ch03 and
+# truncated ch08 at 45,153 tokens, and OpenRouter truncated ch01 at 42,846 -
+# a chapter opencode completes cleanly in 28,190. The opencode build is the
+# least verbose of the three, so it is the one that scores on the most
+# chapters. 9/11 stands; the two failures are the model, not the provider.
+- id: glm-5.3-flash                    # $0.15 / $0.50
+  runner: api
+  endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  api_key_env: OPENCODE_API_KEY
+  model: glm-5.3-flash
+- id: hy3                              # $0.14 / $0.58
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
   api_key_env: OPENCODE_API_KEY
   model: hy3
   anchor: weak
-- id: glm-5.3-flash                    # new; flash tier, no published price
-  runner: api
-  endpoint: https://opencode.ai/zen/go/v1/chat/completions
-  api_key_env: OPENCODE_API_KEY
-  model: glm-5.3-flash
-- id: muse-spark-1.2-contributor       # $0.10 / $0.20
-  runner: api
-  endpoint: https://opencode.ai/zen/go/v1/chat/completions
-  api_key_env: OPENCODE_API_KEY
-  model: muse-spark-1.2-contributor
-- id: deepseek-v4-flash                # $0.22 / $0.66
+- id: deepseek-v4-flash                # $0.22 / $0.66 off-peak
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
   api_key_env: OPENCODE_API_KEY
@@ -41,20 +52,23 @@
 # --- mid tier ---------------------------------------------------------------
 - id: gpt-5.6-luna                     # $0.20 / $1.20
   runner: api
-  endpoint: https://opencode.ai/zen/go/v1/chat/completions
-  api_key_env: OPENCODE_API_KEY
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
   model: gpt-5.6-luna
-- id: minimax-m3                       # $0.30 / $1.20
-  runner: api
-  endpoint: https://opencode.ai/zen/go/v1/chat/completions
-  api_key_env: OPENCODE_API_KEY
-  model: minimax-m3
+# longcat-2.0 has no equivalent in the Command Code catalogue, so it cannot
+# be completed or re-run once the opencode plan is exhausted. Its 10/11
+# opencode result stands as collected.
 - id: longcat-2.0                      # $0.30 / $1.20
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
   api_key_env: OPENCODE_API_KEY
   model: longcat-2.0
-- id: deepseek-v4-pro                  # $0.66 / $1.98
+- id: minimax-m3                       # $0.30 / $1.20
+  runner: api
+  endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  api_key_env: OPENCODE_API_KEY
+  model: minimax-m3
+- id: deepseek-v4-pro                  # $0.66 / $1.98 off-peak
   runner: api
   endpoint: https://opencode.ai/zen/go/v1/chat/completions
   api_key_env: OPENCODE_API_KEY
@@ -63,37 +77,82 @@
 # --- expensive tier ---------------------------------------------------------
 - id: kimi-k2.6                        # $0.95 / $4.00
   runner: api
-  endpoint: https://opencode.ai/zen/go/v1/chat/completions
-  api_key_env: OPENCODE_API_KEY
-  model: kimi-k2.6
-- id: grok-4.6                         # new; no published price
-  runner: api
-  endpoint: https://opencode.ai/zen/go/v1/chat/completions
-  api_key_env: OPENCODE_API_KEY
-  model: grok-4.6
-- id: qwen3.8-max                      # $2.00 / $6.00
-  runner: api
-  endpoint: https://opencode.ai/zen/go/v1/chat/completions
-  api_key_env: OPENCODE_API_KEY
-  model: qwen3.8-max
-  anchor: strong
-
-# --- held for last, by request ----------------------------------------------
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  model: moonshotai/Kimi-K2.6
 - id: glm-5.3                          # $1.40 / $4.40
   runner: api
-  endpoint: https://opencode.ai/zen/go/v1/chat/completions
-  api_key_env: OPENCODE_API_KEY
-  model: glm-5.3
-- id: qwen3.7-max                      # $2.50 / $7.50
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  model: zai-org/GLM-5.3
+- id: qwen3.8-max                      # $2.00 / $6.00
   runner: api
-  endpoint: https://opencode.ai/zen/go/v1/chat/completions
-  api_key_env: OPENCODE_API_KEY
-  model: qwen3.7-max
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  model: Qwen/Qwen3.8-Max
+  anchor: strong
+# Was the last model on the CLI agent route, which made it the one row that
+# was not a bare completion: 4.3 calls per chapter, a 5.0:1 input-to-output
+# ratio from re-sent context, and $2.08 for eleven chapters. opencode's API
+# refuses it ("not supported for format oa-compat") and Command Code answers
+# 524, so OpenRouter is what makes it comparable to the rest.
+- id: grok-4.6                         # $2.00 / $6.00
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_API_KEY
+  model: x-ai/grok-4.6
 - id: kimi-k3                          # $3.00 / $15.00
   runner: api
-  endpoint: https://opencode.ai/zen/go/v1/chat/completions
-  api_key_env: OPENCODE_API_KEY
-  model: kimi-k3
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  model: moonshotai/Kimi-K3
+
+# The command is `opencode.cmd`, not `opencode`. npm installs both an
+# extensionless shell script and a Windows batch shim; subprocess.run without a
+# shell can only execute the latter, and the bare name fails with WinError 2 on
+# every call - which looks exactly like the model failing.
+# --- added mid-run, by request ----------------------------------------------
+# Not part of the original fourteen and not in Pricing.xlsx, so it cannot be
+# placed in the cheapest-first output-price ordering the rest of this file
+# follows. Left here, after the priced models, so a price-ordered pass reaches
+# it last. Measured on chapter 3 before being added: 228s, 1.95x expansion,
+# 25,296 completion tokens for ~4,250 tokens of visible English - a
+# reasoning-heavy profile closer to glm-5.3-flash than to gpt-5.6-luna.
+- id: inkling-small
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  model: thinkingmachines/inkling-small
+
+# --- provider drift probe (retired) -----------------------------------------
+# hy3 was run a second time through Command Code to check whether results from
+# two providers could share a table. It reached only 5 of 11 chapters - the
+# rest died on 524 upstream timeouts - so it could not answer the question,
+# and a 5-chapter composite compared against an 11-chapter one is the same
+# apples-to-oranges error the smoke-run anchor already produced. The entry is
+# removed rather than left to appear in the leaderboard as a failing model.
+# Its data is kept under runs/2026-08-diagnostics/.
+
+# --- reached through the opencode CLI, not the HTTP API ---------------------
+# grok-4.6 alone still needs this route. muse-spark and gpt-5.6-luna were
+# moved to Command Code's OpenAI-compatible endpoint once it proved able to
+# serve them, which restores token counts and puts them under the same
+# sampling and token budget as the rest. grok-4.6 answers HTTP 524 there -
+# 333s and three retries on the longest chapter - so it stays on the CLI and
+# its row remains not directly comparable.
+# Originally all three could not be served by the OpenAI-compatible endpoint. muse-spark and
+# gpt-5.6-luna answer HTTP 500 in 0.3s to every request, including a bare
+# model+messages payload, while other models on the same key return 200;
+# grok-4.6 is refused outright with "not supported for format oa-compat". All
+# three work through `opencode run`, so they are routed that way.
+#
+# The CLI runs an agent, not a bare completion. agents/literal-translator.md
+# denies every tool - a translator that could search the web might find an
+# existing translation of the source work, which is the same contamination the
+# judge's `sandbox: true` exists to prevent - and carries no task instructions
+# of its own, so config/prompts/translate.md remains the only thing steering
+# the model. Their runs report no token counts or cost: the CLI does not
+# expose usage, so cost reads N/A rather than zero.
 
 # --- judge ------------------------------------------------------------------
 # Gemini through the Antigravity CLI on a subscription. --sandbox is

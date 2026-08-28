@@ -1,0 +1,362 @@
+{
+  "run_id": "2026-08",
+  "metadata": {
+    "judge_id": "gemini-judge",
+    "date": "2026-08-27"
+  },
+  "weights": {
+    "accuracy": 0.25,
+    "terminology": 0.2,
+    "register": 0.15,
+    "fluency": 0.15,
+    "fidelity": 0.15,
+    "sanitization": 0.1
+  },
+  "anchor_drift": {
+    "hy3": 0.0
+  },
+  "comparable": true,
+  "results": [
+    {
+      "model_id": "deepseek-v4-pro",
+      "composite": 85.72727272727273,
+      "axis_means": {
+        "accuracy": 4.636363636363637,
+        "terminology": 2.6,
+        "register": 5.0,
+        "fluency": 5.0,
+        "fidelity": 5.0,
+        "sanitization": 5.0
+      },
+      "axis_stdevs": {
+        "accuracy": 0.6428243465332251,
+        "terminology": 0.28747978728803447,
+        "register": 0.0,
+        "fluency": 0.0,
+        "fidelity": 0.0,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": 0.0,
+      "speed_per_1k": 56.33441295546486,
+      "value": null,
+      "slop": 0.3883796799751437,
+      "repetition": 0.12024330428449785,
+      "judge_errors": 0,
+      "failed_tasks": 0,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false
+    },
+    {
+      "model_id": "muse-spark-1.2-contributor",
+      "composite": 82.75058275058275,
+      "axis_means": {
+        "accuracy": 4.181818181818182,
+        "terminology": 2.641025641025641,
+        "register": 5.0,
+        "fluency": 5.0,
+        "fidelity": 4.909090909090909,
+        "sanitization": 5.0
+      },
+      "axis_stdevs": {
+        "accuracy": 0.5749595745760689,
+        "terminology": 0.28747978728803447,
+        "register": 0.0,
+        "fluency": 0.0,
+        "fidelity": 0.28747978728803447,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": null,
+      "speed_per_1k": 10.448540706606593,
+      "value": null,
+      "slop": 0.3844675124951942,
+      "repetition": 0.12054435047140138,
+      "judge_errors": 0,
+      "failed_tasks": 0,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false
+    },
+    {
+      "model_id": "grok-4.6",
+      "composite": 82.68181818181817,
+      "axis_means": {
+        "accuracy": 4.181818181818182,
+        "terminology": 2.9,
+        "register": 4.909090909090909,
+        "fluency": 4.636363636363637,
+        "fidelity": 5.0,
+        "sanitization": 5.0
+      },
+      "axis_stdevs": {
+        "accuracy": 0.5749595745760689,
+        "terminology": 0.28747978728803447,
+        "register": 0.28747978728803447,
+        "fluency": 0.48104569292083466,
+        "fidelity": 0.0,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": 0.010857763394462424,
+      "speed_per_1k": 24.550877192981293,
+      "value": 7614.995388828125,
+      "slop": 0.1998001998001998,
+      "repetition": 0.12311790459628431,
+      "judge_errors": 0,
+      "failed_tasks": 0,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false
+    },
+    {
+      "model_id": "glm-5.3-flash",
+      "composite": 80.61111111111111,
+      "axis_means": {
+        "accuracy": 4.111111111111111,
+        "terminology": 2.4,
+        "register": 5.0,
+        "fluency": 5.0,
+        "fidelity": 4.777777777777778,
+        "sanitization": 5.0
+      },
+      "axis_stdevs": {
+        "accuracy": 0.5665577237325317,
+        "terminology": 0.41573970964154905,
+        "register": 0.0,
+        "fluency": 0.0,
+        "fidelity": 0.41573970964154905,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": 0.0,
+      "speed_per_1k": 69.3499097096819,
+      "value": null,
+      "slop": 0.10236986231253518,
+      "repetition": 0.11134540743350328,
+      "judge_errors": 0,
+      "failed_tasks": 2,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false
+    },
+    {
+      "model_id": "gpt-5.6-luna",
+      "composite": 80.08030303030303,
+      "axis_means": {
+        "accuracy": 4.090909090909091,
+        "terminology": 2.493333333333333,
+        "register": 4.909090909090909,
+        "fluency": 5.0,
+        "fidelity": 4.636363636363637,
+        "sanitization": 5.0
+      },
+      "axis_stdevs": {
+        "accuracy": 0.7925270806437589,
+        "terminology": 0.48104569292083466,
+        "register": 0.28747978728803447,
+        "fluency": 0.0,
+        "fidelity": 0.6428243465332251,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": null,
+      "speed_per_1k": 4.968016194331261,
+      "value": null,
+      "slop": 0.520755839904776,
+      "repetition": 0.12427561901375772,
+      "judge_errors": 0,
+      "failed_tasks": 0,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false
+    },
+    {
+      "model_id": "deepseek-v4-flash",
+      "composite": 75.24732620320856,
+      "axis_means": {
+        "accuracy": 3.727272727272727,
+        "terminology": 2.1176470588235294,
+        "register": 5.0,
+        "fluency": 5.0,
+        "fidelity": 4.363636363636363,
+        "sanitization": 5.0
+      },
+      "axis_stdevs": {
+        "accuracy": 0.9620913858416693,
+        "terminology": 0.7713892158398701,
+        "register": 0.0,
+        "fluency": 0.0,
+        "fidelity": 0.6428243465332251,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": 0.0,
+      "speed_per_1k": 4.775724137930505,
+      "value": null,
+      "slop": 0.3146014393015848,
+      "repetition": 0.11741281036806384,
+      "judge_errors": 0,
+      "failed_tasks": 0,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false
+    },
+    {
+      "model_id": "mimo-v2.5-pro",
+      "composite": 72.26604278074866,
+      "axis_means": {
+        "accuracy": 3.5454545454545454,
+        "terminology": 2.2941176470588234,
+        "register": 4.545454545454546,
+        "fluency": 4.545454545454546,
+        "fidelity": 4.545454545454546,
+        "sanitization": 5.0
+      },
+      "axis_stdevs": {
+        "accuracy": 0.4979295977319692,
+        "terminology": 0.7385489458759964,
+        "register": 0.4979295977319692,
+        "fluency": 0.655554777357089,
+        "fidelity": 0.4979295977319692,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": 0.0,
+      "speed_per_1k": 12.929413194022436,
+      "value": null,
+      "slop": 0.35958288385472853,
+      "repetition": 0.11701186201378465,
+      "judge_errors": 0,
+      "failed_tasks": 0,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false
+    },
+    {
+      "model_id": "hy3",
+      "composite": 71.3603896103896,
+      "axis_means": {
+        "accuracy": 3.3636363636363638,
+        "terminology": 2.8857142857142857,
+        "register": 4.454545454545454,
+        "fluency": 3.909090909090909,
+        "fidelity": 4.545454545454546,
+        "sanitization": 5.0
+      },
+      "axis_stdevs": {
+        "accuracy": 0.48104569292083466,
+        "terminology": 0.4979295977319692,
+        "register": 0.655554777357089,
+        "fluency": 0.7925270806437589,
+        "fidelity": 0.4979295977319692,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": 0.0,
+      "speed_per_1k": 42.420020639834966,
+      "value": null,
+      "slop": 0.16481931682393178,
+      "repetition": 0.11645966330027795,
+      "judge_errors": 0,
+      "failed_tasks": 0,
+      "total_tasks": 11,
+      "anchor": "weak",
+      "incomplete": false
+    },
+    {
+      "model_id": "minimax-m3",
+      "composite": 63.47014925373134,
+      "axis_means": {
+        "accuracy": 2.9,
+        "terminology": 2.1940298507462686,
+        "register": 4.3,
+        "fluency": 4.2,
+        "fidelity": 4.0,
+        "sanitization": 5.0
+      },
+      "axis_stdevs": {
+        "accuracy": 0.5385164807134504,
+        "terminology": 0.6324555320336759,
+        "register": 0.6403124237432849,
+        "fluency": 0.6,
+        "fidelity": 0.8944271909999159,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": 0.0,
+      "speed_per_1k": 7.1677950949413445,
+      "value": null,
+      "slop": 0.375,
+      "repetition": 0.11655650468571939,
+      "judge_errors": 0,
+      "failed_tasks": 1,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false
+    },
+    {
+      "model_id": "longcat-2.0",
+      "composite": 62.95454545454545,
+      "axis_means": {
+        "accuracy": 3.0,
+        "terminology": 2.0,
+        "register": 4.2727272727272725,
+        "fluency": 4.0,
+        "fidelity": 4.181818181818182,
+        "sanitization": 5.0
+      },
+      "axis_stdevs": {
+        "accuracy": 0.7385489458759964,
+        "terminology": 0.9620913858416693,
+        "register": 0.7496555682941201,
+        "fluency": 0.8528028654224418,
+        "fidelity": 0.5749595745760689,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": 0.0,
+      "speed_per_1k": 18.760827110856887,
+      "value": null,
+      "slop": 0.39491351394044705,
+      "repetition": 0.11750085697548289,
+      "judge_errors": 0,
+      "failed_tasks": 0,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false
+    },
+    {
+      "model_id": "inkling-small",
+      "composite": 49.034839924670436,
+      "axis_means": {
+        "accuracy": 2.4444444444444446,
+        "terminology": 2.084745762711864,
+        "register": 3.111111111111111,
+        "fluency": 3.111111111111111,
+        "fidelity": 3.3333333333333335,
+        "sanitization": 5.0
+      },
+      "axis_stdevs": {
+        "accuracy": 0.49690399499995325,
+        "terminology": 1.1653431646335017,
+        "register": 0.5665577237325317,
+        "fluency": 0.5665577237325317,
+        "fidelity": 1.247219128924647,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": null,
+      "speed_per_1k": 7.64340064383971,
+      "value": null,
+      "slop": 0.42498937526561836,
+      "repetition": 0.12326608022129365,
+      "judge_errors": 0,
+      "failed_tasks": 2,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false
+    }
+  ]
+}

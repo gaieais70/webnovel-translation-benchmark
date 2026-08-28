@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -21,13 +22,26 @@ def judgment_output_path(
     return Path(judgments_root) / run_id / safe_model / f"{instance_id}.json"
 
 
+def _translation_sha(run_data: dict) -> str:
+    """Fingerprint of the translation a judgment was made against."""
+    text = run_data.get("text") or ""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
 def _judgment_is_current(path: Path, run_data: dict) -> bool:
     """Whether an existing judgment still describes the run beside it.
+
+    Staleness runs in both directions and both matter.
 
     A judgment recorded as skipped because the translation had failed becomes
     stale the moment that translation succeeds on a later run. Skipping on
     mere file existence would leave the repaired work permanently unjudged,
     scoring the model on fewer tasks than its peers with no indication.
+
+    A scored judgment goes stale the same way when its run is later found
+    unusable - reclassified as a runaway or a stub, say. Treating it as
+    current would keep rubric scores alive for output that is no longer
+    considered a translation, and no amount of re-judging would clear them.
     """
     try:
         judgment = json.loads(path.read_text(encoding="utf-8"))
@@ -36,9 +50,20 @@ def _judgment_is_current(path: Path, run_data: dict) -> bool:
     run_unusable = bool(
         run_data.get("error") or run_data.get("unavailable") or run_data.get("refused")
     )
-    if judgment.get("skipped") and not run_unusable:
+    if bool(judgment.get("skipped")) != run_unusable:
         return False
-    return True
+    # A judgment describes one specific translation. Re-running a model - with
+    # --force, or through a different provider - replaces the text while
+    # leaving the judgment scored and non-skipped, so the check above sees
+    # nothing wrong and the old scores are kept against new prose. gpt-5.6-luna
+    # and muse-spark were both re-run through a different provider; without
+    # this their opencode-route scores would have been reported as Command
+    # Code results. A judgment with no recorded hash predates this check and
+    # cannot be verified, so it is re-judged once.
+    recorded = judgment.get("translation_sha")
+    if recorded is None:
+        return False
+    return recorded == _translation_sha(run_data)
 
 
 def _write(path: Path, payload: dict) -> None:
@@ -84,6 +109,7 @@ def judge_run(
             "skipped": False,
             "judge_error": None,
             "quote_violations": [],
+            "translation_sha": _translation_sha(run_data),
         }
 
         # Nothing to judge: the run failed, the passage was unavailable, or
