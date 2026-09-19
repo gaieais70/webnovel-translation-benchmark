@@ -20,13 +20,16 @@ AXES: tuple[str, ...] = (
 VALID_RUNNERS = ("api", "cli", "manual", "agy")
 VALID_ANCHORS = ("strong", "weak")
 DEFAULT_TEMPERATURE = 0.3
-# Measured across models: 190-240s per chapter is normal. Safe to be generous
-# now that max_tokens bounds how much a model can generate in one call.
-# Raised from 600 once the output budget grew. Measured throughput on this
-# corpus is 60-72 completion tokens/sec, so a call allowed to reach the
-# 49,152-token clamp needs up to ~820s. At 600 the budget increase would have
-# converted truncations into read timeouts, which are deliberately not
-# retried, and the run would have failed the same models for a new reason.
+# The one default for how long a model call may wait, used by every runner
+# and by any roster row that does not set `timeout_s`. For the api runner it
+# is a per-read timeout, which on a streamed call bounds a silence rather than
+# the whole generation; see STREAM_DEADLINE_S in ati/runners/api.py for the
+# bound on the total. For agy and cli it is the subprocess timeout.
+#
+# Measured: 190-240s per chapter is normal, and qwen3.8-flash streamed for
+# 721s at maximum effort. A buffered (non-streamed) call gets nothing until
+# generation ends, so for those rows this is the whole budget, and a read
+# timeout is deliberately not retried - too low loses the chapter outright.
 DEFAULT_TIMEOUT_S = 900.0
 # Each provider needs its own credential. Defaulting every model to one env
 # var means a mixed pool sends the wrong key to one of them and gets 401s.

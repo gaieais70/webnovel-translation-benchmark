@@ -9,9 +9,8 @@ from __future__ import annotations
 import subprocess
 import time
 
+from ati.config import DEFAULT_TIMEOUT_S
 from ati.runners.base import RunResult, looks_like_refusal
-
-DEFAULT_TIMEOUT_S = 600.0
 
 
 class CliRunner:

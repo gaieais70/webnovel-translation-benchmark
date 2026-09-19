@@ -801,3 +801,85 @@ def test_the_finish_reason_survives_streaming():
 
     result = _stream_runner(handler).run("s", "u")
     assert result.finish_reason == "stop"
+
+
+# --- total deadline on a streamed call ---------------------------------------
+
+
+class _Clock:
+    def __init__(self):
+        self.now = 0.0
+
+    def __call__(self):
+        return self.now
+
+
+class _Trickle(httpx.SyncByteStream):
+    """A stream that keeps sending, advancing a fake clock per chunk."""
+
+    def __init__(self, chunks, clock, step_s):
+        self._chunks, self._clock, self._step = chunks, clock, step_s
+
+    def __iter__(self):
+        for chunk in self._chunks:
+            self._clock.now += self._step
+            yield chunk.encode("utf-8")
+
+
+def _trickling_runner(clock, chunks, step_s, calls, **kwargs):
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(
+            200,
+            headers={"content-type": "text/event-stream"},
+            stream=_Trickle(chunks, clock, step_s),
+        )
+
+    return _stream_runner(handler, clock_fn=clock, retry_backoff_s=0, **kwargs)
+
+
+def test_a_stream_that_never_ends_is_cut_at_the_total_deadline():
+    """httpx's timeout is per read, so keep-alives alone could hold a call open
+    forever. The total deadline ends it, and it is not retried."""
+    clock, calls = _Clock(), []
+    keepalives = [": keep-alive\n\n"] * 100
+    runner = _trickling_runner(clock, keepalives, 60.0, calls, deadline_s=600.0)
+    result = runner.run("s", "u")
+    assert result.text == ""
+    assert "timed out" in result.error and "deadline" in result.error
+    assert len(calls) == 1
+    assert clock.now <= 660.0  # stopped reading as soon as it ran over
+
+
+def test_a_long_stream_inside_the_deadline_is_kept():
+    clock, calls = _Clock(), []
+    body = _sse(_delta("slow "), _delta("but whole"), _delta(finish="stop"))
+    chunks = body.splitlines(keepends=True)
+    runner = _trickling_runner(clock, chunks, 120.0, calls, deadline_s=3600.0)
+    result = runner.run("s", "u")
+    assert result.error is None
+    assert result.text == "slow but whole"
+    assert clock.now > 900.0  # longer than the per-read timeout itself
+
+
+def test_a_deadline_overrun_counts_as_a_route_failure_for_the_fallback():
+    clock, calls = _Clock(), []
+    paid = _route_runner([_ok("paid answer")], model="paid")
+    free = _trickling_runner(
+        clock, [": keep-alive\n\n"] * 100, 60.0, calls, deadline_s=600.0, fallback=paid
+    )
+    result = free.run("s", "u")
+    assert result.error is None
+    assert result.route == "paid"
+
+
+def test_the_runner_defaults_come_from_the_one_timeout_constant():
+    from ati.config import DEFAULT_TIMEOUT_S
+    from ati.runners.agy import AgyRunner
+    from ati.runners.cli import CliRunner
+
+    assert AgyRunner("m")._timeout_s == DEFAULT_TIMEOUT_S
+    assert CliRunner(["x"])._timeout_s == DEFAULT_TIMEOUT_S
+    runner = ApiRunner("http://x", "m", "k", 0.3)
+    assert runner._client.timeout.read == DEFAULT_TIMEOUT_S
+    assert runner._client.timeout.connect == 60.0

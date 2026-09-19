@@ -8,23 +8,27 @@ from dataclasses import replace
 
 import httpx
 
+from ati.config import DEFAULT_TIMEOUT_S
 from ati.runners.base import RunResult, looks_like_refusal
 
-# Measured across models on real chapters: 190-240s is normal at default
-# effort, and the fastest observed was 60s. This is set for the worst case
-# instead, because the two failure modes it sits between are asymmetric.
+# How long to wait, in two parts.
 #
-# Too low loses real work and is indistinguishable from the model failing:
-# glm-5.3-flash lost ch03 and ch08 to a 900s read timeout, and a read timeout
-# is deliberately not retried (see `_post`), so the chapter is simply gone. Too
-# high costs only wall clock on a call that was never going to return.
+# `timeout_s` (per model in models.yaml, DEFAULT_TIMEOUT_S when unset) is
+# httpx's per-read timeout: how long the connection may sit silent. For a
+# buffered request that is, in effect, the whole generation, because nothing
+# arrives until it is done - glm-5.3-flash lost ch03 and ch08 of run 2026-08
+# to it. For a streamed request it only bounds a silence, since reasoning
+# deltas keep arriving: qwen3.8-flash streamed for 721s on a 900s timeout.
 #
-# With no output ceiling and every model at maximum reasoning effort there is
-# no token bound to derive a timeout from, so it is derived from observed
-# throughput and the longest run seen: glm-5.3-flash sustains 60-72 tokens/sec
-# and spent 1,122s on a single chapter at high effort. 3600 leaves room for a
-# max-effort call on the longest passage without cutting it off mid-generation.
-TIMEOUT_S = 3600.0
+# A stream therefore needs its own bound on the total, or a gateway that
+# trickles keep-alive comments could hold a call open indefinitely. The
+# longest legitimate generation seen on this project is 1,122s (glm-5.3-flash
+# at high effort, 2026-08); an hour is three times that. Like a read timeout
+# it is not retried on the same route (see `_post`).
+STREAM_DEADLINE_S = 3600.0
+# Opening a connection is not generation; a minute is generous, and a connect
+# timeout is retried as safe because nothing reached a model.
+CONNECT_TIMEOUT_S = 60.0
 ATTEMPTS = 3
 RETRY_BACKOFF_S = 5.0
 # A 5xx is the server saying it failed before producing anything, so redoing
@@ -88,6 +92,10 @@ def is_transient_429(body: str) -> bool:
 #
 # A per-model ceiling remains available through `params` in config/models.yaml,
 # which is how a metered route can still be capped.
+
+
+class _DeadlineExceeded(Exception):
+    """A streamed call ran past STREAM_DEADLINE_S in total."""
 
 
 def assemble_stream(raw: str) -> dict:
@@ -156,18 +164,24 @@ class ApiRunner:
         api_key: str,
         temperature: float,
         client: httpx.Client | None = None,
-        timeout_s: float = TIMEOUT_S,
+        timeout_s: float = DEFAULT_TIMEOUT_S,
         attempts: int = ATTEMPTS,
         retry_backoff_s: float = RETRY_BACKOFF_S,
         extra_params: dict | None = None,
         fallback: "ApiRunner | None" = None,
         stream: bool = False,
+        deadline_s: float | None = STREAM_DEADLINE_S,
+        clock_fn=time.monotonic,
     ) -> None:
         self._endpoint = endpoint
         self._model = model
         self._api_key = api_key
         self._temperature = temperature
-        self._client = client or httpx.Client(timeout=timeout_s)
+        self._client = client or httpx.Client(
+            timeout=httpx.Timeout(timeout_s, connect=min(timeout_s, CONNECT_TIMEOUT_S))
+        )
+        self._deadline_s = deadline_s
+        self._clock = clock_fn
         self._attempts = max(1, attempts)
         self._retry_backoff_s = retry_backoff_s
         self._extra_params = dict(extra_params or {})
@@ -197,10 +211,25 @@ class ApiRunner:
                     # Read to the end inside the stream so the connection stays
                     # active for the whole generation; afterwards the response
                     # behaves like a buffered one for the checks below.
+                    started = self._clock()
                     with self._client.stream(
                         "POST", self._endpoint, json=payload, headers=headers
-                    ) as response:
-                        response.read()
+                    ) as streamed:
+                        raw = self._read_within_deadline(streamed, started)
+                    # Only the content type is carried over: the body is
+                    # already decoded, so a Content-Encoding header would make
+                    # httpx try to decompress it a second time.
+                    kept = {
+                        k: v
+                        for k, v in streamed.headers.items()
+                        if k.lower() == "content-type"
+                    }
+                    response = httpx.Response(
+                        streamed.status_code,
+                        headers=kept,
+                        content=raw,
+                        request=streamed.request,
+                    )
                 else:
                     response = self._client.post(
                         self._endpoint, json=payload, headers=headers
@@ -235,9 +264,33 @@ class ApiRunner:
                 last_error = f"{type(exc).__name__}: {exc}"
                 if attempt + 1 < self._attempts:
                     time.sleep(self._retry_backoff_s * (attempt + 1))
+            except _DeadlineExceeded:
+                # Not retried, for the reason a read timeout is not: the far
+                # side may still be generating, and a repeat pays again.
+                return None, (
+                    f"stream still open after {self._deadline_s:.0f}s; timed out "
+                    f"(total deadline)"
+                )
             except httpx.HTTPError as exc:
                 return None, f"{type(exc).__name__}: {exc}"
         return None, f"failed after {self._attempts} attempts: {last_error}"
+
+    def _read_within_deadline(self, response: httpx.Response, started: float) -> bytes:
+        """The whole streamed body, or _DeadlineExceeded once the total runs out.
+
+        Checked as each chunk arrives, so a stream that keeps sending - even
+        only keep-alive comments - cannot outlive the deadline. A stream that
+        goes silent is ended by the per-read timeout instead.
+        """
+        chunks: list[bytes] = []
+        for chunk in response.iter_bytes():
+            chunks.append(chunk)
+            if (
+                self._deadline_s is not None
+                and self._clock() - started > self._deadline_s
+            ):
+                raise _DeadlineExceeded
+        return b"".join(chunks)
 
     def _run_once(self, system_prompt: str, source_text: str) -> RunResult:
         payload = {

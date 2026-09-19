@@ -22,10 +22,9 @@ import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
+from ati.config import DEFAULT_TIMEOUT_S
 from ati.fileio import write_text_atomic
 from ati.runners.base import RunResult, looks_like_refusal
-
-DEFAULT_TIMEOUT_S = 600.0
 
 # agy runs on the operator's personal Google account, which is the one thing
 # in this project that cannot be re-provisioned if it is lost. The gate below
