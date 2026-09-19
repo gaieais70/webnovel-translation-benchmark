@@ -34,6 +34,13 @@ from ati.fileio import iter_records, write_json_atomic
 # excerpts this stage was designed around.
 MAX_COMPARE_CHARS = 60000
 
+# Comparisons in a row whose verdict could not be parsed before the stage
+# stops. One is a glitch and is skipped. Several in a row is a judge that has
+# stopped answering in the expected shape, and a skipped comparison does not
+# count against the batch budget - so without this the stage would walk the
+# whole schedule, one wasted judge request per pair and passage.
+MAX_CONSECUTIVE_BAD_VERDICTS = 3
+
 
 def comparison_path(root: Path, run_id: str, a: str, b: str, passage_id: str) -> Path:
     first, second = sorted([a, b])
@@ -204,6 +211,7 @@ def run_pairwise(
                 schedule.append((a, b, passages_for_pair[depth]))
 
     oversized = 0
+    bad_verdicts = 0
     for a, b, passage_id in schedule:
         if executed >= max_comparisons:
             break
@@ -233,6 +241,14 @@ def run_pairwise(
             # One unparseable verdict is a transient glitch, not a reason
             # to abandon the remaining comparisons.
             print(f"  skipping {a} vs {b} on {passage_id}: {exc}")
+            bad_verdicts += 1
+            if bad_verdicts >= MAX_CONSECUTIVE_BAD_VERDICTS:
+                print(
+                    f"stopping after {executed} comparisons: {bad_verdicts} "
+                    f"verdicts in a row could not be parsed. Check the judge "
+                    f"before rerunning."
+                )
+                return executed
             continue
         except RuntimeError as exc:
             # The judge itself failed - a usage limit, most likely. Every
@@ -253,6 +269,7 @@ def run_pairwise(
             },
         )
         executed += 1
+        bad_verdicts = 0
 
     if oversized:
         print(

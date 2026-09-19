@@ -349,6 +349,27 @@ def test_a_scored_judgment_goes_stale_when_its_run_becomes_a_refusal(tmp_path):
     assert data["scores"] == {}
 
 
+def test_a_judge_that_keeps_answering_badly_stops_the_stage(tmp_path, capsys):
+    """Each unparseable item costs three calls; a judge answering in the wrong
+    shape must not be asked about every remaining item."""
+    p = seed_run(tmp_path, instance_id="t.cn-01.0")
+    for i in (1, 2, 3):
+        seed_run(tmp_path, instance_id=f"t.cn-01.{i}")
+    runner = FakeRunner(responses=["bad"] * 20)
+    assert judge_run(**common_args(tmp_path, p, runner)) == 3
+    assert len(runner.calls) == 9
+    assert "stopping after 3 judgments" in capsys.readouterr().out
+    fourth = judgment_output_path(tmp_path / "judgments", "r1", "m1", "t.cn-01.3")
+    assert not fourth.exists()
+
+
+def test_one_unparseable_item_does_not_stop_the_stage(tmp_path):
+    p = seed_run(tmp_path, instance_id="t.cn-01.0")
+    seed_run(tmp_path, instance_id="t.cn-01.1")
+    runner = FakeRunner(responses=["bad", "bad", "bad", valid_judge_reply()])
+    assert judge_run(**common_args(tmp_path, p, runner)) == 2
+
+
 def test_a_judge_runner_that_raises_is_not_asked_again_and_stops_the_stage(tmp_path):
     """A defect in the runner repeats on every call; for the Antigravity judge
     each repeat is another request against the operator's account."""

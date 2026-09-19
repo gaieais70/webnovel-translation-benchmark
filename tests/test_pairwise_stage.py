@@ -253,6 +253,18 @@ def test_run_pairwise_stops_on_a_judge_failure(tmp_path):
     assert run_pairwise(**pairwise_args(tmp_path, runner)) == 0
 
 
+def test_a_judge_that_keeps_answering_badly_stops_the_stage(tmp_path, capsys):
+    """Skipped comparisons do not count against the budget, so a judge that
+    answers in the wrong shape would otherwise be asked about every pair."""
+    for pid in ("cn-01", "cn-02", "cn-03", "cn-04", "cn-05"):
+        seed_run(tmp_path, "m1", f"a-{pid}", passage_id=pid)
+        seed_run(tmp_path, "m2", f"b-{pid}", passage_id=pid)
+    runner = FakeRunner(responses=["not json"] * 10)
+    assert run_pairwise(**pairwise_args(tmp_path, runner, max_comparisons=5)) == 0
+    assert len(runner.calls) == 3
+    assert "stopping after 0 comparisons" in capsys.readouterr().out
+
+
 def test_a_judge_runner_that_raises_stops_the_stage_cleanly(tmp_path, capsys):
     class Raising:
         calls = 0

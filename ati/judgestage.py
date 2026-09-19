@@ -20,6 +20,12 @@ from ati.runstage import is_usage_limit
 # One is a blip; two in a row is the judge being down or out of quota, and
 # every remaining item would fail the same way.
 MAX_CONSECUTIVE_RUNNER_FAILURES = 2
+# Consecutive items whose every attempt came back in a shape that could not be
+# parsed. Each such item has already cost `attempts` judge calls, so a judge
+# that has started answering in the wrong shape would otherwise spend three
+# requests on every remaining item - for the Antigravity judge, against the
+# operator's own account - while producing nothing that can be scored.
+MAX_CONSECUTIVE_SCHEMA_FAILURES = 3
 
 
 def judgment_output_path(
@@ -106,6 +112,7 @@ def judge_run(
     run_dir = Path(runs_root) / run_id
     judged = 0
     runner_failures = 0
+    schema_failures = 0
     for run_file, run_data in iter_records(
         sorted(run_dir.rglob("*.json")), required=RUN_RECORD_KEYS
     ):
@@ -200,6 +207,15 @@ def judge_run(
         except JudgeSchemaError as exc:
             _write(out_path, {**base, "judge_error": str(exc)})
             judged += 1
+            runner_failures = 0  # it answered, so it was reachable
+            schema_failures += 1
+            if schema_failures >= MAX_CONSECUTIVE_SCHEMA_FAILURES:
+                print(
+                    f"stopping after {judged} judgments: {schema_failures} "
+                    f"items in a row got no parseable answer from the judge "
+                    f"(last: {exc}). Check the judge before rerunning."
+                )
+                return judged
             continue
 
         _write(
@@ -214,4 +230,5 @@ def judge_run(
         )
         judged += 1
         runner_failures = 0
+        schema_failures = 0
     return judged
