@@ -17,14 +17,14 @@ def fake_run_factory(stdout="", stderr="", returncode=0, capture=None):
 def test_cli_runner_sends_source_on_stdin_and_reads_stdout():
     capture = []
     runner = CliRunner(
-        command=["claude", "-p"],
+        command=["no-such-cli-for-tests", "-p"],
         runner_fn=fake_run_factory(stdout="translated\n", capture=capture),
     )
     result = runner.run("SYSTEM PROMPT", "SOURCE TEXT")
     assert result.text == "translated"
     assert result.error is None
     cmd, kwargs = capture[0]
-    assert cmd == ["claude", "-p"]
+    assert cmd == ["no-such-cli-for-tests", "-p"]  # not on PATH: left as written
     assert "SYSTEM PROMPT" in kwargs["input"]
     assert "SOURCE TEXT" in kwargs["input"]
 
@@ -60,6 +60,18 @@ def test_cli_runner_flags_refusals():
         runner_fn=fake_run_factory(stdout="I cannot translate this content."),
     )
     assert runner.run("s", "t").refused is True
+
+
+def test_the_program_is_resolved_to_the_shim_windows_can_run():
+    """A bare `opencode` failed WinError 2 on every call of run 2026-08."""
+    from ati.runners.cli import resolve_executable
+
+    shims = {"opencode": r"C:\npm\opencode.CMD"}
+    assert resolve_executable(["opencode", "run"], which=shims.get) == [
+        r"C:\npm\opencode.CMD", "run",
+    ]
+    assert resolve_executable(["missing", "x"], which=shims.get) == ["missing", "x"]
+    assert resolve_executable([], which=shims.get) == []
 
 
 def test_cli_runner_decodes_output_leniently():

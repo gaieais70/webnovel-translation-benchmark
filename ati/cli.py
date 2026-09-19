@@ -350,6 +350,12 @@ def build_judge_runner(
             f"judge {judge_id}: Gemini may only be reached through Antigravity; "
             f"declare it in models.yaml with runner: agy"
         )
+    if not api_key:
+        raise ConfigError(
+            f"judge {judge_id} is not declared in models.yaml, so it would be "
+            f"called at {endpoint or DEFAULT_ENDPOINT} with OPENROUTER_API_KEY, "
+            f"which is not set"
+        )
     return ApiRunner(
         endpoint=endpoint or DEFAULT_ENDPOINT,
         model=judge_id,

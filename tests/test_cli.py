@@ -349,6 +349,16 @@ def test_build_judge_runner_falls_back_to_api_for_unknown_id(tmp_path):
     assert isinstance(runner, ApiRunner)
 
 
+def test_an_undeclared_judge_without_a_key_is_refused_up_front(tmp_path):
+    from ati.cli import build_judge_runner
+    from ati.config import ConfigError
+
+    p = tmp_path / "models.yaml"
+    p.write_text("[]\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="OPENROUTER_API_KEY"):
+        build_judge_runner("vendor/judge", p, None, tmp_path, None)
+
+
 def test_pairwise_command_reports_when_nothing_to_compare(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "config").mkdir(exist_ok=True)

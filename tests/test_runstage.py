@@ -193,6 +193,7 @@ def test_is_usage_limit_recognizes_quota_errors():
 
     assert is_usage_limit('HTTP 429: {"type":"GoUsageLimitError"}')
     assert is_usage_limit("5-hour usage limit reached")
+    assert is_usage_limit('HTTP 402: {"error":{"message":"Insufficient credits"}}')
     assert not is_usage_limit("The read operation timed out")
     assert not is_usage_limit(None)
 

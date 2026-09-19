@@ -6,11 +6,28 @@ because CLI entry points vary too much to assume a system-prompt flag.
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import time
 
 from ati.config import DEFAULT_TIMEOUT_S
 from ati.runners.base import RunResult, looks_like_refusal
+
+
+def resolve_executable(command: list[str], which=shutil.which) -> list[str]:
+    """The command with its program resolved on PATH, extension included.
+
+    On Windows, npm installs a CLI as an extensionless shell script plus a
+    `.cmd` shim, and subprocess without a shell can only run the shim: a bare
+    `opencode` failed WinError 2 on every call of run 2026-08, recorded as the
+    model failing (run-notes-2026-08 §2). `shutil.which` applies PATHEXT, so
+    it finds `opencode.cmd`. A program it cannot find is left as written, so
+    the failure still surfaces, as an error on the task.
+    """
+    if not command:
+        return list(command)
+    resolved = which(command[0])
+    return [resolved or command[0], *command[1:]]
 
 
 class CliRunner:
@@ -20,7 +37,7 @@ class CliRunner:
         timeout_s: float = DEFAULT_TIMEOUT_S,
         runner_fn=None,
     ) -> None:
-        self._command = list(command)
+        self._command = resolve_executable(list(command))
         self._timeout_s = timeout_s
         self._runner_fn = runner_fn or subprocess.run
 

@@ -31,6 +31,9 @@ USAGE_LIMIT_MARKERS = (
     "resource_exhausted",
     "resource exhausted",
     "too many requests",
+    # OpenRouter's answer (HTTP 402) when prepaid credit runs out. Every
+    # remaining call would get it too, so it is a stop, not a task failure.
+    "insufficient credit",
 )
 
 # A translation is bounded in length by its source. The api runner already

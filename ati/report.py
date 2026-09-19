@@ -112,7 +112,7 @@ def aggregate(
         tables_by_task: dict[str, list[dict]] = {}
         for j in model_judgments:
             if j.get("task_type") == "consistency" and j.get("term_table"):
-                tables_by_task.setdefault(j["task_id"], []).append(j["term_table"])
+                tables_by_task.setdefault(j.get("task_id"), []).append(j["term_table"])
         stabilities = [
             s
             for s in (term_stability(tables) for tables in tables_by_task.values())
