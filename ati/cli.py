@@ -51,16 +51,19 @@ DEFAULT_JUDGE_MODEL = "anthropic/claude-sonnet-5"
 DEFAULT_ITERATIONS = 1
 
 
-def resolve_api_key(model: ModelConfig, fallback: str | None = None) -> str | None:
-    """The credential for this model's provider.
+def resolve_api_key(model: ModelConfig) -> str | None:
+    """The credential for this model's provider, from its own variable only.
 
-    Read per model so a pool mixing opencode-go and OpenRouter does not send
-    one provider's key to the other and collect 401s.
+    There is deliberately no fallback to another variable. Falling back to
+    OPENROUTER_API_KEY sent OpenRouter's key to Command Code whenever
+    COMMANDCODE_API_KEY was unset; the 401 that came back was recorded as the
+    model failing, and on a row with a fallback route it silently switched
+    provider.
     """
-    return os.environ.get(model.api_key_env) or fallback
+    return os.environ.get(model.api_key_env) or None
 
 
-def build_alternate_runner(model: ModelConfig, api_key: str | None):
+def build_alternate_runner(model: ModelConfig):
     """The second route for a model that declares one, or None.
 
     Anything the fallback entry does not name is inherited from the primary,
@@ -69,11 +72,21 @@ def build_alternate_runner(model: ModelConfig, api_key: str | None):
     spec = model.fallback
     if not spec:
         return None
+    if requires_antigravity(spec.get("model")):
+        raise ConfigError(
+            f"model {model.id}: Gemini may only be reached through Antigravity, "
+            f"not as a fallback route"
+        )
     key_env = spec.get("api_key_env", model.api_key_env)
+    key = os.environ.get(key_env)
+    if not key:
+        # The primary route may still serve every call, so this is a warning:
+        # but a fallback without its key can only ever collect a 401.
+        print(f"WARNING: {model.id}: fallback key {key_env} is not set")
     return ApiRunner(
         endpoint=spec.get("endpoint") or model.endpoint or DEFAULT_ENDPOINT,
         model=spec["model"],
-        api_key=os.environ.get(key_env) or api_key or "",
+        api_key=key or "",
         temperature=model.temperature,
         timeout_s=model.timeout_s,
         extra_params=spec.get("params", model.params),
@@ -81,7 +94,7 @@ def build_alternate_runner(model: ModelConfig, api_key: str | None):
     )
 
 
-def build_runner(model: ModelConfig, api_key: str | None, manual_root: Path):
+def build_runner(model: ModelConfig, manual_root: Path):
     # load_models already refuses this; checked again because a ModelConfig
     # can be built without going through it, and the cost of getting it wrong
     # is the operator's Google account.
@@ -90,14 +103,20 @@ def build_runner(model: ModelConfig, api_key: str | None, manual_root: Path):
             f"model {model.id}: Gemini may only be reached through Antigravity"
         )
     if model.runner == "api":
+        key = resolve_api_key(model)
+        if not key:
+            raise ConfigError(
+                f"model {model.id}: {model.api_key_env} is not set "
+                f"(export it or add it to .env)"
+            )
         return ApiRunner(
             endpoint=model.endpoint or DEFAULT_ENDPOINT,
             model=model.model or model.id,
-            api_key=resolve_api_key(model, api_key) or "",
+            api_key=key,
             temperature=model.temperature,
             timeout_s=model.timeout_s,
             extra_params=model.params,
-            fallback=build_alternate_runner(model, api_key),
+            fallback=build_alternate_runner(model),
             stream=model.stream,
         )
     if model.runner == "cli":
@@ -183,11 +202,18 @@ def cmd_run(args) -> int:
     instances = expand(tasks, iterations=args.iterations)
     passages = {p.id: p for p in load_manifest(Path(args.manifest))}
     system_prompt = Path(args.prompt).read_text(encoding="utf-8")
-    api_key = os.environ.get("OPENROUTER_API_KEY")
 
     total = 0
+    not_run: list[str] = []
     for model in models:
-        runner = build_runner(model, api_key, Path(args.manual))
+        try:
+            runner = build_runner(model, Path(args.manual))
+        except ConfigError as exc:
+            # Before any call: a missing key would otherwise surface as a 401
+            # recorded against the model, as though the model had failed.
+            print(f"{model.id}: not run - {exc}")
+            not_run.append(model.id)
+            continue
         executed = run_model(
             runner=runner,
             model_id=model.id,
@@ -202,6 +228,9 @@ def cmd_run(args) -> int:
         print(f"{model.id}: {executed} executed, {len(instances) - executed} skipped")
         total += executed
     print(f"total executed: {total}")
+    if not_run:
+        print(f"not run: {', '.join(not_run)}")
+        return 1
     return 0
 
 
@@ -216,7 +245,10 @@ def build_judge_runner(
     """
     try:
         declared = {m.id: m for m in load_models(Path(models_path))}
-    except (OSError, ConfigError):
+    except OSError:
+        # No roster file at all. A roster that exists but does not load is
+        # a ConfigError and stops here: read as "no judge declared", it would
+        # send a declared judge's id to the default endpoint instead.
         declared = {}
     if judge_id in declared:
         model = declared[judge_id]
@@ -226,7 +258,7 @@ def build_judge_runner(
         # the stage would report zero work with no error.
         if json_schema is not None:
             model = replace(model, json_schema=json_schema)
-        return build_runner(model, api_key, Path(manual_root))
+        return build_runner(model, Path(manual_root))
     # An undeclared judge becomes a plain API call, which for Gemini would be
     # exactly the route the operator has ruled out.
     if requires_antigravity(judge_id):
@@ -504,14 +536,6 @@ def main(argv: list[str] | None = None) -> int:
     if loaded:
         print(f"loaded from .env: {', '.join(sorted(loaded))}")
 
-    defaults = load_defaults(Path(args.defaults))
-    if args.judge_model is None:
-        args.judge_model = defaults.get("judge_model", DEFAULT_JUDGE_MODEL)
-    if args.judge_endpoint is None:
-        args.judge_endpoint = defaults.get("judge_endpoint", DEFAULT_ENDPOINT)
-    if args.iterations is None:
-        args.iterations = int(defaults.get("iterations", DEFAULT_ITERATIONS))
-
     handlers = {
         "add": cmd_add,
         "fetch": cmd_fetch,
@@ -521,7 +545,20 @@ def main(argv: list[str] | None = None) -> int:
         "report": cmd_report,
         "bench": cmd_bench,
     }
-    return handlers[args.command](args)
+    try:
+        defaults = load_defaults(Path(args.defaults))
+        if args.judge_model is None:
+            args.judge_model = defaults.get("judge_model", DEFAULT_JUDGE_MODEL)
+        if args.judge_endpoint is None:
+            args.judge_endpoint = defaults.get("judge_endpoint", DEFAULT_ENDPOINT)
+        if args.iterations is None:
+            args.iterations = int(defaults.get("iterations", DEFAULT_ITERATIONS))
+        return handlers[args.command](args)
+    except ConfigError as exc:
+        # A configuration problem - including a refused Gemini route - is
+        # reported as one line, before any model call, not as a traceback.
+        print(f"error: {exc}")
+        return 2
 
 
 if __name__ == "__main__":

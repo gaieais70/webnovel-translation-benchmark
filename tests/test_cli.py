@@ -10,21 +10,22 @@ from ati.runners.cli import CliRunner
 from ati.runners.manual import ManualRunner
 
 
-def test_build_runner_returns_api_runner_for_api_models(tmp_path):
+def test_build_runner_returns_api_runner_for_api_models(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "key")
     m = ModelConfig(
         id="m", runner="api", model="vendor/m", endpoint="http://x", temperature=0.3
     )
-    assert isinstance(build_runner(m, "key", tmp_path), ApiRunner)
+    assert isinstance(build_runner(m, tmp_path), ApiRunner)
 
 
 def test_build_runner_returns_cli_runner_for_cli_models(tmp_path):
     m = ModelConfig(id="m", runner="cli", command=["echo"])
-    assert isinstance(build_runner(m, None, tmp_path), CliRunner)
+    assert isinstance(build_runner(m, tmp_path), CliRunner)
 
 
 def test_build_runner_returns_manual_runner_for_manual_models(tmp_path):
     m = ModelConfig(id="m", runner="manual")
-    assert isinstance(build_runner(m, None, tmp_path), ManualRunner)
+    assert isinstance(build_runner(m, tmp_path), ManualRunner)
 
 
 def test_main_with_no_args_prints_usage_and_returns_nonzero(capsys):
@@ -216,7 +217,7 @@ def test_build_runner_returns_agy_runner_for_agy_models(tmp_path):
     from ati.runners.agy import AgyRunner
 
     m = ModelConfig(id="judge", runner="agy", model="gemini-3.7-flash-high")
-    assert isinstance(build_runner(m, None, tmp_path), AgyRunner)
+    assert isinstance(build_runner(m, tmp_path), AgyRunner)
 
 
 def test_load_models_accepts_agy_runner(tmp_path):
@@ -297,12 +298,79 @@ def test_resolve_api_key_reads_the_models_own_env_var(monkeypatch):
     assert resolve_api_key(m) == "opencode-secret"
 
 
-def test_resolve_api_key_falls_back_when_unset(monkeypatch):
+def test_resolve_api_key_never_borrows_another_providers_key(monkeypatch):
+    """OpenRouter's key was sent to Command Code whenever COMMANDCODE_API_KEY
+    was unset; the 401 was recorded as the model failing."""
     from ati.cli import resolve_api_key
 
-    monkeypatch.delenv("NOPE_KEY", raising=False)
-    m = ModelConfig(id="m", runner="api", model="x", api_key_env="NOPE_KEY")
-    assert resolve_api_key(m, "fallback") == "fallback"
+    monkeypatch.delenv("COMMANDCODE_API_KEY", raising=False)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "openrouter-secret")
+    m = ModelConfig(id="m", runner="api", model="x", api_key_env="COMMANDCODE_API_KEY")
+    assert resolve_api_key(m) is None
+
+
+def test_an_api_model_without_its_key_is_refused_before_any_call(tmp_path, monkeypatch):
+    from ati.config import ConfigError
+
+    monkeypatch.delenv("COMMANDCODE_API_KEY", raising=False)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "openrouter-secret")
+    m = ModelConfig(id="m", runner="api", model="x", api_key_env="COMMANDCODE_API_KEY")
+    with pytest.raises(ConfigError, match="COMMANDCODE_API_KEY is not set"):
+        build_runner(m, tmp_path)
+
+
+def test_a_fallback_route_uses_only_its_own_key(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("COMMANDCODE_API_KEY", "cc-secret")
+    monkeypatch.delenv("OTHER_KEY", raising=False)
+    m = ModelConfig(
+        id="m", runner="api", model="x", api_key_env="COMMANDCODE_API_KEY",
+        fallback={"model": "y", "api_key_env": "OTHER_KEY"},
+    )
+    runner = build_runner(m, tmp_path)
+    assert runner._fallback._api_key == ""
+    assert "fallback key OTHER_KEY is not set" in capsys.readouterr().out
+
+
+def test_a_gemini_fallback_route_is_refused(tmp_path, monkeypatch):
+    from ati.config import ConfigError
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "k")
+    m = ModelConfig(
+        id="m", runner="api", model="x", fallback={"model": "google/gemini-3.8-flash"}
+    )
+    with pytest.raises(ConfigError, match="Antigravity"):
+        build_runner(m, tmp_path)
+
+
+def test_ati_run_skips_a_model_whose_key_is_missing(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("COMMANDCODE_API_KEY", raising=False)
+    (tmp_path / "config" / "prompts").mkdir(parents=True)
+    (tmp_path / "config" / "prompts" / "translate.md").write_text("T", encoding="utf-8")
+    (tmp_path / "config" / "models.yaml").write_text(
+        "- id: m\n  runner: api\n  model: x\n  api_key_env: COMMANDCODE_API_KEY\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "config" / "tasks.yaml").write_text(
+        "- id: t\n  type: passage\n  passages: [p1]\n", encoding="utf-8"
+    )
+    (tmp_path / "corpus").mkdir()
+    (tmp_path / "corpus" / "manifest.json").write_text('{"passages": []}', encoding="utf-8")
+    assert main(["run", "--run", "r1"]) == 1
+    out = capsys.readouterr().out
+    assert "m: not run" in out and "COMMANDCODE_API_KEY" in out
+    assert not (tmp_path / "runs").exists()
+
+
+def test_a_config_error_is_one_line_not_a_traceback(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config" / "models.yaml").write_text(
+        "- id: g\n  runner: api\n  model: google/gemini-3.8-flash\n", encoding="utf-8"
+    )
+    assert main(["judge", "--run", "r1", "--judge-model", "g"]) == 2
+    out = capsys.readouterr().out
+    assert "error:" in out and "Antigravity" in out
 
 
 def test_pairwise_judge_gets_the_pairwise_schema_not_the_rubric_one(tmp_path):
@@ -365,7 +433,7 @@ def test_build_runner_refuses_gemini_on_an_api_route(tmp_path):
 
     m = ModelConfig(id="x", runner="api", model="google/gemini-3.8-flash")
     with pytest.raises(ConfigError, match="Antigravity"):
-        build_runner(m, None, tmp_path)
+        build_runner(m, tmp_path)
 
 
 def test_the_rubric_stage_gives_the_judge_the_rubric_schema(tmp_path, monkeypatch):
