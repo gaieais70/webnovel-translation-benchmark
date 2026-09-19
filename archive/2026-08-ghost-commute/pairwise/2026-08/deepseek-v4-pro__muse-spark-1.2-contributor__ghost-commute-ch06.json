@@ -1,0 +1,8 @@
+{
+  "a": "deepseek-v4-pro",
+  "b": "muse-spark-1.2-contributor",
+  "passage_id": "ghost-commute-ch06",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a"
+}

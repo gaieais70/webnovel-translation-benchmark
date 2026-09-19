@@ -1,4 +1,8 @@
 corpus/passages/
+# At any depth, not just the root: archiving a run moves its corpus under
+# archive/, and the root-anchored rule above stopped covering the source text.
+**/corpus/passages/
+**/corpus/references/
 runs/
 judgments/
 manual/

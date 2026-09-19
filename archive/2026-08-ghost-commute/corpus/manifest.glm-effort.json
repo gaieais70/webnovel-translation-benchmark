@@ -1,0 +1,33 @@
+{
+  "methodology_version": 1,
+  "passages": [
+    {
+      "id": "ghost-commute-ch03",
+      "lang": "ko",
+      "genre": "modern-fantasy",
+      "source_url": "local://Novel Sources/괴담에 떨어져도 출근을 해야 하는구나",
+      "chapter": "3",
+      "start": 0,
+      "end": 8705,
+      "sha256": "b8f27003855f43f3623f4c5be8662eb2796f208ad4ab7d8cdb623636051d7a68",
+      "has_reference": false,
+      "source_file": "chapter_282.txt",
+      "series": "ghost-commute",
+      "series_index": 3
+    },
+    {
+      "id": "ghost-commute-ch08",
+      "lang": "ko",
+      "genre": "modern-fantasy",
+      "source_url": "local://Novel Sources/괴담에 떨어져도 출근을 해야 하는구나",
+      "chapter": "8",
+      "start": 0,
+      "end": 8231,
+      "sha256": "f94bfd477915216ba33779a2adec60bfc2a497c73b4ab8a8d31470ec0981a619",
+      "has_reference": false,
+      "source_file": "chapter_287.txt",
+      "series": "ghost-commute",
+      "series_index": 8
+    }
+  ]
+}

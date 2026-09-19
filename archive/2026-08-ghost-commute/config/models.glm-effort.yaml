@@ -1,0 +1,54 @@
+# Isolated roster for one experiment: does reasoning effort explain the
+# ch03/ch08 failures on glm-5.3-flash?
+#
+# Separate file, not an edit to config/models.yaml, for the reason recorded in
+# run-notes under "the prompt is not the cause": a hypothesis gets tested
+# against a copy. The eleven-model roster keeps its conditions and needs no
+# re-run whatever this finds.
+#
+# Route is OpenRouter, matching the baseline in results/glm-prompt-hypothesis.txt
+#   baseline  lat=343s  fin=error   out=30,173  out_chars=0
+# so effort is the only variable moving against a run we already have.
+#
+# timeout_s is 2400 on every arm, well above the 900s default. At 60-72 tok/s
+# a 73k-token completion needs ~1,000-1,200s, and the default would record it
+# as ReadTimeout - which is how ch03 failed before, and would look identical to
+# the failure under test.
+#
+# Slug: the operator supplied `z-ai/glm-5.3-flash-20260826`, which OpenRouter's
+# catalogue does not list. `z-ai/glm-5.3-flash` is the only GLM 5.3 Flash it
+# offers, so it is necessarily what produced the baseline as well. Confirmed to
+# accept `reasoning` and `reasoning_effort`; max_completion_tokens is 131,072.
+
+# Arm 1 - production question: does `high` fit the real 46,338-token clamp?
+- id: glm-effort-high
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_API_KEY
+  model: z-ai/glm-5.3-flash
+  timeout_s: 2400
+  params:
+    reasoning:
+      effort: high
+
+# Arm 2 - does `high` complete at all, budget aside? Distinguishes "effort
+# fixes it but the clamp is too tight" from "effort changes nothing".
+- id: glm-effort-high-roomy
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_API_KEY
+  model: z-ai/glm-5.3-flash
+  timeout_s: 2400
+  params:
+    max_tokens: 98304
+    reasoning:
+      effort: high
+
+# Arm 3 - control on the same route and day. The existing baseline is from an
+# earlier session; this one moves nothing but sits beside the other two.
+- id: glm-effort-default
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_API_KEY
+  model: z-ai/glm-5.3-flash
+  timeout_s: 2400

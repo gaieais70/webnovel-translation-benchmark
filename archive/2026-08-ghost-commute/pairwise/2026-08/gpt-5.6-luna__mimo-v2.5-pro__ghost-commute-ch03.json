@@ -1,0 +1,8 @@
+{
+  "a": "gpt-5.6-luna",
+  "b": "mimo-v2.5-pro",
+  "passage_id": "ghost-commute-ch03",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a"
+}

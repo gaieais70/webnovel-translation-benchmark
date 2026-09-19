@@ -1,0 +1,8 @@
+{
+  "a": "grok-4.6",
+  "b": "longcat-2.0",
+  "passage_id": "ghost-commute-ch04",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a"
+}

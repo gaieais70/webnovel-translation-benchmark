@@ -1,0 +1,8 @@
+{
+  "a": "deepseek-v4-pro",
+  "b": "mimo-v2.5-pro",
+  "passage_id": "ghost-commute-ch04",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a"
+}

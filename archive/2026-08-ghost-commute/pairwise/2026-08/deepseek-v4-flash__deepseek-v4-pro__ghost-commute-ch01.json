@@ -1,0 +1,8 @@
+{
+  "a": "deepseek-v4-flash",
+  "b": "deepseek-v4-pro",
+  "passage_id": "ghost-commute-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie"
+}
