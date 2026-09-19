@@ -17,9 +17,10 @@
 # `params` sets reasoning effort to each model's top rung. The spelling differs
 # by provider - OpenRouter nests it under `reasoning`, OpenAI-compatible routes
 # take a flat `reasoning_effort` - and neither provider errors on a field it
-# does not understand, so `ati probe` must confirm the setting actually took
-# before this roster is trusted. A model that silently ignores it runs at its
-# default and would be recorded as running at max.
+# does not understand. Nothing in the harness verifies that the setting took:
+# a model that silently ignores it runs at its default while this file says
+# max. `reasoning_tokens` on each run record is the only evidence of what
+# actually happened; check it before reading a row as a max-effort result.
 
 # --- Command Code -----------------------------------------------------------
 # https://api.commandcode.ai/provider/v1/chat/completions, COMMANDCODE_API_KEY

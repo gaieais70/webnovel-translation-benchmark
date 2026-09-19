@@ -10,8 +10,6 @@ from dataclasses import asdict, replace
 from datetime import date
 from pathlib import Path
 
-import httpx
-
 from ati.config import (
     ConfigError,
     ModelConfig,
@@ -28,7 +26,6 @@ from ati.corpus import (
     load_manifest,
     load_passage,
     passage_path,
-    sha256_text,
 )
 from ati.judgestage import judge_run
 from ati.intake import DEFAULT_CHARS, KINDS, IntakeError, add_files

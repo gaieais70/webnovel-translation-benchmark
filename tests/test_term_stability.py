@@ -1,5 +1,3 @@
-import pytest
-
 from ati.scoring import stability_to_axis_score, term_stability
 
 

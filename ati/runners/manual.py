@@ -12,10 +12,6 @@ from pathlib import Path
 from ati.runners.base import RunResult, looks_like_refusal
 
 
-class ResponsePending(Exception):
-    """A manual response file has not been provided yet."""
-
-
 class ManualRunner:
     def __init__(self, root: Path, model_id: str) -> None:
         self._dir = Path(root) / model_id

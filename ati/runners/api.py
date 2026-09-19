@@ -159,7 +159,6 @@ class ApiRunner:
         timeout_s: float = TIMEOUT_S,
         attempts: int = ATTEMPTS,
         retry_backoff_s: float = RETRY_BACKOFF_S,
-        max_output_tokens: int | None = None,
         extra_params: dict | None = None,
         fallback: "ApiRunner | None" = None,
         stream: bool = False,
@@ -171,7 +170,6 @@ class ApiRunner:
         self._client = client or httpx.Client(timeout=timeout_s)
         self._attempts = max(1, attempts)
         self._retry_backoff_s = retry_backoff_s
-        self._max_output_tokens = max_output_tokens
         self._extra_params = dict(extra_params or {})
         self._fallback = fallback
         # Command Code's gateway abandons a buffered request that has not
@@ -250,13 +248,11 @@ class ApiRunner:
                 {"role": "user", "content": source_text},
             ],
         }
-        # Only when a ceiling was configured for this model. Absent, the
-        # provider's own default applies and nothing here truncates the model.
-        if self._max_output_tokens:
-            payload["max_tokens"] = self._max_output_tokens
-        # Merged last so a roster entry can tighten max_tokens for one model
-        # without a code change. `model` and `messages` are rejected at config
-        # load, so nothing here can redirect the request off its own passage.
+        # No max_tokens unless the roster row sets one in `params`; absent, the
+        # provider's own default applies. Merged last so a roster entry can set
+        # a ceiling for one model without a code change. `model` and
+        # `messages` are rejected at config load, so nothing here can redirect
+        # the request off its own passage.
         payload.update(self._extra_params)
         if self._stream:
             payload["stream"] = True

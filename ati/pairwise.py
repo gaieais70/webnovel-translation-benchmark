@@ -27,8 +27,6 @@ from pathlib import Path
 from ati.bradleyterry import win_probability
 from ati.corpus import HashMismatch, PassageMissing, load_passage
 
-VERDICTS = ("A", "B", "tie")
-
 # One comparison sends the source plus both translations. Whole chapters run
 # to ~40,000 characters per prompt, and each pair is judged twice for order,
 # so an unguarded run drains a judge subscription far faster than the short

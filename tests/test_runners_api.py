@@ -1,6 +1,5 @@
 import json
 import httpx
-import pytest
 
 from ati.runners.api import ApiRunner
 from ati.runners.base import RunResult, looks_like_refusal
@@ -320,19 +319,6 @@ def test_api_runner_sends_no_ceiling_by_default():
     seen.clear()
     runner.run("s", "x" * 200_000)
     assert "max_tokens" not in seen
-
-
-def test_api_runner_max_tokens_can_be_overridden():
-    seen = {}
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        seen.update(json.loads(request.content))
-        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
-
-    client = httpx.Client(transport=httpx.MockTransport(handler))
-    runner = ApiRunner("http://x", "m", "k", 0.3, client=client, max_output_tokens=500)
-    runner.run("s", "x" * 7400)
-    assert seen["max_tokens"] == 500
 
 
 def test_api_runner_records_truncation_as_a_failure():
