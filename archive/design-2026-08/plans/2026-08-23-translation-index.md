@@ -1,5 +1,10 @@
 # Artificial Translation Index Implementation Plan
 
+> **Superseded design history (August 2026).** This document describes an
+> earlier revision and embeds code that has since changed. The code in `ati/`
+> and `docs/methodology.md` are authoritative; `docs/runbook.md` is how a run
+> is operated today. Kept for the record, not as guidance.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a Python CLI that runs a fixed translation task suite against configured AI models, scores the outputs with a judge model, and publishes a Markdown leaderboard ranking translation quality for CJK→EN web serial fiction.

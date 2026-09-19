@@ -7,16 +7,19 @@ have no official translation.
 **This project publishes rankings, not translations.** No source text or
 translation text is committed or published.
 
-- [Leaderboard](results/leaderboard.md)
+- [Latest published leaderboard](archive/2026-08-ghost-commute/results/leaderboard.md)
+  (run `2026-08`; run `2026-09` is being judged)
 - [Methodology](docs/methodology.md)
 - [Rubric](docs/rubric.md)
+- [Runbook](docs/runbook.md) — operating a run end to end
 
 ## Usage
 
-Install:
+Install and check:
 
 ```bash
 pip install -e ".[dev]"
+python -m pytest -q
 ```
 
 Add chapter text you have saved locally. This hashes each file, slices it,
@@ -28,34 +31,37 @@ ati add ./raw/ch*.txt --work skyfall --lang zh --genre xianxia --type consistenc
 
 `--type passage` takes the first 800 characters of each file; `--type
 consistency` keeps whole chapters for the multi-chapter terminology test;
-`--type refusal` is for passages with violent or sexual content.
+`--type refusal` is for passages with violent or sexual content. Running the
+same command again restores any passage text that has gone missing.
 
-Then run everything:
-
-```bash
-ati bench --run 2026-08
-```
-
-That chains fetch → run → judge → report and writes
-`results/leaderboard.md`. The individual stages remain available
-(`ati fetch`, `ati run`, `ati judge`, `ati report`) and every stage is
-resumable — work already done is skipped.
-
-Then run the head-to-head pass, which is separate because it is the expensive
-part:
+Then, for a new run id:
 
 ```bash
-ati pairwise --run 2026-08 --max-comparisons 200
+ati run --run 2026-10 --passes 3 --wait     # translate; retry failures; outlast usage limits
+ati judge --run 2026-10 --wait              # rubric scores
+ati pairwise --run 2026-10 --target 300 --wait   # head-to-head, the expensive part
+ati report --run 2026-10                    # results/<run>.json and results/leaderboard.md
+ati status --run 2026-10                    # progress at any point; makes no calls
 ```
 
-Every comparison is checkpointed as it completes. If the judge subscription
-hits a usage limit the stage stops cleanly and prints how far it got; rerun
-the same command later and it resumes without repeating work. Rerun
-`ati report` afterwards to fold the ratings into the leaderboard.
+`ati bench --run 2026-10` chains fetch → run → judge → report (not pairwise).
+Every stage is resumable — work already done is skipped — and a stage that
+stops on a usage limit keeps what it finished. `--wait` waits the limit out
+and resumes. See [the runbook](docs/runbook.md) for lanes, quotas and the
+judge's safeguards.
 
-Set `OPENROUTER_API_KEY` for API-backed models. Subscription-backed models
-are configured as `runner: cli` in `config/models.yaml` and report cost as
-N/A. Defaults live in `config/ati.yaml`.
+## Configuration
+
+- `config/models.yaml` — the roster. Models are reached with `runner: api`
+  (any OpenAI-compatible endpoint; Command Code and OpenRouter today), each
+  with its own `api_key_env`. The judge is Gemini through the Antigravity CLI
+  (`runner: agy`), the only route Gemini may take. `runner: cli` (a local CLI
+  such as `opencode.cmd run`, prompt on stdin) and `runner: manual` (prompt
+  files answered by pasting a response) are supported but unused by the
+  current roster. Subscription access reports cost as N/A.
+- `config/ati.yaml` — the default judge and iteration count, nothing else.
+- `config/weights.yaml` — axis weights.
+- Keys go in `.env` (see `.env.example`).
 
 ## Reweighting
 

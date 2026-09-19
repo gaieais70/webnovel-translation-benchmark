@@ -1,5 +1,10 @@
 # Pairwise Ranking and Gemini Judging — Implementation Plan
 
+> **Superseded design history (August 2026).** This document describes an
+> earlier revision and embeds code that has since changed. The code in `ati/`
+> and `docs/methodology.md` are authoritative; `docs/runbook.md` is how a run
+> is operated today. Kept for the record, not as guidance.
+
 > **For agentic workers:** implement task-by-task. Steps use checkbox (`- [ ]`) syntax.
 
 **Goal:** Rank opencode-go models head-to-head using Gemini 3.7 Flash (via the `agy` CLI) as judge, with Bradley–Terry ratings, ties, and bootstrap confidence intervals — resumable across subscription usage limits.

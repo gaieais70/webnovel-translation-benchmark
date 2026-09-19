@@ -122,3 +122,23 @@ def test_rationale_quote_violations_allows_short_quotes():
         term_table=None,
     )
     assert rationale_quote_violations(j) == []
+
+
+def test_the_judge_prompt_and_the_rubric_cover_the_same_axes_and_anchors():
+    """docs/rubric.md once claimed to be the prompt verbatim; it is not, so at
+    least the structure is held in step: every axis, anchored at 1, 3 and 5."""
+    import re
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parents[1]
+    prompt = (repo / "config" / "prompts" / "judge.md").read_text(encoding="utf-8")
+    rubric = (repo / "docs" / "rubric.md").read_text(encoding="utf-8")
+    for axis in AXES:
+        block = re.search(rf"\*\*{axis}\*\*(.*?)(?=\n\n)", prompt, re.S)
+        assert block, f"judge prompt has no anchors for {axis}"
+        for level in ("1:", "3:", "5:"):
+            assert level in block.group(1), f"{axis} lacks anchor {level}"
+        assert f"## {axis}" in rubric
+        for level in ("**1**", "**3**", "**5**"):
+            section = rubric.split(f"## {axis}", 1)[1].split("\n## ", 1)[0]
+            assert level in section, f"rubric {axis} lacks {level}"

@@ -3,8 +3,16 @@ corpus/passages/
 # archive/, and the root-anchored rule above stopped covering the source text.
 **/corpus/passages/
 **/corpus/references/
+# Working directories of the run in progress. runs/ and judgments/ hold
+# translation text and are never committed. pairwise/ and results/ are
+# published only when a run closes, by copying them into archive/<run>/ (see
+# docs/runbook.md); ignoring the live copies keeps a mid-run `git add -A` from
+# committing partial verdicts or a partial leaderboard. Anchored to the root:
+# the same names under archive/ are the published copies.
 runs/
 judgments/
+/pairwise/
+/results/
 manual/
 .env
 __pycache__/

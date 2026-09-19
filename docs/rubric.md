@@ -1,7 +1,11 @@
 # Rubric
 
-Six axes, each scored 1-5. Anchors below are included verbatim in the judge
-prompt so scores mean the same thing across runs and across models.
+Six axes, each scored 1-5. This page states what each anchor means. The judge
+prompt (`config/prompts/judge.md`) carries a condensed wording of the same
+anchors — not this text verbatim — and it is the prompt, unchanged across a
+run, that makes scores mean the same thing across models. A test checks that
+the prompt covers all six axes with anchors at 1, 3 and 5; the wording is
+kept in step by hand, and changing the prompt makes existing judgments stale.
 
 ## accuracy — does the English convey what the source says?
 

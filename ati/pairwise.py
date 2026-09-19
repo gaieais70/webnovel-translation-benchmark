@@ -79,6 +79,12 @@ def resolve_outcome(forward: str, reverse: str) -> str:
 
 
 def build_pair_prompt(template: str, source: str, text_a: str, text_b: str) -> str:
+    # The judge is asked for a one-sentence `reason` (config/schemas/pairwise.json
+    # requires it) and only `winner` is kept. That is deliberate: comparison
+    # records are published when a run is archived, and a reason is free text
+    # that can quote the source or a translation, which this project never
+    # publishes. The request stays as it is because it is part of the judge's
+    # prompt, and changing it would change the measurement.
     return (
         f"{template}\n\n## SOURCE\n\n{source}\n\n"
         f"## TRANSLATION A\n\n{text_a}\n\n"

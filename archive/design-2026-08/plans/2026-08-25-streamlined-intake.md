@@ -1,5 +1,10 @@
 # Streamlined Intake and Pipeline — Implementation Plan
 
+> **Superseded design history (August 2026).** This document describes an
+> earlier revision and embeds code that has since changed. The code in `ati/`
+> and `docs/methodology.md` are authoritative; `docs/runbook.md` is how a run
+> is operated today. Kept for the record, not as guidance.
+
 > **For agentic workers:** implement task-by-task. Steps use checkbox (`- [ ]`) syntax.
 
 **Goal:** Remove the two worst frictions in operating the index: hand-writing corpus manifest JSON, and chaining four commands by hand.

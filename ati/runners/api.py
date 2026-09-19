@@ -358,9 +358,10 @@ class ApiRunner:
             )
 
         usage = body.get("usage") or {}
-        # OpenRouter reports cost inside usage; opencode-go reports it at the
-        # top level. Zero is a real value on subscription access and must not
-        # collapse into None, which means "unknown".
+        # OpenRouter reports cost inside usage; some gateways report it at the
+        # top level (opencode-go did, when it was a route). Zero is a real
+        # value on subscription access and must not collapse into None, which
+        # means "unknown".
         cost = usage.get("cost")
         if cost is None:
             cost = body.get("cost")
