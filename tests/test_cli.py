@@ -39,6 +39,56 @@ def test_main_unknown_command_returns_nonzero(capsys):
 
 
 def test_report_command_writes_leaderboard(tmp_path, monkeypatch):
+    _seed_report(tmp_path, monkeypatch)
+    assert main(["report", "--run", "r1"]) == 0
+    leaderboard = tmp_path / "results" / "leaderboard.md"
+    assert leaderboard.exists()
+    assert "m1" in leaderboard.read_text(encoding="utf-8")
+    assert (tmp_path / "results" / "r1.json").exists()
+
+
+def test_the_report_records_what_produced_it(tmp_path, monkeypatch):
+    _seed_report(tmp_path, monkeypatch)
+    assert main(["report", "--run", "r1"]) == 0
+    data = json.loads((tmp_path / "results" / "r1.json").read_text(encoding="utf-8"))
+    meta = data["metadata"]
+    assert len(meta["inputs"]["models"]) == 64
+    assert len(meta["inputs"]["weights"]) == 64
+    assert meta["inputs"]["judge_prompt"] is None  # absent in this fixture
+    assert len(meta["code"]) == 16
+    # everything that was there before is still there
+    assert {"run_id", "weights", "anchor_drift", "comparable", "results"} <= set(data)
+    assert meta["judge_id"] and meta["date"]
+
+
+def test_a_second_report_does_not_measure_the_run_against_itself(tmp_path, monkeypatch):
+    """Rerunning `ati report` after the head-to-head pass used to read this
+    run's own anchors back as the previous run's, so drift was always 0."""
+    _seed_report(tmp_path, monkeypatch, anchor=True)
+    earlier = tmp_path / "earlier-anchors.json"
+    earlier.write_text(
+        json.dumps({"run_id": "r0", "anchors": {"m1": 50.0}, "baseline": None}),
+        encoding="utf-8",
+    )
+    assert main(["report", "--run", "r1", "--baseline", str(earlier)]) == 0
+    assert main(["report", "--run", "r1"]) == 0
+    data = json.loads((tmp_path / "results" / "r1.json").read_text(encoding="utf-8"))
+    assert data["metadata"]["anchor_baseline"] == "r0"
+    assert data["anchor_drift"] == {"m1": 25.0}
+    assert data["comparable"] is False
+    md = (tmp_path / "results" / "leaderboard.md").read_text(encoding="utf-8")
+    assert "Anchor drift against run `r0`: m1 +25.0." in md
+
+
+def test_a_leaderboard_written_elsewhere_links_back_to_docs(tmp_path, monkeypatch):
+    _seed_report(tmp_path, monkeypatch)
+    out = tmp_path / "archive" / "r1" / "results"
+    assert main(["report", "--run", "r1", "--results", str(out)]) == 0
+    md = (out / "leaderboard.md").read_text(encoding="utf-8")
+    assert "(../../../docs/rubric.md)" in md
+
+
+def _seed_report(tmp_path, monkeypatch, anchor=False):
     # minimal run + judgment so report has something to aggregate
     from ati.config import AXES
     from ati.judgestage import judgment_output_path
@@ -95,15 +145,11 @@ def test_report_command_writes_leaderboard(tmp_path, monkeypatch):
         encoding="utf-8",
     )
     Path(tmp_path / "config" / "models.yaml").write_text(
-        '- id: m1\n  runner: cli\n  command: ["x"]\n', encoding="utf-8"
+        '- id: m1\n  runner: cli\n  command: ["x"]\n'
+        + ("  anchor: weak\n" if anchor else ""),
+        encoding="utf-8",
     )
     Path(tmp_path / "config" / "slop_list.txt").write_text("a testament to\n", encoding="utf-8")
-
-    assert main(["report", "--run", "r1"]) == 0
-    leaderboard = tmp_path / "results" / "leaderboard.md"
-    assert leaderboard.exists()
-    assert "m1" in leaderboard.read_text(encoding="utf-8")
-    assert (tmp_path / "results" / "r1.json").exists()
 
 
 def test_load_defaults_returns_empty_dict_when_absent(tmp_path):

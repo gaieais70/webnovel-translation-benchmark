@@ -411,6 +411,128 @@ def test_the_head_to_head_table_shows_each_record():
     assert "| x | 1100 | 1000 – 1200 | 3–1–2 |" in md
 
 
+# --- anchor baseline ----------------------------------------------------------
+
+
+def _write(path, payload):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def test_the_baseline_is_the_run_that_wrote_anchors_json(tmp_path):
+    from ati.report import read_anchor_baseline
+
+    path = tmp_path / "anchors.json"
+    _write(path, {"run_id": "r0", "anchors": {"hy3": 70.0}, "baseline": None})
+    assert read_anchor_baseline(path, "r1") == ("r0", {"hy3": 70.0})
+
+
+def test_a_second_report_of_a_run_keeps_its_real_baseline(tmp_path):
+    """anchors.json is rewritten by every report; read naively, the second
+    report of a run compared the run with itself and drift was always zero."""
+    from ati.report import read_anchor_baseline
+
+    path = tmp_path / "anchors.json"
+    _write(
+        path,
+        {"run_id": "r1", "anchors": {"hy3": 65.0},
+         "baseline": {"run_id": "r0", "anchors": {"hy3": 71.0}}},
+    )
+    assert read_anchor_baseline(path, "r1") == ("r0", {"hy3": 71.0})
+    _write(path, {"run_id": "r1", "anchors": {"hy3": 65.0}, "baseline": None})
+    assert read_anchor_baseline(path, "r1") == (None, {})
+
+
+def test_a_legacy_file_written_by_this_run_is_not_a_baseline(tmp_path):
+    from ati.report import read_anchor_baseline
+
+    _write(tmp_path / "anchors.json", {"hy3": 65.05987292277615})
+    _write(
+        tmp_path / "r1.json",
+        {"run_id": "r1", "results": [
+            {"model_id": "hy3", "anchor": "weak", "composite": 65.05987292277615},
+            {"model_id": "x", "anchor": None, "composite": 80.0},
+        ]},
+    )
+    assert read_anchor_baseline(tmp_path / "anchors.json", "r1") == (None, {})
+
+
+def test_a_legacy_file_is_labelled_with_the_run_beside_it(tmp_path):
+    """The shape of archive/2026-08-ghost-commute/results/."""
+    from ati.report import read_anchor_baseline
+
+    _write(tmp_path / "anchors.json", {"hy3": 71.36})
+    _write(
+        tmp_path / "2026-08.json",
+        {"run_id": "2026-08", "results": [
+            {"model_id": "hy3", "anchor": "weak", "composite": 71.36}]},
+    )
+    assert read_anchor_baseline(tmp_path / "anchors.json", "2026-09") == (
+        "2026-08", {"hy3": 71.36},
+    )
+    (tmp_path / "2026-08.json").unlink()
+    assert read_anchor_baseline(tmp_path / "anchors.json", "2026-09") == (
+        "unknown", {"hy3": 71.36},
+    )
+
+
+@pytest.mark.parametrize("content", ["", "not json", "[1]", '{"hy3": "x"}'])
+def test_an_unusable_anchors_file_means_no_baseline(tmp_path, content):
+    from ati.report import read_anchor_baseline
+
+    path = tmp_path / "anchors.json"
+    path.write_text(content, encoding="utf-8")
+    assert read_anchor_baseline(path, "r1") == (None, {})
+
+
+def _one_result(**overrides):
+    base = dict(
+        model_id="m1", composite=70.0, axis_means={a: 3.8 for a in AXES},
+        axis_stdevs={a: 0.1 for a in AXES}, refusal_rate=0.0, cost_per_1k=None,
+        speed_per_1k=1.0, value=None, slop=0.1, repetition=0.1, judge_errors=0,
+        failed_tasks=0, total_tasks=11,
+    )
+    base.update(overrides)
+    return ModelResult(**base)
+
+
+def test_the_leaderboard_says_when_drift_was_not_checked():
+    md = render_markdown("r1", [_one_result()], {}, True, {"anchor_baseline": None})
+    assert "Anchor drift: not checked" in md
+
+
+def test_the_leaderboard_names_the_baseline_run_and_the_drift():
+    md = render_markdown(
+        "r1", [_one_result()], {"hy3": -6.3}, False, {"anchor_baseline": "2026-08"}
+    )
+    assert "Anchor drift against run `2026-08`: hy3 -6.3." in md
+    assert "Not comparable" in md
+
+
+def test_the_docs_links_follow_where_the_leaderboard_is_written():
+    md = render_markdown("r1", [_one_result()], {}, True, {}, docs_prefix="../../../docs/")
+    assert "(../../../docs/rubric.md)" in md and "(../../../docs/methodology.md)" in md
+
+
+def test_the_leaderboard_states_pairwise_coverage():
+    md = render_markdown(
+        "r1", [_one_result()], {}, True,
+        {"pairwise_coverage": {"comparisons": 30, "pairs": 12, "possible_pairs": 15}},
+        {"m1": 1000.0, "m2": 990.0}, None, None, {"m1": (1, 0, 0), "m2": (0, 1, 0)},
+    )
+    assert "Based on 30 comparisons covering 12 of 15 model pairs." in md
+
+
+def test_judge_errors_and_unjudged_items_are_surfaced():
+    md = render_markdown(
+        "r1", [_one_result(judge_errors=2)], {}, True, {"pending_judgments": 5}
+    )
+    assert "**Judge errors**: m1 (2)" in md
+    assert "**Not yet judged**: 5 outputs" in md
+    clean = render_markdown("r1", [_one_result()], {}, True, {"pending_judgments": 0})
+    assert "Judge errors" not in clean and "Not yet judged" not in clean
+
+
 def test_a_torn_or_stray_record_is_skipped_not_fatal(tmp_path, capsys):
     """A report read while a stage is writing must not die on one file."""
     seed(tmp_path, "m1", "t.cn-01.0")

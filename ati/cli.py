@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import sys
 from dataclasses import asdict, replace
@@ -27,21 +26,25 @@ from ati.corpus import (
     load_passage,
     passage_path,
 )
-from ati.fileio import read_json, write_json_atomic, write_text_atomic
+from ati.fileio import write_json_atomic, write_text_atomic
 from ati.fingerprint import (
+    code_fingerprint,
+    input_fingerprints,
     judge_fingerprint,
     judge_route,
     pairwise_prompt_frame,
     rubric_prompt_frame,
 )
-from ati.judgestage import judge_run
+from ati.judgestage import judge_run, pending_judgments
 from ati.intake import DEFAULT_CHARS, KINDS, IntakeError, add_files
 from ati.pairwise import load_comparisons, run_pairwise
 from ati.report import (
     aggregate,
     anchor_drift,
+    anchors_file,
     is_comparable,
     pairwise_records,
+    read_anchor_baseline,
     render_markdown,
 )
 from ati.runners.api import ApiRunner
@@ -398,17 +401,43 @@ def cmd_report(args) -> int:
     results_dir = Path(args.results)
     results_dir.mkdir(parents=True, exist_ok=True)
 
-    previous: dict[str, float] = {}
-    prev_path = results_dir / "anchors.json"
-    if prev_path.exists():
-        previous = read_json(prev_path)
-        if previous is None:
-            print(f"WARNING: {prev_path} is unreadable; anchor drift not checked")
-            previous = {}
+    # Read before anything in results/ is rewritten: a legacy anchors.json is
+    # recognised as this run's own by the results file beside it.
+    anchors_path = results_dir / "anchors.json"
+    baseline_path = Path(args.baseline) if args.baseline else anchors_path
+    baseline_run, previous = read_anchor_baseline(baseline_path, args.run)
+    if baseline_run:
+        print(f"anchor baseline: run {baseline_run} ({baseline_path})")
+    else:
+        print(
+            "anchor baseline: none - drift not checked. Pass --baseline with an "
+            "earlier run's anchors.json to check it."
+        )
 
     drift = anchor_drift(results, previous)
     comparable = is_comparable(drift)
-    metadata = {"judge_id": args.judge_model, "date": date.today().isoformat()}
+    metadata = {
+        "judge_id": args.judge_model,
+        "date": date.today().isoformat(),
+        **report_provenance(args),
+        "anchor_baseline": baseline_run,
+    }
+
+    comparisons = load_comparisons(Path(args.pairwise), args.run)
+    pairwise_ratings, pairwise_intervals = {}, {}
+    anchor = None
+    if comparisons:
+        anchor = next(
+            (m.id for m in load_models(Path(args.models)) if m.anchor == "weak"), None
+        )
+        pairwise_ratings = to_elo(fit(comparisons), anchor_id=anchor)
+        pairwise_intervals = bootstrap_ci(comparisons, anchor_id=anchor)
+        rated = len(pairwise_ratings)
+        metadata["pairwise_coverage"] = {
+            "comparisons": len(comparisons),
+            "pairs": len({tuple(sorted((a, b))) for a, b, _ in comparisons}),
+            "possible_pairs": rated * (rated - 1) // 2,
+        }
 
     write_json_atomic(
         results_dir / f"{args.run}.json",
@@ -421,16 +450,6 @@ def cmd_report(args) -> int:
             "results": [asdict(r) for r in results],
         },
     )
-    comparisons = load_comparisons(Path(args.pairwise), args.run)
-    pairwise_ratings, pairwise_intervals = {}, {}
-    anchor = None
-    if comparisons:
-        anchor = next(
-            (m.id for m in load_models(Path(args.models)) if m.anchor == "weak"), None
-        )
-        pairwise_ratings = to_elo(fit(comparisons), anchor_id=anchor)
-        pairwise_intervals = bootstrap_ci(comparisons, anchor_id=anchor)
-
     write_text_atomic(
         results_dir / "leaderboard.md",
         render_markdown(
@@ -443,26 +462,86 @@ def cmd_report(args) -> int:
             pairwise_intervals,
             anchor,
             pairwise_records(comparisons) if comparisons else None,
+            docs_prefix=_docs_prefix(results_dir),
         ),
     )
-    write_text_atomic(
-        prev_path,
-        json.dumps(
-            {
-                r.model_id: r.composite
-                for r in results
-                if r.anchor and r.composite is not None
-            },
-            indent=2,
-        ),
+    write_json_atomic(
+        anchors_path, anchors_file(args.run, results, baseline_run, previous)
     )
 
     print(f"wrote {results_dir / f'{args.run}.json'}")
     print(f"wrote {results_dir / 'leaderboard.md'}")
+    if metadata.get("pending_judgments"):
+        print(
+            f"WARNING: {metadata['pending_judgments']} outputs have no current "
+            "judgment; run `ati judge` before treating this ranking as final"
+        )
     if not comparable:
         print("WARNING: anchor drift exceeds threshold; run is not comparable "
               "to previous runs")
     return 0
+
+
+def _docs_prefix(results_dir: Path) -> str:
+    """Relative link from the leaderboard to docs/, wherever it is written.
+
+    Hardcoded as ../docs/, the links broke as soon as a leaderboard was
+    written anywhere but results/ - every archived one has dead links.
+    """
+    try:
+        rel = os.path.relpath(Path("docs").resolve(), Path(results_dir).resolve())
+    except ValueError:  # a different drive on Windows
+        return "../docs/"
+    return rel.replace(os.sep, "/") + "/"
+
+
+def report_provenance(args) -> dict:
+    """What produced a report: input hashes, judge fingerprints, code hash.
+
+    Recorded so a published ranking can be tied to the exact roster, corpus,
+    prompts and code behind it. None of it enters any score.
+    """
+    inputs = input_fingerprints(
+        {
+            "models": args.models,
+            "weights": args.weights,
+            "tasks": args.tasks,
+            "manifest": args.manifest,
+            "translate_prompt": args.prompt,
+            "judge_prompt": args.judge_prompt,
+            "pairwise_prompt": args.pairwise_prompt,
+            "judge_schema": args.judge_schema,
+            "pairwise_schema": args.pairwise_schema,
+            "slop_list": args.slop,
+            "defaults": args.defaults,
+        }
+    )
+    provenance: dict = {"inputs": inputs, "code": code_fingerprint()}
+    try:
+        rubric_template = Path(args.judge_prompt).read_text(encoding="utf-8")
+        pair_template = Path(args.pairwise_prompt).read_text(encoding="utf-8")
+    except OSError:
+        return provenance  # no prompts, so no fingerprint to compare against
+    rubric_fp = judge_fingerprint_for(
+        args, args.judge_schema, rubric_prompt_frame(rubric_template)
+    )
+    provenance["judge_fingerprints"] = {
+        "rubric": rubric_fp,
+        "pairwise": judge_fingerprint_for(
+            args, args.pairwise_schema, pairwise_prompt_frame(pair_template)
+        ),
+    }
+    provenance["pending_judgments"] = len(
+        pending_judgments(
+            args.run,
+            Path(args.runs),
+            Path(args.judgments),
+            judge_id=args.judge_model,
+            judge_fingerprint=rubric_fp,
+            warn=lambda _msg: None,  # aggregate has already reported them
+        )
+    )
+    return provenance
 
 
 def cmd_bench(args) -> int:
@@ -516,6 +595,12 @@ def main(argv: list[str] | None = None) -> int:
     common.add_argument("--max-comparisons", type=int, default=50)
     common.add_argument("--run", default="latest", help="run id")
     common.add_argument("--force", action="store_true")
+    common.add_argument(
+        "--baseline",
+        default=None,
+        help="report: an earlier run's anchors.json to measure anchor drift "
+        "against (default: <results>/anchors.json)",
+    )
 
     parser = argparse.ArgumentParser(
         prog="ati",

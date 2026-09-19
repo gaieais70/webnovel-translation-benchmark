@@ -123,3 +123,17 @@ def pairwise_prompt_frame(template: str) -> str:
 def input_fingerprints(paths: dict[str, Path | str]) -> dict[str, str | None]:
     """sha256 of each named input file; None marks one that could not be read."""
     return {name: sha256_file(path) for name, path in paths.items()}
+
+
+def code_fingerprint(package_dir: Path | str | None = None) -> str:
+    """A hash of the harness's own source, independent of git and line endings.
+
+    The same checkout gives the same value on Windows and POSIX, so a result
+    can be tied to the exact code that aggregated it.
+    """
+    root = Path(package_dir) if package_dir else Path(__file__).resolve().parent
+    digest = hashlib.sha256()
+    for path in sorted(root.rglob("*.py")):
+        digest.update(path.relative_to(root).as_posix().encode("utf-8") + b"\0")
+        digest.update(path.read_bytes().replace(b"\r\n", b"\n") + b"\0")
+    return digest.hexdigest()[:16]

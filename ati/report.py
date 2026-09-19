@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ati.config import AXES
-from ati.fileio import iter_records
+from ati.fileio import iter_records, read_json
 from ati.scoring import (
     aggregate_axis,
     composite,
@@ -194,6 +194,97 @@ def is_comparable(drift: dict[str, float]) -> bool:
     return all(abs(d) <= ANCHOR_DRIFT_THRESHOLD for d in drift.values())
 
 
+def anchor_composites(results: list[ModelResult]) -> dict[str, float]:
+    """Composite of every anchor model that has one."""
+    return {
+        r.model_id: r.composite
+        for r in results
+        if r.anchor and r.composite is not None
+    }
+
+
+def _numeric(mapping) -> dict[str, float]:
+    if not isinstance(mapping, dict):
+        return {}
+    return {
+        k: float(v)
+        for k, v in mapping.items()
+        if isinstance(v, (int, float)) and not isinstance(v, bool)
+    }
+
+
+def _anchors_of_results_file(data: dict) -> dict[str, float]:
+    return {
+        r["model_id"]: float(r["composite"])
+        for r in data.get("results") or []
+        if isinstance(r, dict) and r.get("anchor") and r.get("composite") is not None
+    }
+
+
+def _run_that_wrote(flat: dict[str, float], directory: Path) -> str | None:
+    """The run whose results file, beside a legacy anchors.json, holds these
+    exact anchor composites - that is, the run that wrote it."""
+    for path in sorted(Path(directory).glob("*.json")):
+        data = read_json(path)
+        if not data or "results" not in data or not data.get("run_id"):
+            continue
+        if _anchors_of_results_file(data) == flat:
+            return str(data["run_id"])
+    return None
+
+
+def read_anchor_baseline(path: Path, run_id: str) -> tuple[str | None, dict[str, float]]:
+    """(run id, anchor composites) of the earlier run to measure drift against.
+
+    anchors.json is rewritten by every report. It used to hold only
+    {model: composite}, so from the second report of a run onward - after
+    the head-to-head pass, say - the "previous run" it offered was the run
+    itself, drift was zero, and the not-comparable warning could never fire.
+    The file now names its run and carries that run's own baseline forward:
+
+        {"run_id": ..., "anchors": {...}, "baseline": {"run_id", "anchors"}}
+
+    A legacy flat file is still read. Its run is recovered from the results
+    file beside it that holds the same composites; if that is this very run,
+    it is not a baseline at all. (None, {}) means drift cannot be checked.
+    """
+    data = read_json(path)
+    if data is None:
+        return None, {}
+    if isinstance(data.get("anchors"), dict):
+        if data.get("run_id") != run_id:
+            return str(data.get("run_id") or "unknown"), _numeric(data["anchors"])
+        baseline = data.get("baseline")
+        if isinstance(baseline, dict) and baseline.get("anchors"):
+            return str(baseline.get("run_id") or "unknown"), _numeric(
+                baseline["anchors"]
+            )
+        return None, {}
+    flat = _numeric(data)
+    if not flat or len(flat) != len(data):
+        return None, {}
+    writer = _run_that_wrote(flat, Path(path).parent)
+    if writer == run_id:
+        return None, {}
+    return writer or "unknown", flat
+
+
+def anchors_file(
+    run_id: str,
+    results: list[ModelResult],
+    baseline_run: str | None,
+    baseline: dict[str, float],
+) -> dict:
+    """What `ati report` writes to anchors.json for the next run to read."""
+    return {
+        "run_id": run_id,
+        "anchors": anchor_composites(results),
+        "baseline": (
+            {"run_id": baseline_run, "anchors": baseline} if baseline_run else None
+        ),
+    }
+
+
 def pairwise_records(comparisons) -> dict[str, tuple[int, int, int]]:
     """Wins, losses and ties per model from (a, b, outcome) triples."""
     tally: dict[str, list[int]] = {}
@@ -222,7 +313,13 @@ def render_markdown(
     pairwise_ci: dict[str, tuple[float, float]] | None = None,
     pairwise_anchor: str | None = None,
     pairwise_records: dict[str, tuple[int, int, int]] | None = None,
+    docs_prefix: str = "../docs/",
 ) -> str:
+    """The leaderboard.
+
+    `docs_prefix` is the relative path from wherever the file is written to
+    the repository's docs/ directory; the default suits results/.
+    """
     ranked = [r for r in results if not r.incomplete]
     incomplete = [r for r in results if r.incomplete]
 
@@ -233,10 +330,29 @@ def render_markdown(
         "",
         f"Judge: `{metadata.get('judge_id', '')}`. "
         "Scores are LLM-judged against a fixed rubric; see "
-        "[the rubric](../docs/rubric.md) and "
-        "[the methodology](../docs/methodology.md).",
+        f"[the rubric]({docs_prefix}rubric.md) and "
+        f"[the methodology]({docs_prefix}methodology.md).",
         "",
     ]
+
+    # Said either way, so a reader can tell "checked and fine" from "never
+    # checked" - the two used to look identical.
+    if "anchor_baseline" in metadata:
+        baseline = metadata["anchor_baseline"]
+        if baseline is None:
+            lines += [
+                "Anchor drift: not checked - no earlier run's anchors were found.",
+                "",
+            ]
+        elif drift:
+            moved = ", ".join(f"{k} {v:+.1f}" for k, v in drift.items())
+            lines += [f"Anchor drift against run `{baseline}`: {moved}.", ""]
+        else:
+            lines += [
+                f"Anchor drift: not checked - no anchor in common with run "
+                f"`{baseline}`.",
+                "",
+            ]
 
     if not comparable:
         lines += [
@@ -329,6 +445,16 @@ def render_markdown(
             record = f"{w}–{l}–{t}" if pairwise_records else "N/A"
             lines.append(f"| {model_id} | {rating:.0f} | {span} | {record} |")
 
+        # How much of the field the ratings rest on. A partial schedule was
+        # published once already and had to be retracted (run-notes-2026-08).
+        coverage = metadata.get("pairwise_coverage")
+        if coverage:
+            lines += [
+                "",
+                f"Based on {coverage['comparisons']} comparisons covering "
+                f"{coverage['pairs']} of {coverage['possible_pairs']} model pairs.",
+            ]
+
         if pairwise_ci and len(ranked_pairwise) > 1:
             top, second = ranked_pairwise[0][0], ranked_pairwise[1][0]
             first_ci, second_ci = pairwise_ci.get(top), pairwise_ci.get(second)
@@ -352,6 +478,23 @@ def render_markdown(
         "composite; both are diagnostics.",
         "- Model behavior changes under a stable name. These results describe "
         f"the versions tested on {metadata.get('date', 'the run date')}.",
-        "",
     ]
+    # Only when there is something to say. A composite is averaged over the
+    # items that were scored; these are the items that were not.
+    errored = [r for r in results if r.judge_errors]
+    if errored:
+        lines.append(
+            "- **Judge errors**: "
+            + ", ".join(f"{r.model_id} ({r.judge_errors})" for r in errored)
+            + ". The judge gave no usable answer on these items, so those "
+            "composites rest on fewer items than the Scored column shows."
+        )
+    pending = metadata.get("pending_judgments")
+    if pending:
+        lines.append(
+            f"- **Not yet judged**: {pending} outputs have no current judgment "
+            "(missing, or made by a different judge or prompt). Run `ati judge` "
+            "before reading this ranking as final."
+        )
+    lines.append("")
     return "\n".join(lines)
