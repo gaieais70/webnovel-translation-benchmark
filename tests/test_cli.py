@@ -436,6 +436,31 @@ def test_build_runner_refuses_gemini_on_an_api_route(tmp_path):
         build_runner(m, tmp_path)
 
 
+def test_the_judge_stage_passes_a_fingerprint_that_follows_the_prompt(tmp_path, monkeypatch):
+    import ati.cli as cli
+
+    seen = []
+    monkeypatch.setattr(cli, "build_judge_runner", lambda *a, **k: object())
+    monkeypatch.setattr(
+        cli, "judge_run", lambda **kwargs: seen.append(kwargs["judge_fingerprint"]) or 0
+    )
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text('{"passages": []}', encoding="utf-8")
+    prompt = tmp_path / "judge.md"
+    argv = [
+        "judge", "--run", "r", "--manifest", str(manifest), "--judge-prompt",
+        str(prompt), "--defaults", str(tmp_path / "none.yaml"),
+        "--models", str(tmp_path / "none-models.yaml"),
+    ]
+    prompt.write_text("T1", encoding="utf-8")
+    cli.main(argv)
+    cli.main(argv)
+    prompt.write_text("T2", encoding="utf-8")
+    cli.main(argv)
+    assert len(seen[0]) == 16
+    assert seen[0] == seen[1] != seen[2]
+
+
 def test_the_rubric_stage_gives_the_judge_the_rubric_schema(tmp_path, monkeypatch):
     """The shared Gemini judge declares the pairwise schema. Left to its
     declared schema, every rubric reply would come back as {winner, reason}

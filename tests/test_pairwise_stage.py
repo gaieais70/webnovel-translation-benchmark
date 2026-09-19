@@ -280,6 +280,83 @@ def test_a_judge_runner_that_raises_stops_the_stage_cleanly(tmp_path, capsys):
     assert "stopping after 0 comparisons" in capsys.readouterr().out
 
 
+# --- judge identity and translation changes ---------------------------------
+
+
+def _compare_once(tmp_path, fingerprint="fp-1", judge_id="gemini-judge"):
+    runner = FakeRunner(responses=[verdict("A"), verdict("B")])
+    count = run_pairwise(
+        **pairwise_args(
+            tmp_path, runner, judge_id=judge_id, judge_fingerprint=fingerprint
+        )
+    )
+    return count, runner
+
+
+def test_a_comparison_records_its_judge_and_both_texts(tmp_path):
+    from ati.corpus import sha256_text
+
+    seed_run(tmp_path, "m1", "alpha")
+    seed_run(tmp_path, "m2", "beta")
+    _compare_once(tmp_path)
+    data = json.loads(
+        comparison_path(tmp_path / "pairwise", "r1", "m1", "m2", "cn-01").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert data["judge_id"] == "gemini-judge"
+    assert data["judge_fingerprint"] == "fp-1"
+    assert data["sha_a"] == sha256_text("alpha")
+    assert data["sha_b"] == sha256_text("beta")
+
+
+def test_a_new_judge_prompt_redoes_the_comparison(tmp_path):
+    seed_run(tmp_path, "m1", "alpha")
+    seed_run(tmp_path, "m2", "beta")
+    _compare_once(tmp_path, fingerprint="fp-1")
+    count, runner = _compare_once(tmp_path, fingerprint="fp-2")
+    assert count == 1 and len(runner.calls) == 2
+
+
+def test_a_retranslated_model_redoes_the_comparison(tmp_path):
+    seed_run(tmp_path, "m1", "alpha")
+    seed_run(tmp_path, "m2", "beta")
+    _compare_once(tmp_path)
+    seed_run(tmp_path, "m2", "a different beta")
+    count, _ = _compare_once(tmp_path)
+    assert count == 1
+
+
+def test_an_unchanged_comparison_is_left_alone(tmp_path):
+    seed_run(tmp_path, "m1", "alpha")
+    seed_run(tmp_path, "m2", "beta")
+    _compare_once(tmp_path)
+    count, runner = _compare_once(tmp_path)
+    assert count == 0 and runner.calls == []
+
+
+def test_a_comparison_that_predates_the_fields_is_current(tmp_path):
+    """Every comparison of run 2026-09 has only a, b, passage and verdicts."""
+    from ati.pairwise import pending_comparisons
+
+    seed_run(tmp_path, "m1", "alpha")
+    seed_run(tmp_path, "m2", "beta")
+    path = comparison_path(tmp_path / "pairwise", "r1", "m1", "m2", "cn-01")
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        json.dumps(
+            {"a": "m1", "b": "m2", "passage_id": "cn-01", "forward": "A",
+             "reverse": "B", "outcome": "a"}
+        ),
+        encoding="utf-8",
+    )
+    count, runner = _compare_once(tmp_path, fingerprint="anything")
+    assert count == 0 and runner.calls == []
+    assert pending_comparisons(
+        tmp_path / "pairwise", "r1", tmp_path / "runs", "gemini-judge", "anything"
+    ) == []
+
+
 def test_damaged_comparison_files_are_skipped_not_fatal(tmp_path, capsys):
     """An unknown outcome made the Bradley-Terry fit raise inside ati report."""
     root = tmp_path / "pairwise" / "r1"

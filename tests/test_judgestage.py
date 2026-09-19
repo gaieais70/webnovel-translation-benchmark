@@ -391,6 +391,98 @@ def test_a_judge_runner_that_raises_is_not_asked_again_and_stops_the_stage(tmp_p
     assert not (tmp_path / "judgments").exists()
 
 
+# --- judge identity ----------------------------------------------------------
+
+
+def _judge_once(tmp_path, p, fingerprint="fp-1", judge_id="judge-model"):
+    args = common_args(tmp_path, p, FakeRunner(responses=[valid_judge_reply()]))
+    args.update(judge_id=judge_id, judge_fingerprint=fingerprint)
+    return judge_run(**args)
+
+
+def _rejudge(tmp_path, p, fingerprint, judge_id="judge-model", score=2):
+    runner = FakeRunner(responses=[valid_judge_reply(score=score)])
+    args = common_args(tmp_path, p, runner)
+    args.update(judge_id=judge_id, judge_fingerprint=fingerprint)
+    return judge_run(**args), runner
+
+
+def test_a_judgment_records_the_judge_fingerprint(tmp_path):
+    p = seed_run(tmp_path)
+    _judge_once(tmp_path, p)
+    out = judgment_output_path(tmp_path / "judgments", "r1", "m1", "t.cn-01.0")
+    assert json.loads(out.read_text(encoding="utf-8"))["judge_fingerprint"] == "fp-1"
+
+
+def test_a_changed_judge_prompt_makes_a_judgment_stale(tmp_path):
+    """The 35 pre-no-tools judgments of run 2026-09 had to be moved by hand."""
+    p = seed_run(tmp_path)
+    _judge_once(tmp_path, p, fingerprint="fp-1")
+    count, runner = _rejudge(tmp_path, p, fingerprint="fp-2")
+    assert count == 1 and len(runner.calls) == 1
+    out = judgment_output_path(tmp_path / "judgments", "r1", "m1", "t.cn-01.0")
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["scores"]["accuracy"] == 2
+    assert data["judge_fingerprint"] == "fp-2"
+
+
+def test_a_different_judge_makes_a_judgment_stale(tmp_path):
+    """Switching --judge-model kept every old score while the report named
+    the new judge."""
+    p = seed_run(tmp_path)
+    _judge_once(tmp_path, p, judge_id="judge-a")
+    count, _ = _rejudge(tmp_path, p, fingerprint="fp-1", judge_id="judge-b")
+    assert count == 1
+
+
+def test_the_same_judge_and_prompt_leave_a_judgment_alone(tmp_path):
+    p = seed_run(tmp_path)
+    _judge_once(tmp_path, p, fingerprint="fp-1")
+    count, runner = _rejudge(tmp_path, p, fingerprint="fp-1")
+    assert count == 0 and runner.calls == []
+
+
+def test_a_judgment_that_predates_fingerprints_is_current(tmp_path):
+    """Every judgment of run 2026-09 was written without the field; reading
+    them as stale would re-judge the run through the operator's quota."""
+    p = seed_run(tmp_path)
+    judge_run(**common_args(tmp_path, p, FakeRunner(responses=[valid_judge_reply()])))
+    out = judgment_output_path(tmp_path / "judgments", "r1", "m1", "t.cn-01.0")
+    legacy = json.loads(out.read_text(encoding="utf-8"))
+    legacy.pop("judge_fingerprint", None)
+    out.write_text(json.dumps(legacy), encoding="utf-8")
+    count, runner = _rejudge(tmp_path, p, fingerprint="anything")
+    assert count == 0 and runner.calls == []
+
+
+def test_a_skipped_record_is_not_rewritten_for_a_new_judge(tmp_path):
+    p = seed_run(tmp_path, error="timed out", text="")
+    _judge_once(tmp_path, p, judge_id="judge-a", fingerprint="fp-a")
+    count, runner = _rejudge(tmp_path, p, fingerprint="fp-b", judge_id="judge-b")
+    assert count == 0 and runner.calls == []
+
+
+def test_pending_judgments_matches_what_the_stage_would_do(tmp_path):
+    from ati.judgestage import pending_judgments
+
+    p = seed_run(tmp_path, instance_id="t.cn-01.0")
+    _judge_once(tmp_path, p, fingerprint="fp-1")
+    seed_run(tmp_path, instance_id="t.cn-01.1")
+    args = dict(
+        run_id="r1",
+        runs_root=tmp_path / "runs",
+        judgments_root=tmp_path / "judgments",
+        judge_id="judge-model",
+    )
+    assert pending_judgments(**args, judge_fingerprint="fp-1") == [
+        ("m1", "t.cn-01.1", "missing")
+    ]
+    assert pending_judgments(**args, judge_fingerprint="fp-2") == [
+        ("m1", "t.cn-01.0", "stale"),
+        ("m1", "t.cn-01.1", "missing"),
+    ]
+
+
 def test_a_torn_run_file_is_skipped_and_the_stage_carries_on(tmp_path, capsys):
     """A lane still writing must not kill a judge pass reading beside it."""
     p = seed_run(tmp_path)

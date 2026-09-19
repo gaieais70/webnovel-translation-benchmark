@@ -25,8 +25,8 @@ import json
 from pathlib import Path
 
 from ati.bradleyterry import OUTCOMES, win_probability
-from ati.corpus import HashMismatch, PassageMissing, load_passage
-from ati.fileio import iter_records, write_json_atomic
+from ati.corpus import HashMismatch, PassageMissing, load_passage, sha256_text
+from ati.fileio import iter_records, read_json, write_json_atomic
 
 # One comparison sends the source plus both translations. Whole chapters run
 # to ~40,000 characters per prompt, and each pair is judged twice for order,
@@ -166,6 +166,58 @@ def load_comparisons(pairwise_root: Path, run_id: str):
     return results
 
 
+def _comparison_is_current(
+    path: Path,
+    judge_id: str | None,
+    judge_fingerprint: str | None,
+    sha_a: str,
+    sha_b: str,
+) -> bool:
+    """Whether a recorded comparison still stands for this judge and these texts.
+
+    The pairwise twin of judgestage._judgment_is_current. A field the record
+    does not carry is not held against it: every comparison of run 2026-09
+    predates these fields, and re-judging them would spend the operator's
+    Antigravity quota to reproduce what is already on disk.
+    """
+    data = read_json(path)
+    if data is None:
+        return False  # damaged: redo it rather than keep a verdict nobody can read
+    checks = (
+        ("judge_id", judge_id),
+        ("judge_fingerprint", judge_fingerprint),
+        ("sha_a", sha_a),
+        ("sha_b", sha_b),
+    )
+    for key, expected in checks:
+        recorded = data.get(key)
+        if expected and recorded and recorded != expected:
+            return False
+    return True
+
+
+def pending_comparisons(pairwise_root: Path, run_id: str, runs_root: Path,
+                        judge_id: str | None = None,
+                        judge_fingerprint: str | None = None) -> list[Path]:
+    """Recorded comparisons the stage would now redo. Makes no calls."""
+    outputs = _load_outputs(runs_root, run_id)
+    stale = []
+    for path, data in iter_records(
+        sorted((Path(pairwise_root) / run_id).glob("*.json")),
+        required=("a", "b", "passage_id"),
+    ):
+        a, b, pid = data["a"], data["b"], data["passage_id"]
+        text_a = outputs.get(a, {}).get(pid)
+        text_b = outputs.get(b, {}).get(pid)
+        if text_a is None or text_b is None:
+            continue  # no longer comparable; the stage will not revisit it
+        if not _comparison_is_current(
+            path, judge_id, judge_fingerprint, sha256_text(text_a), sha256_text(text_b)
+        ):
+            stale.append(path)
+    return stale
+
+
 def run_pairwise(
     judge_runner,
     run_id: str,
@@ -178,6 +230,8 @@ def run_pairwise(
     max_comparisons: int = 100,
     ratings: dict | None = None,
     max_compare_chars: int = MAX_COMPARE_CHARS,
+    judge_id: str | None = None,
+    judge_fingerprint: str | None = None,
 ) -> int:
     outputs = _load_outputs(runs_root, run_id)
     eligible = [m for m in models if outputs.get(m)]
@@ -217,7 +271,11 @@ def run_pairwise(
             break
 
         out_path = comparison_path(pairwise_root, run_id, a, b, passage_id)
-        if out_path.exists():
+        text_a, text_b = outputs[a][passage_id], outputs[b][passage_id]
+        sha_a, sha_b = sha256_text(text_a), sha256_text(text_b)
+        if out_path.exists() and _comparison_is_current(
+            out_path, judge_id, judge_fingerprint, sha_a, sha_b
+        ):
             continue
 
         source = ""
@@ -228,7 +286,6 @@ def run_pairwise(
             except (HashMismatch, PassageMissing):
                 continue
 
-        text_a, text_b = outputs[a][passage_id], outputs[b][passage_id]
         if len(source) + len(text_a) + len(text_b) > max_compare_chars:
             oversized += 1
             continue
@@ -266,6 +323,10 @@ def run_pairwise(
                 "forward": forward,
                 "reverse": reverse,
                 "outcome": outcome,
+                "judge_id": judge_id,
+                "judge_fingerprint": judge_fingerprint,
+                "sha_a": sha_a,
+                "sha_b": sha_b,
             },
         )
         executed += 1

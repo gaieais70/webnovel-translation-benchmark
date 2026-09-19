@@ -41,10 +41,15 @@ def _translation_sha(run_data: dict) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def _judgment_is_current(path: Path, run_data: dict) -> bool:
+def _judgment_is_current(
+    path: Path,
+    run_data: dict,
+    judge_id: str | None = None,
+    judge_fingerprint: str | None = None,
+) -> bool:
     """Whether an existing judgment still describes the run beside it.
 
-    Staleness runs in both directions and both matter.
+    Staleness runs in several directions and all of them matter.
 
     A judgment recorded as skipped because the translation had failed becomes
     stale the moment that translation succeeds on a later run. Skipping on
@@ -83,7 +88,51 @@ def _judgment_is_current(path: Path, run_data: dict) -> bool:
     recorded = judgment.get("translation_sha")
     if recorded is None:
         return False
-    return recorded == _translation_sha(run_data)
+    if recorded != _translation_sha(run_data):
+        return False
+    # A judgment also describes one judge seeing one prompt. Only a judgment
+    # the judge actually produced is compared: a skipped or refused record
+    # carries no scores, and rewriting it would cost nothing but churn.
+    #
+    # A record without the field predates it and is taken as current. That
+    # is deliberate: every judgment of run 2026-09 was written before judge
+    # fingerprints existed, and treating them as stale would re-judge the
+    # whole run through the operator's Antigravity quota for no change.
+    if not judgment.get("skipped") and not judgment.get("refused"):
+        recorded_judge = judgment.get("judge_id")
+        if judge_id and recorded_judge and recorded_judge != judge_id:
+            return False
+        recorded_fp = judgment.get("judge_fingerprint")
+        if judge_fingerprint and recorded_fp and recorded_fp != judge_fingerprint:
+            return False
+    return True
+
+
+def pending_judgments(
+    run_id: str,
+    runs_root: Path,
+    judgments_root: Path,
+    judge_id: str | None = None,
+    judge_fingerprint: str | None = None,
+    warn=print,
+) -> list[tuple[str, str, str]]:
+    """(model_id, instance_id, "missing" | "stale") for every item `ati judge`
+    would work on, decided exactly as the stage decides it. Makes no calls."""
+    pending = []
+    run_dir = Path(runs_root) / run_id
+    for run_file, run_data in iter_records(
+        sorted(run_dir.rglob("*.json")), required=RUN_RECORD_KEYS, warn=warn
+    ):
+        out_path = judgment_output_path(
+            judgments_root, run_id, run_data["model_id"], run_file.stem
+        )
+        if not out_path.exists():
+            pending.append((run_data["model_id"], run_file.stem, "missing"))
+        elif not _judgment_is_current(
+            out_path, run_data, judge_id, judge_fingerprint
+        ):
+            pending.append((run_data["model_id"], run_file.stem, "stale"))
+    return pending
 
 
 def _write(path: Path, payload: dict) -> None:
@@ -108,6 +157,7 @@ def judge_run(
     corpus_root: Path,
     template: str,
     force: bool = False,
+    judge_fingerprint: str | None = None,
 ) -> int:
     run_dir = Path(runs_root) / run_id
     judged = 0
@@ -122,7 +172,11 @@ def judge_run(
         out_path = judgment_output_path(
             judgments_root, run_id, model_id, instance_id
         )
-        if out_path.exists() and not force and _judgment_is_current(out_path, run_data):
+        if (
+            out_path.exists()
+            and not force
+            and _judgment_is_current(out_path, run_data, judge_id, judge_fingerprint)
+        ):
             continue
 
         base = {
@@ -140,6 +194,7 @@ def judge_run(
             "judge_error": None,
             "quote_violations": [],
             "translation_sha": _translation_sha(run_data),
+            "judge_fingerprint": judge_fingerprint,
         }
 
         # Nothing to judge: the run failed, the passage was unavailable, or

@@ -28,6 +28,12 @@ from ati.corpus import (
     passage_path,
 )
 from ati.fileio import read_json, write_json_atomic, write_text_atomic
+from ati.fingerprint import (
+    judge_fingerprint,
+    judge_route,
+    pairwise_prompt_frame,
+    rubric_prompt_frame,
+)
 from ati.judgestage import judge_run
 from ati.intake import DEFAULT_CHARS, KINDS, IntakeError, add_files
 from ati.pairwise import load_comparisons, run_pairwise
@@ -274,6 +280,21 @@ def build_judge_runner(
     )
 
 
+def judge_fingerprint_for(args, json_schema: str | None, prompt_frame: str) -> str:
+    """The fingerprint of the judge a stage is about to use. Makes no calls."""
+    try:
+        declared = {m.id: m for m in load_models(Path(args.models))}
+    except OSError:
+        declared = {}
+    route = judge_route(
+        args.judge_model,
+        declared.get(args.judge_model),
+        args.judge_endpoint or DEFAULT_ENDPOINT,
+        json_schema=json_schema,
+    )
+    return judge_fingerprint(args.judge_model, route, prompt_frame)
+
+
 def cmd_judge(args) -> int:
     # Passed explicitly, as the pairwise stage does. One judge entry can serve
     # both stages, and whichever schema it declares suits at most one of them:
@@ -289,6 +310,10 @@ def cmd_judge(args) -> int:
     )
     passages = {p.id: p for p in load_manifest(Path(args.manifest))}
     template = Path(args.judge_prompt).read_text(encoding="utf-8")
+    fingerprint = judge_fingerprint_for(
+        args, args.judge_schema, rubric_prompt_frame(template)
+    )
+    print(f"judge {args.judge_model}, fingerprint {fingerprint}")
     judged = judge_run(
         judge_runner=judge_runner,
         judge_id=args.judge_model,
@@ -299,6 +324,7 @@ def cmd_judge(args) -> int:
         corpus_root=Path(args.corpus),
         template=template,
         force=args.force,
+        judge_fingerprint=fingerprint,
     )
     print(f"judged: {judged}")
     return 0
@@ -320,6 +346,10 @@ def cmd_pairwise(args) -> int:
 
     passages = {p.id: p for p in load_manifest(Path(args.manifest))}
     template = Path(args.pairwise_prompt).read_text(encoding="utf-8")
+    fingerprint = judge_fingerprint_for(
+        args, args.pairwise_schema, pairwise_prompt_frame(template)
+    )
+    print(f"judge {args.judge_model}, fingerprint {fingerprint}")
 
     existing = load_comparisons(Path(args.pairwise), args.run)
     ratings = to_elo(fit(existing)) if existing else {}
@@ -335,6 +365,8 @@ def cmd_pairwise(args) -> int:
         models=pool,
         max_comparisons=args.max_comparisons,
         ratings=ratings,
+        judge_id=args.judge_model,
+        judge_fingerprint=fingerprint,
     )
     print(f"{executed} comparisons executed")
 
