@@ -36,6 +36,8 @@ class CliRunner:
                 text=True,
                 timeout=self._timeout_s,
                 encoding="utf-8",
+                # A stray non-UTF-8 byte must not raise out of the run stage.
+                errors="replace",
             )
         except subprocess.TimeoutExpired:
             return RunResult(

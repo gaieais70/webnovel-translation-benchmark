@@ -11,6 +11,7 @@ from pathlib import Path
 from ati.corpus import HashMismatch, Passage, PassageMissing, load_passage
 from ati.fileio import read_json, write_json_atomic
 from ati.runners.api import is_transient_429
+from ati.runners.base import RunResult
 from ati.tasks import TaskInstance
 
 
@@ -167,6 +168,22 @@ def _write(path: Path, payload: dict) -> None:
     write_json_atomic(path, payload)
 
 
+def _call(runner, system_prompt: str, source_text: str) -> RunResult:
+    """One runner call, with any exception recorded as a failed task.
+
+    A runner that raises - an unexpected response shape, a decoding error -
+    used to propagate out of run_model and end the run for every model still
+    queued behind it. Recorded as an error instead, the task is retried on
+    the next pass like any other failure, and the run carries on.
+    """
+    try:
+        return runner.run(system_prompt, source_text)
+    except Exception as exc:  # noqa: BLE001 - containment is the point
+        return RunResult(
+            text="", latency_s=0.0, error=f"runner raised {type(exc).__name__}: {exc}"
+        )
+
+
 def run_model(
     runner,
     model_id: str,
@@ -241,7 +258,7 @@ def run_model(
         if callable(set_task_id):
             set_task_id(instance.instance_id)
 
-        result = runner.run(system_prompt, source_text)
+        result = _call(runner, system_prompt, source_text)
         error = result.error
         text = result.text
         refused = result.refused

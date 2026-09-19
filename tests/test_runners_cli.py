@@ -60,3 +60,12 @@ def test_cli_runner_flags_refusals():
         runner_fn=fake_run_factory(stdout="I cannot translate this content."),
     )
     assert runner.run("s", "t").refused is True
+
+
+def test_cli_runner_decodes_output_leniently():
+    """A stray non-UTF-8 byte must not raise UnicodeDecodeError out of the run."""
+    capture = []
+    runner = CliRunner(command=["x"], runner_fn=fake_run_factory(stdout="ok", capture=capture))
+    runner.run("s", "t")
+    _, kwargs = capture[0]
+    assert kwargs["errors"] == "replace"

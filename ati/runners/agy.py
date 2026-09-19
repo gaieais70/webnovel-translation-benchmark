@@ -164,6 +164,12 @@ class CallGate:
 # which has no such limit and still honours --json-schema.
 SAFE_ARG_PROMPT_CHARS = 30000
 
+# How much of agy's own error text is kept. Its quota refusal ends with the
+# time until the quota returns ("... Resets in 1h17m35s.") and runs to ~170
+# characters; the waiting loop in ati/waiting.py reads that figure, so the
+# cut must not fall before it.
+ERROR_DETAIL_CHARS = 400
+
 # agy is an agent, not a completion endpoint: it has a shell and file tools, and
 # --dangerously-skip-permissions approves whatever it reaches for. Measured on
 # run 2026-09: 3 of the first 30 judge calls started a shell command
@@ -244,7 +250,7 @@ class AgyRunner:
                 event = json.loads(line)
             except ValueError:
                 continue
-            if event.get("event") == "result":
+            if isinstance(event, dict) and event.get("event") == "result":
                 found = event.get("result")
         return found
 
@@ -275,6 +281,10 @@ class AgyRunner:
             text=True,
             timeout=self._timeout_s,
             encoding="utf-8",
+            # One stray byte that is not UTF-8 - in a progress line, say -
+            # would otherwise raise UnicodeDecodeError after the call had
+            # already reached the account, and take the stage down with it.
+            errors="replace",
         )
         if streaming:
             cmd = self._stream_command()
@@ -297,9 +307,11 @@ class AgyRunner:
             return RunResult(text="", latency_s=0.0, error=str(exc))
 
         if completed.returncode != 0:
-            detail = (completed.stderr or completed.stdout or "").strip()[:200]
+            detail = (completed.stderr or completed.stdout or "").strip()
             return RunResult(
-                text="", latency_s=0.0, error=f"exit {completed.returncode}: {detail}"
+                text="",
+                latency_s=0.0,
+                error=f"exit {completed.returncode}: {detail[:ERROR_DETAIL_CHARS]}",
             )
 
         if streaming:
@@ -316,15 +328,27 @@ class AgyRunner:
                 return RunResult(
                     text="", latency_s=0.0, error=f"unparseable agy output: {exc}"
                 )
+        # Valid JSON is not necessarily an envelope: a list, a string or a
+        # number would otherwise raise AttributeError below, uncaught, and end
+        # the stage on a call that had already cost the account one request.
+        if not isinstance(envelope, dict):
+            return RunResult(
+                text="",
+                latency_s=0.0,
+                error=f"unexpected agy output: a JSON {type(envelope).__name__}, "
+                "not an object",
+            )
         if envelope.get("status") == "ERROR":
             return RunResult(
                 text="",
-                latency_s=float(envelope.get("duration_seconds") or 0.0),
-                error=f"agy error: {str(envelope.get('error'))[:200]}",
+                latency_s=_seconds(envelope.get("duration_seconds")),
+                error=f"agy error: {str(envelope.get('error'))[:ERROR_DETAIL_CHARS]}",
             )
 
-        usage = envelope.get("usage") or {}
-        latency = float(envelope.get("duration_seconds") or 0.0)
+        usage = envelope.get("usage")
+        if not isinstance(usage, dict):
+            usage = {}
+        latency = _seconds(envelope.get("duration_seconds"))
 
         if self._schema:
             structured = envelope.get("structured_output")
@@ -336,7 +360,8 @@ class AgyRunner:
                 )
             text = json.dumps(structured, ensure_ascii=False)
         else:
-            text = (envelope.get("response") or "").strip()
+            response = envelope.get("response")
+            text = response.strip() if isinstance(response, str) else ""
 
         return RunResult(
             text=text,
@@ -347,3 +372,11 @@ class AgyRunner:
             cost_usd=None,  # subscription access: unknown, not zero
             refused=looks_like_refusal(text) if not self._schema else False,
         )
+
+
+def _seconds(value) -> float:
+    """agy's duration_seconds, or 0.0 when it is absent or not a number."""
+    try:
+        return float(value or 0.0)
+    except (TypeError, ValueError):
+        return 0.0

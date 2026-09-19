@@ -253,6 +253,21 @@ def test_run_pairwise_stops_on_a_judge_failure(tmp_path):
     assert run_pairwise(**pairwise_args(tmp_path, runner)) == 0
 
 
+def test_a_judge_runner_that_raises_stops_the_stage_cleanly(tmp_path, capsys):
+    class Raising:
+        calls = 0
+
+        def run(self, system_prompt, source_text):
+            Raising.calls += 1
+            raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte")
+
+    seed_run(tmp_path, "m1", "alpha")
+    seed_run(tmp_path, "m2", "beta")
+    assert run_pairwise(**pairwise_args(tmp_path, Raising())) == 0
+    assert Raising.calls == 1
+    assert "stopping after 0 comparisons" in capsys.readouterr().out
+
+
 def test_damaged_comparison_files_are_skipped_not_fatal(tmp_path, capsys):
     """An unknown outcome made the Bradley-Terry fit raise inside ati report."""
     root = tmp_path / "pairwise" / "r1"

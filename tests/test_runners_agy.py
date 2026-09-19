@@ -1,6 +1,8 @@
 import json
 import subprocess
 
+import pytest
+
 from ati.runners.agy import AgyRunner
 
 
@@ -401,6 +403,71 @@ def test_the_last_caller_yields_to_anyone_else_waiting(tmp_path):
         pass
     assert first._remaining(courtesy=True) == 12.0
     assert second._remaining(courtesy=True) == 10.0
+
+
+@pytest.mark.parametrize("stdout", ["[1, 2]", '"just a string"', "42", "null"])
+def test_json_that_is_not_an_envelope_is_an_error_not_a_crash(stdout):
+    runner = AgyRunner("m", runner_fn=fake_run_factory(stdout=stdout))
+    result = runner.run("s", "u")
+    assert result.text == ""
+    assert "unexpected agy output" in result.error
+
+
+def test_a_stream_result_that_is_not_an_object_is_an_error():
+    lines = json.dumps({"event": "result", "result": "plain text"}) + chr(10)
+    runner = AgyRunner("m", runner_fn=fake_run_factory(stdout=lines))
+    result = runner.run("SYSTEM", "x" * 40000)
+    assert "unexpected agy output" in result.error
+
+
+def test_stream_lines_that_are_not_objects_are_skipped():
+    lines = "[1, 2]" + chr(10) + '"progress"' + chr(10) + stream_lines()
+    runner = AgyRunner("m", runner_fn=fake_run_factory(stdout=lines))
+    result = runner.run("SYSTEM", "x" * 40000)
+    assert result.error is None
+    assert result.text == "Yun Che raised his head."
+
+
+def test_odd_usage_and_duration_fields_do_not_crash():
+    runner = AgyRunner(
+        "m",
+        runner_fn=fake_run_factory(
+            stdout=envelope(usage="n/a", duration_seconds="fast", response=["x"])
+        ),
+    )
+    result = runner.run("s", "u")
+    assert result.error is None
+    assert result.latency_s == 0.0
+    assert result.tokens_in is None
+    assert result.text == ""
+
+
+def test_output_is_decoded_leniently():
+    """A stray non-UTF-8 byte must not raise after the call reached the account."""
+    capture = []
+    runner = AgyRunner("m", runner_fn=fake_run_factory(stdout=envelope(), capture=capture))
+    runner.run("s", "u")
+    _, kwargs = capture[0]
+    assert kwargs["encoding"] == "utf-8"
+    assert kwargs["errors"] == "replace"
+
+
+def test_the_quota_reset_time_survives_the_error_cut():
+    """The waiting loop reads 'Resets in ...' from this text."""
+    message = (
+        "API error (attempt 7): RESOURCE_EXHAUSTED (code 429): Individual quota "
+        "reached. Please upgrade your subscription to increase your limits. "
+        + "x" * 60
+        + " Resets in 1h17m35s."
+    )
+    runner = AgyRunner(
+        "m", runner_fn=fake_run_factory(stdout=envelope(status="ERROR", error=message))
+    )
+    assert "Resets in 1h17m35s" in runner.run("s", "u").error
+    runner = AgyRunner(
+        "m", runner_fn=fake_run_factory(stderr=message, returncode=1)
+    )
+    assert "Resets in 1h17m35s" in runner.run("s", "u").error
 
 
 def test_a_damaged_stamp_enforces_the_full_gap(tmp_path):

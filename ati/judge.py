@@ -130,7 +130,16 @@ def judge_with_retry(
 
     last_error: JudgeSchemaError | None = None
     for _ in range(attempts):
-        result = judge_runner.run("", prompt)
+        try:
+            result = judge_runner.run("", prompt)
+        except Exception as exc:  # noqa: BLE001
+            # A runner that raises has a defect, not a bad day: asking again
+            # repeats it and, for a subscription judge, spends another
+            # request on it. Reported as unreachable, so the stage stops
+            # after two items rather than continuing into every one.
+            raise JudgeRunnerError(
+                f"judge runner raised {type(exc).__name__}: {exc}"
+            ) from exc
         if result.error:
             last_error = JudgeRunnerError(f"judge runner error: {result.error}")
             if is_usage_limit(result.error):

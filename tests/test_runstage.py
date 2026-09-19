@@ -470,3 +470,42 @@ def test_a_content_filter_finish_is_recorded_as_a_provider_block(tmp_path):
     data = _run_one(tmp_path, Filtered(responses=["x"]))
     assert data["refused"] is True
     assert data["blocked_by_provider"] is True
+
+
+def test_a_runner_that_raises_fails_its_task_not_the_run(tmp_path):
+    """An exception from one call used to end the run for every model queued."""
+
+    class Exploding:
+        calls = 0
+
+        def run(self, system_prompt, source_text):
+            Exploding.calls += 1
+            if Exploding.calls == 1:
+                raise AttributeError("'str' object has no attribute 'get'")
+            return FakeRunner(responses=["An English translation. " * 40]).run(
+                system_prompt, source_text
+            )
+
+    first = make_passage(tmp_path, "ko-01", "가" * 400)
+    second = make_passage(tmp_path, "ko-02", "나" * 400)
+    task = Task(id="t", type="consistency", passage_ids=["ko-01", "ko-02"])
+    instances = [TaskInstance(task=task, passage_id=p, iteration=0) for p in ("ko-01", "ko-02")]
+    executed = run_model(
+        runner=Exploding(),
+        model_id="m1",
+        instances=instances,
+        passages={first.id: first, second.id: second},
+        corpus_root=tmp_path / "corpus",
+        system_prompt="SYS",
+        runs_root=tmp_path / "runs",
+        run_id="r1",
+    )
+    assert executed == 2
+    failed = json.loads(
+        run_output_path(tmp_path / "runs", "r1", "m1", "t.ko-01.0").read_text(encoding="utf-8")
+    )
+    assert "runner raised AttributeError" in failed["error"]
+    ok = json.loads(
+        run_output_path(tmp_path / "runs", "r1", "m1", "t.ko-02.0").read_text(encoding="utf-8")
+    )
+    assert ok["error"] is None

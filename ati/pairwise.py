@@ -77,20 +77,32 @@ def build_pair_prompt(template: str, source: str, text_a: str, text_b: str) -> s
     )
 
 
+def _ask(judge_runner, prompt: str):
+    """One judge call. Any failure to get an answer is a RuntimeError.
+
+    A runner that raises is treated like one that reports an error: the
+    stage stops, rather than the exception ending it with a traceback or
+    the next comparison repeating the same defect against the judge.
+    """
+    try:
+        result = judge_runner.run("", prompt)
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(f"judge runner raised {type(exc).__name__}: {exc}") from exc
+    if result.error:
+        raise RuntimeError(result.error)
+    return result
+
+
 def compare(judge_runner, template, source, text_a, text_b):
     """Judge one pair in both orders. Returns (forward, reverse, outcome)."""
-    forward_result = judge_runner.run(
-        "", build_pair_prompt(template, source, text_a, text_b)
+    forward_result = _ask(
+        judge_runner, build_pair_prompt(template, source, text_a, text_b)
     )
-    if forward_result.error:
-        raise RuntimeError(forward_result.error)
     forward = parse_verdict(forward_result.text)
 
-    reverse_result = judge_runner.run(
-        "", build_pair_prompt(template, source, text_b, text_a)
+    reverse_result = _ask(
+        judge_runner, build_pair_prompt(template, source, text_b, text_a)
     )
-    if reverse_result.error:
-        raise RuntimeError(reverse_result.error)
     reverse = parse_verdict(reverse_result.text)
 
     return forward, reverse, resolve_outcome(forward, reverse)

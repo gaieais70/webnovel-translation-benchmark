@@ -349,6 +349,27 @@ def test_a_scored_judgment_goes_stale_when_its_run_becomes_a_refusal(tmp_path):
     assert data["scores"] == {}
 
 
+def test_a_judge_runner_that_raises_is_not_asked_again_and_stops_the_stage(tmp_path):
+    """A defect in the runner repeats on every call; for the Antigravity judge
+    each repeat is another request against the operator's account."""
+
+    class Raising:
+        def __init__(self):
+            self.calls = 0
+
+        def run(self, system_prompt, source_text):
+            self.calls += 1
+            raise AttributeError("'list' object has no attribute 'get'")
+
+    p = seed_run(tmp_path, instance_id="t.cn-01.0")
+    seed_run(tmp_path, instance_id="t.cn-01.1")
+    seed_run(tmp_path, instance_id="t.cn-01.2")
+    runner = Raising()
+    assert judge_run(**common_args(tmp_path, p, runner)) == 0
+    assert runner.calls == 2  # one per item, then the stage stops
+    assert not (tmp_path / "judgments").exists()
+
+
 def test_a_torn_run_file_is_skipped_and_the_stage_carries_on(tmp_path, capsys):
     """A lane still writing must not kill a judge pass reading beside it."""
     p = seed_run(tmp_path)
