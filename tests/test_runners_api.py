@@ -298,24 +298,14 @@ def test_api_runner_does_not_retry_a_usage_limit():
     assert result.error.startswith("HTTP 429:")
 
 
-def test_output_budget_scales_with_source_and_is_clamped():
-    from ati.runners.api import (
-        MAX_OUTPUT_TOKENS,
-        REASONING_HEADROOM_TOKENS,
-        output_token_budget,
-    )
+def test_api_runner_sends_no_ceiling_by_default():
+    """No max_tokens at all, at any source length.
 
-    # the reasoning allowance is the floor; it does not scale with the source
-    assert output_token_budget("") == REASONING_HEADROOM_TOKENS
-    assert output_token_budget("x" * 100) > REASONING_HEADROOM_TOKENS
-    # translation estimate (18,500) plus the fixed reasoning allowance
-    assert output_token_budget("x" * 7400) == 43076
-    assert output_token_budget("x" * 10_000_000) == MAX_OUTPUT_TOKENS
-
-
-def test_api_runner_sends_a_max_tokens_ceiling():
-    """Without this a model can generate to the provider cap: 65,536 tokens
-    at $0.29 a call, against $0.02 for the same work bounded."""
+    The derived ceiling this replaces cost four chapters. Reasoning is emitted
+    before visible content, so a budget that binds removes the translation
+    rather than shortening it - every truncated call in 2026-08 recorded a full
+    token spend and zero characters of English.
+    """
     seen = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -325,7 +315,11 @@ def test_api_runner_sends_a_max_tokens_ceiling():
     client = httpx.Client(transport=httpx.MockTransport(handler))
     runner = ApiRunner("http://x", "m", "k", 0.3, client=client)
     runner.run("s", "x" * 7400)
-    assert seen["max_tokens"] == 43076
+    assert "max_tokens" not in seen
+
+    seen.clear()
+    runner.run("s", "x" * 200_000)
+    assert "max_tokens" not in seen
 
 
 def test_api_runner_max_tokens_can_be_overridden():
@@ -360,6 +354,10 @@ def test_api_runner_records_truncation_as_a_failure():
     result = runner.run("s", "u")
     assert result.error is not None
     assert "truncated" in result.error
+    # No ceiling is sent any more, so a truncation means the PROVIDER's own
+    # default bound. The record has to say that rather than name a limit this
+    # runner did not set - it is the only signal that an invisible cap exists.
+    assert "provider default" in result.error
     assert result.text == ""
     assert result.tokens_out == 65536
 
@@ -412,21 +410,6 @@ def test_api_runner_still_retries_connection_failures():
     result = runner.run("s", "u")
     assert attempts["n"] == 3
     assert result.text == "ok"
-
-
-def test_budget_covers_observed_reasoning_on_a_short_source():
-    """An 800-char passage was seen using 15,312 completion tokens, nearly all
-    hidden reasoning. Budgeting from source length alone would truncate it."""
-    from ati.runners.api import output_token_budget
-
-    assert output_token_budget("x" * 800) > 15312
-
-
-def test_budget_still_blocks_the_runaway_ceiling():
-    from ati.runners.api import MAX_OUTPUT_TOKENS, output_token_budget
-
-    assert output_token_budget("x" * 100_000) == MAX_OUTPUT_TOKENS
-    assert MAX_OUTPUT_TOKENS < 65536
 
 
 def test_truncated_result_keeps_the_refusal_flag():
@@ -504,3 +487,331 @@ def test_null_content_is_empty_text_not_a_crash():
     assert result.text == ""
     assert result.refused is False
     assert result.tokens_out == 40000
+
+
+def _capturing_runner(seen: list, **kwargs):
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(json.loads(request.content))
+        return httpx.Response(
+            200, json={"choices": [{"message": {"content": "ok"}}]}
+        )
+
+    return ApiRunner(
+        endpoint="https://example.invalid/v1/chat/completions",
+        model="vendor/model",
+        api_key="k",
+        temperature=0.3,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+        **kwargs,
+    )
+
+
+def test_extra_params_are_merged_into_the_payload():
+    seen: list = []
+    runner = _capturing_runner(
+        seen, extra_params={"reasoning": {"effort": "high"}}
+    )
+    runner.run("sys", "src")
+    assert seen[0]["reasoning"] == {"effort": "high"}
+
+
+def test_no_extra_params_sends_the_payload_unchanged():
+    """A model that asks for nothing must send what it sent before.
+
+    This is the guarantee that adding the mechanism does not quietly change
+    conditions for the ten models that do not use it.
+    """
+    seen: list = []
+    _capturing_runner(seen).run("sys", "src")
+    assert set(seen[0]) == {"model", "temperature", "messages"}
+
+
+def test_extra_params_can_impose_a_ceiling_on_a_metered_route():
+    """No ceiling is sent by default, so a metered route sets its own."""
+    seen: list = []
+    _capturing_runner(seen, extra_params={"max_tokens": 4096}).run("sys", "src")
+    assert seen[0]["max_tokens"] == 4096
+
+
+# --- free-to-paid fallback --------------------------------------------------
+
+
+def _route_runner(responses, model="primary", fallback=None):
+    """An ApiRunner whose transport replays `responses` in order."""
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        r = responses[min(calls["n"], len(responses) - 1)]
+        calls["n"] += 1
+        return r
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    return ApiRunner(
+        "http://x", model, "k", 0.3, client=client, attempts=1, fallback=fallback
+    )
+
+
+def _ok(text="translated"):
+    return httpx.Response(200, json={"choices": [{"message": {"content": text}}]})
+
+
+def test_route_is_recorded_even_without_a_fallback():
+    """Every record names the slug that answered, so a split is visible."""
+    result = _route_runner([_ok()], model="only-route").run("s", "u")
+    assert result.route == "only-route"
+
+
+def test_falls_back_to_the_paid_route_when_free_will_not_serve():
+    paid = _route_runner([_ok("paid answer")], model="paid")
+    free = _route_runner(
+        [httpx.Response(429, text="rate limited")], model="free", fallback=paid
+    )
+    result = free.run("s", "u")
+    assert result.error is None
+    assert result.text == "paid answer"
+    # the record must name the route that actually produced the translation
+    assert result.route == "paid"
+
+
+def test_a_bad_translation_does_not_trigger_the_fallback():
+    """A refusal is the model's own output and is identical on the paid tier.
+
+    Spending money to receive the same answer twice is the failure mode this
+    guards against.
+    """
+    paid = _route_runner([_ok("should never be reached")], model="paid")
+    free = _route_runner([_ok("I cannot translate this")], model="free", fallback=paid)
+    result = free.run("s", "u")
+    assert result.refused is True
+    assert result.route == "free"
+
+
+def test_both_routes_failing_reports_both():
+    paid = _route_runner([httpx.Response(500, text="paid down")], model="paid")
+    free = _route_runner(
+        [httpx.Response(429, text="free limited")], model="free", fallback=paid
+    )
+    result = free.run("s", "u")
+    assert "free" in result.error and "paid" in result.error
+
+
+def test_transient_429_is_retried_and_not_read_as_a_usage_limit():
+    from ati.runstage import is_usage_limit
+
+    seen = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["n"] += 1
+        if seen["n"] < 2:
+            return httpx.Response(
+                429, text='{"message":"Upstream model provider is temporarily unavailable"}'
+            )
+        return _ok("recovered")
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    runner = ApiRunner(
+        "http://x", "m", "k", 0.3, client=client, attempts=3, retry_backoff_s=0
+    )
+    result = runner.run("s", "u")
+    assert result.text == "recovered"
+    assert seen["n"] == 2
+    assert not is_usage_limit(
+        'HTTP 429: {"message":"Upstream model provider is temporarily unavailable"}'
+    )
+
+
+def _error_body_200(message="Upstream error from Chutes: overloaded"):
+    return httpx.Response(200, json={"error": {"code": 502, "message": message}})
+
+
+def test_an_error_object_in_a_200_response_is_reported_with_its_message():
+    """OpenRouter's free routes answer 200 with an error in place of choices.
+    The record used to say only "malformed response: 'choices'"."""
+    result = _route_runner([_error_body_200()], model="free").run("s", "u")
+    assert "provider error" in result.error
+    assert "overloaded" in result.error
+    assert result.text == ""
+
+
+def test_an_error_object_in_a_200_response_triggers_the_fallback():
+    paid = _route_runner([_ok("paid answer")], model="paid")
+    free = _route_runner([_error_body_200()], model="free", fallback=paid)
+    result = free.run("s", "u")
+    assert result.error is None
+    assert result.route == "paid"
+
+
+# --- streaming --------------------------------------------------------------
+
+
+def _sse(*chunks, done=True):
+    lines = [": keep-alive", ""]
+    for chunk in chunks:
+        lines += [f"data: {json.dumps(chunk)}", ""]
+    if done:
+        lines += ["data: [DONE]", ""]
+    return "\n".join(lines)
+
+
+def _delta(text=None, finish=None):
+    delta = {"content": text} if text is not None else {}
+    return {"choices": [{"index": 0, "delta": delta, "finish_reason": finish}]}
+
+
+def _stream_runner(handler, **kwargs):
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    return ApiRunner("http://x", "m", "k", 0.3, client=client, stream=True, **kwargs)
+
+
+def test_a_streamed_answer_is_reassembled_with_usage():
+    seen = {}
+
+    def handler(request):
+        seen.update(json.loads(request.content))
+        body = _sse(
+            _delta("Hello, "),
+            {"choices": [{"index": 0, "delta": {"reasoning_content": "hmm"}}]},
+            _delta("world."),
+            _delta(finish="stop"),
+            {
+                "choices": [],
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 30,
+                    "completion_tokens_details": {"reasoning_tokens": 20},
+                },
+            },
+        )
+        return httpx.Response(200, text=body)
+
+    result = _stream_runner(handler).run("s", "u")
+    assert result.error is None
+    assert result.text == "Hello, world."
+    assert result.tokens_out == 30
+    assert result.reasoning_tokens == 20
+    assert seen["stream"] is True
+    assert seen["stream_options"] == {"include_usage": True}
+
+
+def test_a_streamed_length_cutoff_is_still_a_truncation():
+    def handler(request):
+        return httpx.Response(200, text=_sse(_delta("partial"), _delta(finish="length")))
+
+    result = _stream_runner(handler).run("s", "u")
+    assert result.text == ""
+    assert "truncated" in result.error
+
+
+def test_a_stream_that_stops_early_is_not_scored():
+    def handler(request):
+        return httpx.Response(200, text=_sse(_delta("half a chap"), done=False))
+
+    result = _stream_runner(handler, retry_backoff_s=0).run("s", "u")
+    assert result.text == ""
+    assert "stream ended" in result.error
+
+
+def test_an_error_inside_the_stream_is_reported():
+    def handler(request):
+        return httpx.Response(
+            200, text=_sse(_delta("some"), {"error": {"message": "upstream died"}})
+        )
+
+    result = _stream_runner(handler).run("s", "u")
+    assert result.text == ""
+    assert "upstream died" in result.error
+
+
+def test_a_streamed_request_still_retries_a_524():
+    calls = {"n": 0}
+
+    def handler(request):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx.Response(524, text="Upstream model provider is temporarily unavailable")
+        return httpx.Response(200, text=_sse(_delta("ok"), _delta(finish="stop")))
+
+    result = _stream_runner(handler, retry_backoff_s=0).run("s", "u")
+    assert result.error is None
+    assert result.text == "ok"
+    assert calls["n"] == 2
+
+
+def test_streaming_is_off_unless_asked_for():
+    seen = {}
+
+    def handler(request):
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"message": {"content": "x"}}]})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    ApiRunner("http://x", "m", "k", 0.3, client=client).run("s", "u")
+    assert "stream" not in seen
+
+
+def test_a_dropped_connection_is_retried():
+    """Command Code closed one stream mid-body on 2026-09-18 ("peer closed
+    connection without sending complete message body")."""
+    calls = {"n": 0}
+
+    def handler(request):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise httpx.RemoteProtocolError("peer closed connection", request=request)
+        return httpx.Response(200, text=_sse(_delta("ok"), _delta(finish="stop")))
+
+    result = _stream_runner(handler, retry_backoff_s=0).run("s", "u")
+    assert result.error is None
+    assert result.text == "ok"
+    assert calls["n"] == 2
+
+
+def test_a_stream_the_gateway_cut_short_is_retried():
+    calls = {"n": 0}
+
+    def handler(request):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx.Response(200, text=_sse(_delta("half"), done=False))
+        return httpx.Response(200, text=_sse(_delta("whole"), _delta(finish="stop")))
+
+    result = _stream_runner(handler, retry_backoff_s=0).run("s", "u")
+    assert result.error is None
+    assert result.text == "whole"
+    assert calls["n"] == 2
+
+
+def test_a_content_filter_finish_is_a_refusal_with_nothing_scored():
+    def handler(request):
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "partial"}, "finish_reason": "content_filter"}]},
+        )
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    result = ApiRunner("http://x", "m", "k", 0.3, client=client).run("s", "u")
+    assert result.refused is True
+    assert result.text == ""
+    assert result.finish_reason == "content_filter"
+
+
+def test_a_provider_error_finish_is_a_route_failure_and_falls_back():
+    """nemotron-3.5-lightning's free route stopped generations at 600s."""
+    paid = _route_runner([_ok("paid answer")], model="paid")
+    free = _route_runner(
+        [httpx.Response(200, json={"choices": [{"message": {"content": "half"}, "finish_reason": "error"}]})],
+        model="free",
+        fallback=paid,
+    )
+    result = free.run("s", "u")
+    assert result.error is None
+    assert result.text == "paid answer"
+    assert result.route == "paid"
+
+
+def test_the_finish_reason_survives_streaming():
+    def handler(request):
+        return httpx.Response(200, text=_sse(_delta("done"), _delta(finish="stop")))
+
+    result = _stream_runner(handler).run("s", "u")
+    assert result.finish_reason == "stop"

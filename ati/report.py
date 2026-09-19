@@ -40,6 +40,7 @@ class ModelResult:
     total_tasks: int
     anchor: str | None = None
     incomplete: bool = False
+    refused_tasks: int = 0
 
 
 def fmt(value: float | None, places: int = 1) -> str:
@@ -154,6 +155,11 @@ def aggregate(
                 ),
                 failed_tasks=failed,
                 total_tasks=len(model_runs),
+                refused_tasks=sum(
+                    1
+                    for r in model_runs
+                    if r.get("refused") and not r.get("error")
+                ),
                 anchor=anchors.get(model_id),
                 incomplete=bool(model_runs)
                 and failed / len(model_runs) > FAILURE_THRESHOLD,
@@ -182,6 +188,24 @@ def is_comparable(drift: dict[str, float]) -> bool:
     return all(abs(d) <= ANCHOR_DRIFT_THRESHOLD for d in drift.values())
 
 
+def pairwise_records(comparisons) -> dict[str, tuple[int, int, int]]:
+    """Wins, losses and ties per model from (a, b, outcome) triples."""
+    tally: dict[str, list[int]] = {}
+    for a, b, outcome in comparisons:
+        for model in (a, b):
+            tally.setdefault(model, [0, 0, 0])
+        if outcome == "a":
+            tally[a][0] += 1
+            tally[b][1] += 1
+        elif outcome == "b":
+            tally[b][0] += 1
+            tally[a][1] += 1
+        else:
+            tally[a][2] += 1
+            tally[b][2] += 1
+    return {m: tuple(v) for m, v in tally.items()}
+
+
 def render_markdown(
     run_id: str,
     results: list[ModelResult],
@@ -191,6 +215,7 @@ def render_markdown(
     pairwise: dict[str, float] | None = None,
     pairwise_ci: dict[str, tuple[float, float]] | None = None,
     pairwise_anchor: str | None = None,
+    pairwise_records: dict[str, tuple[int, int, int]] | None = None,
 ) -> str:
     ranked = [r for r in results if not r.incomplete]
     incomplete = [r for r in results if r.incomplete]
@@ -220,13 +245,19 @@ def render_markdown(
     lines += [
         "## Ranking",
         "",
-        "| # | Model | Composite | Refusal % | Cost /1k ch | Sec /1k ch | Value | Slop | Repetition |",
-        "|---|---|---|---|---|---|---|---|---|",
+        "| # | Model | Composite | Scored | Refusal % | Cost /1k ch | Sec /1k ch | Value | Slop | Repetition |",
+        "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for i, r in enumerate(ranked, start=1):
         label = r.model_id + (f" _{r.anchor} anchor_" if r.anchor else "")
+        # Shown because a model missing chapters is averaged over fewer, and
+        # the chapters that break models are the hard ones - so a composite
+        # over 8/11 is not the same measurement as one over 11/11.
+        scored = (
+            f"{r.total_tasks - r.failed_tasks - r.refused_tasks}/{r.total_tasks}"
+        )
         lines.append(
-            f"| {i} | {label} | {fmt(r.composite)} | {fmt(r.refusal_rate)} | "
+            f"| {i} | {label} | {fmt(r.composite)} | {scored} | {fmt(r.refusal_rate)} | "
             f"{fmt_cost(r.cost_per_1k)} | {fmt(r.speed_per_1k)} | "
             f"{fmt(r.value, 0)} | {fmt(r.slop, 2)} | {fmt(r.repetition, 3)} |"
         )
@@ -264,8 +295,8 @@ def render_markdown(
             "allowed and a judge that reverses itself when the order flips is "
             "recorded as a tie.",
             "",
-            "| Model | Rating | 95% interval |",
-            "|---|---|---|",
+            "| Model | Rating | 95% interval | W–L–T |",
+            "|---|---|---|---|",
         ]
         ranked_pairwise = sorted(
             pairwise.items(), key=lambda kv: -kv[1]
@@ -285,7 +316,12 @@ def render_markdown(
                 span = "too few comparisons"
             else:
                 span = f"{interval[0]:.0f} – {interval[1]:.0f}"
-            lines.append(f"| {model_id} | {rating:.0f} | {span} |")
+            # The record is shown because a rating alone hides how much it
+            # rests on: a model compared fewer times, or only on the passages
+            # other models survived, can sit high on thin evidence.
+            w, l, t = (pairwise_records or {}).get(model_id, (0, 0, 0))
+            record = f"{w}–{l}–{t}" if pairwise_records else "N/A"
+            lines.append(f"| {model_id} | {rating:.0f} | {span} | {record} |")
 
         if pairwise_ci and len(ranked_pairwise) > 1:
             top, second = ranked_pairwise[0][0], ranked_pairwise[1][0]

@@ -8,11 +8,18 @@ from pathlib import Path
 
 from ati.corpus import HashMismatch, Passage, PassageMissing, load_passage
 from ati.judge import (
+    JudgeRunnerError,
     JudgeSchemaError,
     build_judge_prompt,
     judge_with_retry,
     rationale_quote_violations,
 )
+from ati.runstage import is_usage_limit
+
+# Consecutive items the judge could not be reached on before the stage stops.
+# One is a blip; two in a row is the judge being down or out of quota, and
+# every remaining item would fail the same way.
+MAX_CONSECUTIVE_RUNNER_FAILURES = 2
 
 
 def judgment_output_path(
@@ -47,10 +54,18 @@ def _judgment_is_current(path: Path, run_data: dict) -> bool:
         judgment = json.loads(path.read_text(encoding="utf-8"))
     except (ValueError, OSError):
         return False
-    run_unusable = bool(
-        run_data.get("error") or run_data.get("unavailable") or run_data.get("refused")
-    )
-    if bool(judgment.get("skipped")) != run_unusable:
+    # A refusal is recorded as a non-skipped judgment with refused=True, so it
+    # is compared on that flag. Folding it into "skipped" made every refusal
+    # look stale forever: it was rewritten on every pass, and a driver waiting
+    # for the stage to report no work never saw it finish.
+    run_failed = bool(run_data.get("error") or run_data.get("unavailable"))
+    if bool(judgment.get("skipped")) != run_failed:
+        return False
+    if bool(judgment.get("refused")) != bool(run_data.get("refused")):
+        return False
+    # A judge error is a failure to judge, not a judgment. Treating it as
+    # current would leave the item unscored for good after one bad response.
+    if judgment.get("judge_error"):
         return False
     # A judgment describes one specific translation. Re-running a model - with
     # --force, or through a different provider - replaces the text while
@@ -84,6 +99,7 @@ def judge_run(
 ) -> int:
     run_dir = Path(runs_root) / run_id
     judged = 0
+    runner_failures = 0
     for run_file in sorted(run_dir.rglob("*.json")):
         run_data = json.loads(run_file.read_text(encoding="utf-8"))
         model_id = run_data["model_id"]
@@ -160,6 +176,20 @@ def judge_run(
             judgment = judge_with_retry(
                 judge_runner, prompt, expect_term_table=expect_term_table
             )
+        except JudgeRunnerError as exc:
+            # Nothing is written, so a rerun picks this item up again.
+            runner_failures += 1
+            if (
+                is_usage_limit(str(exc))
+                or runner_failures >= MAX_CONSECUTIVE_RUNNER_FAILURES
+            ):
+                print(
+                    f"stopping after {judged} judgments: {exc}. Rerun the same "
+                    f"command later; completed judgments are kept."
+                )
+                return judged
+            print(f"  skipping {model_id} {instance_id}: {exc}")
+            continue
         except JudgeSchemaError as exc:
             _write(out_path, {**base, "judge_error": str(exc)})
             judged += 1
@@ -176,4 +206,5 @@ def judge_run(
             },
         )
         judged += 1
+        runner_failures = 0
     return judged

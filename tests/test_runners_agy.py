@@ -127,3 +127,277 @@ def test_agy_runner_can_disable_sandbox():
     )
     runner.run("s", "u")
     assert "--sandbox" not in capture[0][0]
+
+
+def stream_lines(**overrides):
+    """agy stream-json output: progress events, then one final result event."""
+    result = {
+        "conversation_id": "x",
+        "status": "SUCCESS",
+        "response": "Yun Che raised his head.",
+        "duration_seconds": 5.9,
+        "num_turns": 1,
+        "usage": {"input_tokens": 28754, "output_tokens": 758, "thinking_tokens": 403},
+    }
+    result.update(overrides)
+    return (
+        json.dumps({"event": "init", "init": {"model": "m"}})
+        + chr(10)
+        + json.dumps({"event": "result", "result": result})
+        + chr(10)
+    )
+
+
+def test_a_long_prompt_goes_over_stdin_instead_of_the_command_line():
+    """Windows caps argv at 32,767 chars; a pairwise prompt carries two whole
+    translations and exceeded it, failing all 300 comparisons with WinError 206
+    before any judge call was made."""
+    capture = []
+    runner = AgyRunner(
+        model="gemini-3.7-flash-high",
+        runner_fn=fake_run_factory(stdout=stream_lines(), capture=capture),
+    )
+    runner.run("SYSTEM", "x" * 40000)
+    cmd, kwargs = capture[0]
+    assert "--input-format" in cmd and "stream-json" in cmd
+    assert "-p" not in cmd
+    # the prompt is in stdin, not in any argument
+    assert not any(len(part) > 30000 for part in cmd)
+    sent = json.loads(kwargs["input"].strip())
+    assert sent["event"] == "user"
+    assert sent["message"]["role"] == "user"
+    assert len(sent["message"]["content"]) > 40000
+
+
+def test_a_short_prompt_still_uses_the_argument_form():
+    capture = []
+    runner = AgyRunner(
+        model="gemini-3.7-flash-high",
+        runner_fn=fake_run_factory(stdout=envelope(), capture=capture),
+    )
+    runner.run("SYSTEM", "SOURCE")
+    cmd, kwargs = capture[0]
+    assert "-p" in cmd
+    assert "--input-format" not in cmd
+    assert "input" not in kwargs
+
+
+def test_the_final_result_event_is_read_out_of_the_stream():
+    runner = AgyRunner(
+        model="m", runner_fn=fake_run_factory(stdout=stream_lines())
+    )
+    result = runner.run("SYSTEM", "x" * 40000)
+    assert result.error is None
+    assert result.text == "Yun Che raised his head."
+    assert result.tokens_in == 28754
+
+
+def test_a_stream_error_status_is_reported_not_silently_empty():
+    runner = AgyRunner(
+        model="m",
+        runner_fn=fake_run_factory(
+            stdout=stream_lines(status="ERROR", response="", error="empty prompt")
+        ),
+    )
+    result = runner.run("SYSTEM", "x" * 40000)
+    assert result.error is not None and "empty prompt" in result.error
+    assert result.text == ""
+
+
+def test_a_stream_with_no_result_event_is_an_error():
+    runner = AgyRunner(
+        model="m",
+        runner_fn=fake_run_factory(
+            stdout=json.dumps({"event": "init", "init": {}}) + chr(10)
+        ),
+    )
+    result = runner.run("SYSTEM", "x" * 40000)
+    assert result.error is not None and "no result event" in result.error
+
+
+# --- account safety gate ----------------------------------------------------
+
+
+class FakeClock:
+    def __init__(self, now=1000.0):
+        self.now = now
+        self.slept = []
+
+    def __call__(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.slept.append(seconds)
+        self.now += seconds
+
+
+def test_the_gate_waits_out_the_remainder_of_the_minimum_gap(tmp_path):
+    from ati.runners.agy import CallGate
+
+    clock = FakeClock()
+    gate = CallGate(tmp_path, min_gap_s=10.0, sleep_fn=clock.sleep, clock_fn=clock, courtesy_s=0.0)
+    with gate.slot():
+        pass
+    clock.now += 4.0
+    with gate.slot():
+        pass
+    assert clock.slept == [6.0]
+
+
+def test_the_gate_does_not_wait_once_the_gap_has_passed(tmp_path):
+    from ati.runners.agy import CallGate
+
+    clock = FakeClock()
+    gate = CallGate(tmp_path, min_gap_s=10.0, sleep_fn=clock.sleep, clock_fn=clock, courtesy_s=0.0)
+    with gate.slot():
+        pass
+    clock.now += 30.0
+    with gate.slot():
+        pass
+    assert clock.slept == []
+
+
+def test_the_gap_is_shared_by_every_gate_on_the_same_root(tmp_path):
+    """A second process builds its own gate; the spacing must still hold."""
+    from ati.runners.agy import CallGate
+
+    clock = FakeClock()
+    first = CallGate(tmp_path, min_gap_s=10.0, sleep_fn=clock.sleep, clock_fn=clock, courtesy_s=0.0)
+    second = CallGate(tmp_path, min_gap_s=10.0, sleep_fn=clock.sleep, clock_fn=clock, courtesy_s=0.0)
+    with first.slot():
+        pass
+    with second.slot():
+        pass
+    assert clock.slept == [10.0]
+
+
+def test_a_failed_call_still_counts_toward_the_gap(tmp_path):
+    from ati.runners.agy import CallGate
+
+    clock = FakeClock()
+    gate = CallGate(tmp_path, min_gap_s=10.0, sleep_fn=clock.sleep, clock_fn=clock, courtesy_s=0.0)
+    try:
+        with gate.slot():
+            raise RuntimeError("agy failed")
+    except RuntimeError:
+        pass
+    with gate.slot():
+        pass
+    assert clock.slept == [10.0]
+
+
+def test_the_gate_admits_one_holder_at_a_time(tmp_path):
+    import threading
+    import time
+
+    from ati.runners.agy import CallGate
+
+    events = []
+    gate_a = CallGate(tmp_path, min_gap_s=0.0, courtesy_s=0.0)
+    gate_b = CallGate(tmp_path, min_gap_s=0.0, courtesy_s=0.0)
+    entered = threading.Event()
+
+    def hold():
+        with gate_a.slot():
+            events.append("a-in")
+            entered.set()
+            time.sleep(0.5)
+            events.append("a-out")
+
+    worker = threading.Thread(target=hold)
+    worker.start()
+    entered.wait(5)
+    with gate_b.slot():
+        events.append("b-in")
+    worker.join()
+    assert events == ["a-in", "a-out", "b-in"]
+
+
+def test_a_gated_call_runs_from_the_empty_workspace(tmp_path):
+    from ati.runners.agy import CallGate
+
+    capture = []
+    gate = CallGate(tmp_path / "gate", min_gap_s=0.0)
+    runner = AgyRunner(
+        "m", gate=gate, runner_fn=fake_run_factory(stdout=envelope(), capture=capture)
+    )
+    runner.run("s", "u")
+    _, kwargs = capture[0]
+    assert kwargs["cwd"] == str(tmp_path / "gate" / "workspace")
+    assert list((tmp_path / "gate" / "workspace").iterdir()) == []
+
+
+def test_the_schema_path_is_absolute_so_it_resolves_from_the_workspace(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "s.json").write_text("{}", encoding="utf-8")
+    out = envelope(structured_output={"winner": "A"})
+    capture = []
+    runner = AgyRunner(
+        "m", json_schema="s.json", runner_fn=fake_run_factory(stdout=out, capture=capture)
+    )
+    runner.run("s", "u")
+    cmd, _ = capture[0]
+    schema_arg = cmd[cmd.index("--json-schema") + 1]
+    assert schema_arg == str(tmp_path / "s.json")
+
+
+def test_agy_gets_a_print_timeout_matching_the_subprocess_timeout():
+    capture = []
+    runner = AgyRunner(
+        "m", timeout_s=900, runner_fn=fake_run_factory(stdout=envelope(), capture=capture)
+    )
+    runner.run("s", "u")
+    cmd, _ = capture[0]
+    assert cmd[cmd.index("--print-timeout") + 1] == "900s"
+
+
+def test_every_prompt_tells_the_judge_not_to_use_tools():
+    """Every judge call that reached for a shell stalled until the timeout."""
+    from ati.runners.agy import NO_TOOLS_PREAMBLE
+
+    capture = []
+    runner = AgyRunner("m", runner_fn=fake_run_factory(stdout=envelope(), capture=capture))
+    runner.run("SYSTEM", "SOURCE")
+    cmd, _ = capture[0]
+    prompt = cmd[cmd.index("-p") + 1]
+    assert prompt.startswith(NO_TOOLS_PREAMBLE)
+    assert prompt.index("SYSTEM") < prompt.index("SOURCE")
+
+
+def test_a_busy_process_does_not_starve_a_second_one(tmp_path):
+    """The rubric stage calling back-to-back once locked a pairwise process
+    out for twenty minutes: it re-took the lock the instant it released it."""
+    import threading
+    import time
+
+    from ati.runners.agy import CallGate
+
+    order = []
+    busy = CallGate(tmp_path, min_gap_s=0.3, courtesy_s=0.3)
+    other = CallGate(tmp_path, min_gap_s=0.3, courtesy_s=0.3)
+
+    def hammer():
+        for i in range(6):
+            with busy.slot():
+                order.append(f"busy{i}")
+                time.sleep(0.05)
+
+    worker = threading.Thread(target=hammer)
+    worker.start()
+    time.sleep(0.1)  # the busy process is already mid-call
+    with other.slot():
+        order.append("other")
+    worker.join()
+    assert order.index("other") < order.index("busy5")
+
+
+def test_the_last_caller_yields_to_anyone_else_waiting(tmp_path):
+    from ati.runners.agy import CallGate
+
+    clock = FakeClock()
+    first = CallGate(tmp_path, min_gap_s=10.0, sleep_fn=clock.sleep, clock_fn=clock, courtesy_s=2.0)
+    second = CallGate(tmp_path, min_gap_s=10.0, sleep_fn=clock.sleep, clock_fn=clock, courtesy_s=2.0)
+    with first.slot():
+        pass
+    assert first._remaining(courtesy=True) == 12.0
+    assert second._remaining(courtesy=True) == 10.0

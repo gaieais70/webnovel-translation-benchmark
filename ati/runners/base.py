@@ -23,6 +23,19 @@ class RunResult:
     reasoning_tokens: int | None = None
     refused: bool = False
     error: str | None = None
+    # Which model slug actually served this call. Set when a runner has more
+    # than one route it can use, so a model whose chapters were split between
+    # a free route and its paid fallback shows the split in the record instead
+    # of averaging two providers into one row silently. Running one model
+    # across two providers has already been tried on this project and could not
+    # be read as a single result; see the retired hy3 drift probe in
+    # docs/run-notes-2026-08.md.
+    route: str | None = None
+    # Why generation ended, as the provider reported it. Recorded because a
+    # provider that ends a generation early does not always say "length":
+    # OpenRouter's free routes cut nemotron-3.5-lightning off at 600 seconds
+    # mid-sentence, and without this there was no trace of why.
+    finish_reason: str | None = None
 
 
 class Runner(Protocol):

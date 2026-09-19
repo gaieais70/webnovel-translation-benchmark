@@ -265,3 +265,85 @@ def test_an_unchanged_translation_is_not_rejudged(tmp_path):
     second = FakeRunner(responses=[valid_judge_reply(score=1)])
     assert judge_run(**common_args(tmp_path, p_, second)) == 0
     assert second.calls == []
+
+
+class ScriptedRunner:
+    """Returns each scripted (text, error) pair in turn."""
+
+    def __init__(self, script):
+        self._script = list(script)
+        self.calls = []
+
+    def run(self, system_prompt, source_text):
+        from ati.runners.base import RunResult
+
+        self.calls.append((system_prompt, source_text))
+        text, error = self._script.pop(0)
+        return RunResult(text=text, latency_s=0.0, error=error)
+
+
+def test_a_usage_limit_stops_the_stage_after_one_call(tmp_path):
+    """A judge on a personal subscription must not be asked again for every
+    remaining item once it has said it is out of quota."""
+    p = seed_run(tmp_path, instance_id="t.cn-01.0")
+    seed_run(tmp_path, instance_id="t.cn-01.1")
+    runner = FakeRunner(error="exit 1: RESOURCE_EXHAUSTED: quota exceeded")
+    count = judge_run(**common_args(tmp_path, p, runner))
+    assert count == 0
+    assert len(runner.calls) == 1
+    assert not (tmp_path / "judgments").exists()
+
+
+def test_two_unreachable_items_in_a_row_stop_the_stage(tmp_path):
+    p = seed_run(tmp_path, instance_id="t.cn-01.0")
+    seed_run(tmp_path, instance_id="t.cn-01.1")
+    seed_run(tmp_path, instance_id="t.cn-01.2")
+    runner = FakeRunner(error="exit 1: connection reset")
+    judge_run(**common_args(tmp_path, p, runner))
+    # three attempts on each of the first two items, none on the third
+    assert len(runner.calls) == 6
+
+
+def test_one_unreachable_item_is_skipped_unrecorded_and_the_stage_continues(tmp_path):
+    p = seed_run(tmp_path, instance_id="t.cn-01.0")
+    seed_run(tmp_path, instance_id="t.cn-01.1")
+    down = ("", "exit 1: connection reset")
+    runner = ScriptedRunner([down, down, down, (valid_judge_reply(), None)])
+    count = judge_run(**common_args(tmp_path, p, runner))
+    assert count == 1
+    first = judgment_output_path(tmp_path / "judgments", "r1", "m1", "t.cn-01.0")
+    second = judgment_output_path(tmp_path / "judgments", "r1", "m1", "t.cn-01.1")
+    assert not first.exists()  # a rerun picks it up
+    assert second.exists()
+
+
+def test_a_judge_error_is_not_mistaken_for_a_finished_judgment(tmp_path):
+    p = seed_run(tmp_path)
+    judge_run(**common_args(tmp_path, p, FakeRunner(responses=["bad", "bad", "bad"])))
+    again = FakeRunner(responses=[valid_judge_reply()])
+    count = judge_run(**common_args(tmp_path, p, again))
+    assert count == 1
+    out = judgment_output_path(tmp_path / "judgments", "r1", "m1", "t.cn-01.0")
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["judge_error"] is None
+    assert data["scores"]["accuracy"] == 4
+
+
+def test_a_refusal_judgment_stays_current(tmp_path):
+    """Refused runs were rewritten on every pass and the stage never idled."""
+    p = seed_run(tmp_path, refused=True, text="")
+    judge_run(**common_args(tmp_path, p, FakeRunner(responses=[])))
+    count = judge_run(**common_args(tmp_path, p, FakeRunner(responses=[])))
+    assert count == 0
+
+
+def test_a_scored_judgment_goes_stale_when_its_run_becomes_a_refusal(tmp_path):
+    p = seed_run(tmp_path)
+    judge_run(**common_args(tmp_path, p, FakeRunner(responses=[valid_judge_reply()])))
+    seed_run(tmp_path, refused=True, text="")
+    count = judge_run(**common_args(tmp_path, p, FakeRunner(responses=[])))
+    assert count == 1
+    out = judgment_output_path(tmp_path / "judgments", "r1", "m1", "t.cn-01.0")
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["refused"] is True
+    assert data["scores"] == {}

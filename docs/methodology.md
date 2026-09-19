@@ -25,6 +25,25 @@ Stages are idempotent. Adding one model costs only that model's calls.
 
 `ati bench` runs steps 1–4 in one command.
 
+## What counts as a translation
+
+An output is scored only if it is a translation of the whole passage. The run
+stage records, rather than scores:
+
+- **failures** — output shorter than half the source or longer than four
+  times it, output mostly in the source's script, a generation the provider
+  cut off (`finish_reason` `length` or `error`), or a route that never
+  answered. Each gets up to three attempts before it is final;
+- **refusals** — the model declining, or the *provider's* moderation layer
+  stopping the translation (a `content_filter` finish, or a known moderation
+  message in place of or at the end of the text). Refusals are not retried and
+  are reported in the refusal rate, not averaged into the composite.
+
+The leaderboard's **Scored** column shows how many passages each composite
+rests on. A model scored on fewer passages was graded on a subset — often
+missing exactly the passages that broke models — and its composite is not
+the same measurement as one over every passage.
+
 ## Axes and weights
 
 Six axes, defined with anchors in [the rubric](rubric.md): accuracy,
@@ -86,14 +105,22 @@ comparable as models join or leave the pool.
 
 ## Judge bias
 
-A single pinned judge, temperature 0, structured JSON output validated
-against a schema; malformed responses are retried twice and then excluded
-rather than scored as zero. The judge never evaluates its own outputs.
+A single pinned judge, structured JSON output validated against a schema;
+malformed responses are retried twice and then excluded rather than scored as
+zero. The judge never evaluates its own outputs. API judges run at
+temperature 0; the Antigravity CLI exposes no temperature setting, so a
+Gemini judge reached through it runs at the CLI's default.
 
 Self-preference is **disclosed, not corrected**: the judge's model family is
-named in every report so readers can discount accordingly. The top 5 models
-are re-judged by a secondary judge and the agreement rate is published.
-Human spot-checks are recorded in [spot-checks.md](spot-checks.md).
+named in every report so readers can discount accordingly. A secondary-judge
+agreement check on the top five models is planned but not yet implemented;
+no run so far has one. Human spot-checks are recorded in
+[spot-checks.md](spot-checks.md).
+
+When the judge is an agent rather than a completion endpoint (Gemini through
+the Antigravity CLI), it is told in every prompt to use no tools: an agentic
+judge that runs commands is no longer judging only the text in front of it,
+and on run `2026-09` every call in which it did so stalled until timeout.
 
 ## Known limitations
 

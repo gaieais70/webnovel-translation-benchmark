@@ -369,3 +369,104 @@ def test_a_refusal_is_not_treated_as_short_output():
 def test_short_sources_are_exempt_from_the_minimum_check():
     assert not came_up_short("x", 199)
     assert came_up_short("x", 200)
+
+
+# --- provider blocks and untranslated output (run 2026-09) -------------------
+
+
+def _run_one(tmp_path, runner, source="가" * 400):
+    passage = make_passage(tmp_path, "ko-01", source)
+    task = Task(id="t", type="consistency", passage_ids=["ko-01"])
+    instances = [TaskInstance(task=task, passage_id="ko-01", iteration=0)]
+    run_model(
+        runner=runner,
+        model_id="m1",
+        instances=instances,
+        passages={passage.id: passage},
+        corpus_root=tmp_path / "corpus",
+        system_prompt="SYS",
+        runs_root=tmp_path / "runs",
+        run_id="r1",
+    )
+    out = run_output_path(tmp_path / "runs", "r1", "m1", "t.ko-01.0")
+    return json.loads(out.read_text(encoding="utf-8"))
+
+
+def test_a_moderation_cut_is_a_refusal_not_a_translation(tmp_path):
+    """Xiaomi appends this to a translation it stops partway through."""
+    cut = "He drew his sword. " * 50 + (
+        "AndThe request was rejected because it was considered high risk"
+    )
+    data = _run_one(tmp_path, FakeRunner(responses=[cut]))
+    assert data["refused"] is True
+    assert data["blocked_by_provider"] is True
+    assert data["text"] == ""
+    assert data["error"] is None
+
+
+def test_an_inspection_failure_is_a_refusal_not_a_route_error(tmp_path):
+    """Alibaba's content inspection answers with an HTTP 400."""
+    runner = FakeRunner(
+        error='HTTP 400: {"error":{"message":"<400> InternalError.Algo.DataInspectionFailed"}}'
+    )
+    data = _run_one(tmp_path, runner)
+    assert data["refused"] is True
+    assert data["blocked_by_provider"] is True
+    assert data["error"] is None
+
+
+def test_a_refused_task_is_not_retried(tmp_path):
+    runner = FakeRunner(error="HTTP 400: DataInspectionFailed")
+    _run_one(tmp_path, runner)
+    again = FakeRunner(responses=["x" * 900])
+    _run_one(tmp_path, again)
+    assert again.calls == []
+
+
+def test_the_source_echoed_back_is_not_a_translation(tmp_path):
+    source = "도운찬은 그만 할 말을 잃고 말았다. " * 20
+    data = _run_one(tmp_path, FakeRunner(responses=[source]), source=source)
+    assert data["text"] == ""
+    assert "source script" in data["error"]
+
+
+def test_english_with_a_few_source_terms_is_still_a_translation(tmp_path):
+    text = "Cheongmyeong (청명) looked up at the sky over Mount Hua. " * 20
+    data = _run_one(tmp_path, FakeRunner(responses=[text]), source="가" * 400)
+    assert data["error"] is None
+    assert data["text"] == text
+
+
+def test_the_finish_reason_is_recorded(tmp_path):
+    class Finishing(FakeRunner):
+        def run(self, system_prompt, source_text):
+            from dataclasses import replace
+
+            return replace(super().run(system_prompt, source_text), finish_reason="stop")
+
+    data = _run_one(tmp_path, Finishing(responses=["An English translation. " * 40]))
+    assert data["finish_reason"] == "stop"
+
+
+def test_zhipus_content_filter_is_a_refusal(tmp_path):
+    runner = FakeRunner(
+        error="provider error in a 200 response: {'message': 'Output data may "
+        "contain inappropriate content. For details see ...', 'code': '1301'}"
+    )
+    data = _run_one(tmp_path, runner)
+    assert data["refused"] is True
+    assert data["blocked_by_provider"] is True
+    assert data["error"] is None
+
+
+def test_a_content_filter_finish_is_recorded_as_a_provider_block(tmp_path):
+    class Filtered(FakeRunner):
+        def run(self, system_prompt, source_text):
+            from dataclasses import replace
+
+            base = super().run(system_prompt, source_text)
+            return replace(base, text="", refused=True, finish_reason="content_filter")
+
+    data = _run_one(tmp_path, Filtered(responses=["x"]))
+    assert data["refused"] is True
+    assert data["blocked_by_provider"] is True

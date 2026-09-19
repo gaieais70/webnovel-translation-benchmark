@@ -16,8 +16,10 @@ from ati.config import (
     ConfigError,
     ModelConfig,
     load_defaults,
+    load_env_file,
     load_models,
     load_weights,
+    requires_antigravity,
 )
 from ati.bradleyterry import bootstrap_ci, fit, to_elo
 from ati.corpus import (
@@ -31,9 +33,15 @@ from ati.corpus import (
 from ati.judgestage import judge_run
 from ati.intake import DEFAULT_CHARS, KINDS, IntakeError, add_files
 from ati.pairwise import load_comparisons, run_pairwise
-from ati.report import aggregate, anchor_drift, is_comparable, render_markdown
+from ati.report import (
+    aggregate,
+    anchor_drift,
+    is_comparable,
+    pairwise_records,
+    render_markdown,
+)
 from ati.runners.api import ApiRunner
-from ati.runners.agy import AgyRunner
+from ati.runners.agy import AgyRunner, CallGate
 from ati.runners.cli import CliRunner
 from ati.runners.manual import ManualRunner
 from ati.runstage import run_model
@@ -54,7 +62,35 @@ def resolve_api_key(model: ModelConfig, fallback: str | None = None) -> str | No
     return os.environ.get(model.api_key_env) or fallback
 
 
+def build_alternate_runner(model: ModelConfig, api_key: str | None):
+    """The second route for a model that declares one, or None.
+
+    Anything the fallback entry does not name is inherited from the primary,
+    so a free-to-paid switch on the same provider says only `model:`.
+    """
+    spec = model.fallback
+    if not spec:
+        return None
+    key_env = spec.get("api_key_env", model.api_key_env)
+    return ApiRunner(
+        endpoint=spec.get("endpoint") or model.endpoint or DEFAULT_ENDPOINT,
+        model=spec["model"],
+        api_key=os.environ.get(key_env) or api_key or "",
+        temperature=model.temperature,
+        timeout_s=model.timeout_s,
+        extra_params=spec.get("params", model.params),
+        stream=bool(spec.get("stream", model.stream)),
+    )
+
+
 def build_runner(model: ModelConfig, api_key: str | None, manual_root: Path):
+    # load_models already refuses this; checked again because a ModelConfig
+    # can be built without going through it, and the cost of getting it wrong
+    # is the operator's Google account.
+    if model.runner != "agy" and requires_antigravity(model.id, model.model):
+        raise ConfigError(
+            f"model {model.id}: Gemini may only be reached through Antigravity"
+        )
     if model.runner == "api":
         return ApiRunner(
             endpoint=model.endpoint or DEFAULT_ENDPOINT,
@@ -62,6 +98,9 @@ def build_runner(model: ModelConfig, api_key: str | None, manual_root: Path):
             api_key=resolve_api_key(model, api_key) or "",
             temperature=model.temperature,
             timeout_s=model.timeout_s,
+            extra_params=model.params,
+            fallback=build_alternate_runner(model, api_key),
+            stream=model.stream,
         )
     if model.runner == "cli":
         return CliRunner(command=model.command or [], timeout_s=model.timeout_s)
@@ -71,6 +110,8 @@ def build_runner(model: ModelConfig, api_key: str | None, manual_root: Path):
             json_schema=model.json_schema,
             sandbox=model.sandbox,
             timeout_s=model.timeout_s,
+            # Always gated outside tests. See CallGate for what it enforces.
+            gate=CallGate(),
         )
     return ManualRunner(root=manual_root, model_id=model.id)
 
@@ -188,6 +229,13 @@ def build_judge_runner(
         if json_schema is not None:
             model = replace(model, json_schema=json_schema)
         return build_runner(model, api_key, Path(manual_root))
+    # An undeclared judge becomes a plain API call, which for Gemini would be
+    # exactly the route the operator has ruled out.
+    if requires_antigravity(judge_id):
+        raise ConfigError(
+            f"judge {judge_id}: Gemini may only be reached through Antigravity; "
+            f"declare it in models.yaml with runner: agy"
+        )
     return ApiRunner(
         endpoint=endpoint or DEFAULT_ENDPOINT,
         model=judge_id,
@@ -197,12 +245,17 @@ def build_judge_runner(
 
 
 def cmd_judge(args) -> int:
+    # Passed explicitly, as the pairwise stage does. One judge entry can serve
+    # both stages, and whichever schema it declares suits at most one of them:
+    # a rubric reply forced into the pairwise shape has no 'scores', so every
+    # judgment would fail its schema check.
     judge_runner = build_judge_runner(
         args.judge_model,
         args.models,
         args.judge_endpoint,
         Path(args.manual),
         os.environ.get("OPENROUTER_API_KEY"),
+        json_schema=args.judge_schema,
     )
     passages = {p.id: p for p in load_manifest(Path(args.manifest))}
     template = Path(args.judge_prompt).read_text(encoding="utf-8")
@@ -327,6 +380,7 @@ def cmd_report(args) -> int:
             pairwise_ratings,
             pairwise_intervals,
             anchor,
+            pairwise_records(comparisons) if comparisons else None,
         ),
         encoding="utf-8",
     )
@@ -397,6 +451,7 @@ def main(argv: list[str] | None = None) -> int:
     common.add_argument("--pairwise", default="pairwise")
     common.add_argument("--pairwise-prompt", default="config/prompts/pairwise.md")
     common.add_argument("--pairwise-schema", default="config/schemas/pairwise.json")
+    common.add_argument("--judge-schema", default="config/schemas/judgment.json")
     common.add_argument("--max-comparisons", type=int, default=50)
     common.add_argument("--run", default="latest", help="run id")
     common.add_argument("--force", action="store_true")
@@ -445,6 +500,12 @@ def main(argv: list[str] | None = None) -> int:
     if not args.command:
         parser.print_usage()
         return 2
+
+    # Before any credential lookup, so a key in .env is visible to
+    # resolve_api_key. Names only - the values must never reach stdout.
+    loaded = load_env_file()
+    if loaded:
+        print(f"loaded from .env: {', '.join(sorted(loaded))}")
 
     defaults = load_defaults(Path(args.defaults))
     if args.judge_model is None:

@@ -22,6 +22,17 @@ class JudgeSchemaError(Exception):
     """The judge's response did not conform to the required schema."""
 
 
+class JudgeRunnerError(JudgeSchemaError):
+    """The judge could not be reached at all, as opposed to answering badly.
+
+    Kept distinct because the right response is different: a bad answer is
+    worth another attempt, but a judge that cannot be reached - above all one
+    that has hit a usage limit - must not be called again for every remaining
+    item. For the Antigravity judge that would mean hammering a personal
+    Google account with requests it has already refused.
+    """
+
+
 @dataclass(frozen=True)
 class Judgment:
     axes: dict[str, int]
@@ -113,11 +124,17 @@ def build_judge_prompt(
 def judge_with_retry(
     judge_runner, prompt: str, expect_term_table: bool, attempts: int = 3
 ) -> Judgment:
+    # Imported here: runstage imports the runners, which import nothing from
+    # this module, but keeping the dependency local avoids a cycle later.
+    from ati.runstage import is_usage_limit
+
     last_error: JudgeSchemaError | None = None
     for _ in range(attempts):
         result = judge_runner.run("", prompt)
         if result.error:
-            last_error = JudgeSchemaError(f"judge runner error: {result.error}")
+            last_error = JudgeRunnerError(f"judge runner error: {result.error}")
+            if is_usage_limit(result.error):
+                raise last_error
             continue
         try:
             return parse_judgment(result.text, expect_term_table=expect_term_table)

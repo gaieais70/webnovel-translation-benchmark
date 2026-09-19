@@ -1,165 +1,305 @@
-# Models under test: the opencode-go subscription roster.
-# Endpoint is OpenAI-compatible; the key comes from OPENCODE_API_KEY.
+# Models under test for run 2026-09. Routing is from "Models to be tested and
+# routing.xlsx" (2026-08-29); every slug below was resolved against the live
+# provider catalogue rather than transcribed from the sheet's display names,
+# because the sheet names models the way a person does and the APIs do not.
 #
-# Ordered cheapest first by published OUTPUT price per 1M tokens (Pricing.xlsx,
-# 2026-08-26), because `ati run` works down this list and a run interrupted by a
-# usage limit should have spent the window on the models that cost least.
-# Output is the right key: translation is output-heavy, roughly one output token
-# per input token, and output is the dearer side on every model here.
+# Two routes only. The opencode-go endpoint that carried most of the 2026-08
+# roster is gone from the routing sheet, so models that ran there last time
+# (glm-5.3-flash, hy3, deepseek-v4-pro, mimo, minimax) are now reached through
+# Command Code. That is a route change, not a model change: their 2026-08 rows
+# are not directly comparable to what this run produces.
 #
-# Prices below are input / output per 1M tokens. DeepSeek rows are the off-peak
-# rate; peak is exactly 2x and the ordering is unchanged by it. Ties on output
-# are broken on input, then on cached-read.
+# Ordering is by route, then as listed in the sheet. glm-5.2 used to be held
+# last because its paid OpenRouter fallback was the one expensive route in the
+# roster; it now runs on Command Code by subscription, so nothing here is
+# ordered by price any more.
 #
-# Anchors: hy3 as the weak reference, qwen3.8-max as the strong one. They run
-# every time to detect drift and are not there to be ranked. Both are already
-# in the pool, so marking them costs nothing extra.
+# `params` sets reasoning effort to each model's top rung. The spelling differs
+# by provider - OpenRouter nests it under `reasoning`, OpenAI-compatible routes
+# take a flat `reasoning_effort` - and neither provider errors on a field it
+# does not understand, so `ati probe` must confirm the setting actually took
+# before this roster is trusted. A model that silently ignores it runs at its
+# default and would be recorded as running at max.
 
-# --- cheap tier -------------------------------------------------------------
-- id: muse-spark-1.2-contributor       # $0.10 / $0.20
+# --- Command Code -----------------------------------------------------------
+# https://api.commandcode.ai/provider/v1/chat/completions, COMMANDCODE_API_KEY
+#
+# Every row streams. The gateway abandons a buffered request that has not
+# completed within ~125 seconds with a 524, so without streaming any model
+# that reasons longer than that at max effort cannot finish a chapter at all -
+# qwen3.8-flash failed 8 of 8, hy3 4 of 6 before this was changed.
+- id: laguna-s-2.1
   runner: api
   endpoint: https://api.commandcode.ai/provider/v1/chat/completions
   api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: poolside/laguna-s-2.1-free
+  params:
+    reasoning_effort: max
+
+- id: minimax-m3
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  # The catalogue also lists `minimax/minimax-m3-free`. The sheet says
+  # "MiniMax M3" without qualification, so the paid row is used; the free one
+  # is a different rate-limit regime and would not be the same measurement.
+  model: MiniMaxAI/MiniMax-M3
+  params:
+    reasoning_effort: max
+    # Command Code's default output cap for this model is ~5,120 tokens:
+    # chapters 3 and 10 both stopped at exactly 5,120/5,119 with
+    # finish_reason=length, reasoning included. A probe on 2026-09-18
+    # confirmed 65,536 is accepted.
+    max_tokens: 65536
+
+- id: muse-spark-1.2-contributor
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
   model: meta/muse-spark-1.2-contributor
-# Kept on opencode deliberately. ch03 and ch08 time out there, but the other
-# two routes are worse, not better: Command Code timed out on ch03 and
-# truncated ch08 at 45,153 tokens, and OpenRouter truncated ch01 at 42,846 -
-# a chapter opencode completes cleanly in 28,190. The opencode build is the
-# least verbose of the three, so it is the one that scores on the most
-# chapters. 9/11 stands; the two failures are the model, not the provider.
-- id: glm-5.3-flash                    # $0.15 / $0.50
+  params:
+    reasoning_effort: max
+
+- id: mimo-v2.5
   runner: api
-  endpoint: https://opencode.ai/zen/go/v1/chat/completions
-  api_key_env: OPENCODE_API_KEY
-  model: glm-5.3-flash
-- id: hy3                              # $0.14 / $0.58
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: xiaomi/mimo-v2.5
+  params:
+    reasoning_effort: max
+
+- id: qwen3.8-flash
   runner: api
-  endpoint: https://opencode.ai/zen/go/v1/chat/completions
-  api_key_env: OPENCODE_API_KEY
-  model: hy3
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: Qwen/Qwen3.8-Flash
+  params:
+    reasoning_effort: max
+
+- id: glm-5.3-flash
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: z-ai/glm-5.3-flash
+  params:
+    reasoning_effort: max
+
+# Anchor. Pinned at 1000 so ratings stay comparable across runs; see
+# ati/bradleyterry.py:to_elo. Note this is a route it has failed on before -
+# through Command Code in the 2026-08 diagnostics it reached only 5 of 11
+# chapters, the rest lost to 524 upstream timeouts, which is why that probe was
+# retired. It is the anchor, so it is the one row that cannot quietly fail:
+# check its completion count before trusting any rating in the run.
+- id: hy3
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: tencent/hy3-paid
   anchor: weak
-- id: deepseek-v4-flash                # $0.22 / $0.66 off-peak
-  runner: api
-  endpoint: https://opencode.ai/zen/go/v1/chat/completions
-  api_key_env: OPENCODE_API_KEY
-  model: deepseek-v4-flash
-- id: mimo-v2.5-pro                    # $0.435 / $0.87
-  runner: api
-  endpoint: https://opencode.ai/zen/go/v1/chat/completions
-  api_key_env: OPENCODE_API_KEY
-  model: mimo-v2.5-pro
+  params:
+    reasoning_effort: max
 
-# --- mid tier ---------------------------------------------------------------
-- id: gpt-5.6-luna                     # $0.20 / $1.20
+- id: mimo-v2.5-pro
   runner: api
   endpoint: https://api.commandcode.ai/provider/v1/chat/completions
   api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: xiaomi/mimo-v2.5-pro
+  params:
+    reasoning_effort: max
+
+- id: gpt-5.6-luna
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
   model: gpt-5.6-luna
-# longcat-2.0 has no equivalent in the Command Code catalogue, so it cannot
-# be completed or re-run once the opencode plan is exhausted. Its 10/11
-# opencode result stands as collected.
-- id: longcat-2.0                      # $0.30 / $1.20
-  runner: api
-  endpoint: https://opencode.ai/zen/go/v1/chat/completions
-  api_key_env: OPENCODE_API_KEY
-  model: longcat-2.0
-- id: minimax-m3                       # $0.30 / $1.20
-  runner: api
-  endpoint: https://opencode.ai/zen/go/v1/chat/completions
-  api_key_env: OPENCODE_API_KEY
-  model: minimax-m3
-- id: deepseek-v4-pro                  # $0.66 / $1.98 off-peak
-  runner: api
-  endpoint: https://opencode.ai/zen/go/v1/chat/completions
-  api_key_env: OPENCODE_API_KEY
-  model: deepseek-v4-pro
+  params:
+    reasoning_effort: max
 
-# --- expensive tier ---------------------------------------------------------
-- id: kimi-k2.6                        # $0.95 / $4.00
-  runner: api
-  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
-  api_key_env: COMMANDCODE_API_KEY
-  model: moonshotai/Kimi-K2.6
-- id: glm-5.3                          # $1.40 / $4.40
-  runner: api
-  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
-  api_key_env: COMMANDCODE_API_KEY
-  model: zai-org/GLM-5.3
-- id: qwen3.8-max                      # $2.00 / $6.00
-  runner: api
-  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
-  api_key_env: COMMANDCODE_API_KEY
-  model: Qwen/Qwen3.8-Max
-  anchor: strong
-# Was the last model on the CLI agent route, which made it the one row that
-# was not a bare completion: 4.3 calls per chapter, a 5.0:1 input-to-output
-# ratio from re-sent context, and $2.08 for eleven chapters. opencode's API
-# refuses it ("not supported for format oa-compat") and Command Code answers
-# 524, so OpenRouter is what makes it comparable to the rest.
-- id: grok-4.6                         # $2.00 / $6.00
-  runner: api
-  endpoint: https://openrouter.ai/api/v1/chat/completions
-  api_key_env: OPENROUTER_API_KEY
-  model: x-ai/grok-4.6
-- id: kimi-k3                          # $3.00 / $15.00
-  runner: api
-  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
-  api_key_env: COMMANDCODE_API_KEY
-  model: moonshotai/Kimi-K3
-
-# The command is `opencode.cmd`, not `opencode`. npm installs both an
-# extensionless shell script and a Windows batch shim; subprocess.run without a
-# shell can only execute the latter, and the bare name fails with WinError 2 on
-# every call - which looks exactly like the model failing.
-# --- added mid-run, by request ----------------------------------------------
-# Not part of the original fourteen and not in Pricing.xlsx, so it cannot be
-# placed in the cheapest-first output-price ordering the rest of this file
-# follows. Left here, after the priced models, so a price-ordered pass reaches
-# it last. Measured on chapter 3 before being added: 228s, 1.95x expansion,
-# 25,296 completion tokens for ~4,250 tokens of visible English - a
-# reasoning-heavy profile closer to glm-5.3-flash than to gpt-5.6-luna.
 - id: inkling-small
   runner: api
   endpoint: https://api.commandcode.ai/provider/v1/chat/completions
   api_key_env: COMMANDCODE_API_KEY
+  stream: true
   model: thinkingmachines/inkling-small
+  params:
+    reasoning_effort: max
+    # Command Code's default output cap for this model is 4,096 tokens, and at
+    # max effort it spent all of them reasoning: all eleven chapters stopped at
+    # exactly 4,096 with finish_reason=length and no translation.
+    max_tokens: 65536
 
-# --- provider drift probe (retired) -----------------------------------------
-# hy3 was run a second time through Command Code to check whether results from
-# two providers could share a table. It reached only 5 of 11 chapters - the
-# rest died on 524 upstream timeouts - so it could not answer the question,
-# and a 5-chapter composite compared against an 11-chapter one is the same
-# apples-to-oranges error the smoke-run anchor already produced. The entry is
-# removed rather than left to appear in the leaderboard as a failing model.
-# Its data is kept under runs/2026-08-diagnostics/.
+- id: deepseek-v4-pro
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: deepseek/deepseek-v4-pro
+  params:
+    reasoning_effort: max
 
-# --- reached through the opencode CLI, not the HTTP API ---------------------
-# grok-4.6 alone still needs this route. muse-spark and gpt-5.6-luna were
-# moved to Command Code's OpenAI-compatible endpoint once it proved able to
-# serve them, which restores token counts and puts them under the same
-# sampling and token budget as the rest. grok-4.6 answers HTTP 524 there -
-# 333s and three retries on the longest chapter - so it stays on the CLI and
-# its row remains not directly comparable.
-# Originally all three could not be served by the OpenAI-compatible endpoint. muse-spark and
-# gpt-5.6-luna answer HTTP 500 in 0.3s to every request, including a bare
-# model+messages payload, while other models on the same key return 200;
-# grok-4.6 is refused outright with "not supported for format oa-compat". All
-# three work through `opencode run`, so they are routed that way.
+- id: nemotron-3-ultra
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: nvidia/nemotron-3-ultra-550b-a55b
+  params:
+    reasoning_effort: max
+    # Command Code's default output cap for this model is 4,096 tokens:
+    # chapter 8 stopped at exactly 4,096 with finish_reason=length, and every
+    # completed chapter sat just under it (3,354-4,029). 65,536 was probed and
+    # accepted on 2026-09-18.
+    max_tokens: 65536
+
+- id: hy4-preview
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: tencent/hy4-preview
+  params:
+    reasoning_effort: max
+
+- id: qwen3.8-27b
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: Qwen/Qwen3.8-27B
+  params:
+    reasoning_effort: max
+
+# Moved from OpenRouter on 2026-09-18, when the operator directed that the
+# translations go through Command Code. Its live catalogue serves both; the
+# four rows left under OpenRouter below are not in it at all. Note the
+# deepseek slug changes with the route: OpenRouter served a dated build
+# (`-0731`), Command Code serves the undated one.
+- id: deepseek-v4-flash
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: deepseek/deepseek-v4-flash
+  params:
+    reasoning_effort: max
+
+- id: glm-5.2
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: zai-org/GLM-5.2
+  params:
+    reasoning_effort: max
+
+# --- OpenRouter -------------------------------------------------------------
+# https://openrouter.ai/api/v1/chat/completions, OPENROUTER_API_KEY
 #
-# The CLI runs an agent, not a bare completion. agents/literal-translator.md
-# denies every tool - a translator that could search the web might find an
-# existing translation of the source work, which is the same contamination the
-# judge's `sandbox: true` exists to prevent - and carries no task instructions
-# of its own, so config/prompts/translate.md remains the only thing steering
-# the model. Their runs report no token counts or cost: the CLI does not
-# expose usage, so cost reads N/A rather than zero.
+# Only models Command Code does not serve. Everything it does serve goes
+# through it.
+#
+# Free tier first, paid only when the free route will not answer. A probe on
+# 2026-08-29 found `z-ai/glm-5.2:free` returning 429 on every call and
+# `Qwen/Qwen3.8-Flash` on one of two, so this is not hypothetical: free routes
+# carry their own rate limits and queueing, and they are worst placed to
+# survive max reasoning effort with no output ceiling.
+#
+# Only a route failure triggers the fallback - a 4xx/5xx, a timeout, or a
+# connection error. A refusal, a short answer or a runaway is the model's own
+# output, would be identical on the paid tier, and is left alone.
+#
+# `route` in each run record names the slug that answered. Check it before
+# reading any of these rows: a model served partly by each tier has its
+# chapters split across two providers, which this project has already found
+# it cannot read as one result (the retired hy3 drift probe).
+- id: solar-pro4
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_API_KEY
+  # Spent 4,427 reasoning tokens on a two-sentence probe, by far the highest in
+  # the roster. Expect this to be the longest call in the run on a full chapter.
+  model: upstage/solar-pro4
+  params:
+    reasoning:
+      effort: max
 
-# --- judge ------------------------------------------------------------------
-# Gemini through the Antigravity CLI on a subscription. --sandbox is
-# deliberate: a judge with tools could look up the source work while scoring a
-# translation of it, which stops it measuring the translation.
+- id: nemotron-3-super-120b
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_API_KEY
+  model: nvidia/nemotron-3-super-120b-a12b:free
+  fallback:
+    model: nvidia/nemotron-3-super-120b-a12b     # $0.08 / $0.40
+  params:
+    reasoning:
+      effort: max
+
+- id: nemotron-3.5-lightning
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_API_KEY
+  model: nvidia/nemotron-3.5-lightning:free
+  fallback:
+    model: nvidia/nemotron-3.5-lightning         # $0.08 / $0.20
+  params:
+    reasoning:
+      effort: max
+
+# The one row with no paid variant on OpenRouter - `:free` is the only listing
+# there is, so free-tier rate limits are a property of this model here, not a
+# choice. A 429 from it is the route, not the model.
+- id: dots-3-note-preview
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_API_KEY
+  model: dots-studio/dots-3-note-preview:free
+  params:
+    reasoning:
+      effort: max
+
+# --- held back --------------------------------------------------------------
+# The expensive tier below the blank row in the routing sheet, held by request:
+#   zai-org/GLM-5.3, xai/grok-4.6, Qwen/Qwen3.8-Max, moonshotai/Kimi-K3
+# Kimi K2.6 is dropped outright - it is not used enough to be worth a row.
+# The Claude and Google columns are held as translation subjects too; both
+# appear below only as judges, which is a different role and not a ranked entry.
+
+# --- judges -----------------------------------------------------------------
+# Run 2026-09 uses Gemini for BOTH stages, rubric and pairwise, as the
+# operator set it (config/ati.yaml: judge_model). That has a cost worth
+# stating: with one judge on both stages, the rubric-versus-pairwise rank
+# correlation measures that judge agreeing with itself, not two methods
+# converging. The 2026-08 rho of 0.936 had the same limitation.
+#
+# sonnet-judge is kept declared but unused this run.
+- id: sonnet-judge
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  model: claude-sonnet-5
+  json_schema: config/schemas/judgment.json
+
+# Gemini, through the Antigravity CLI on the operator's own Google account and
+# by no other route - config.load_models refuses a Gemini slug on any runner
+# but agy. Every call goes through CallGate (ati/runners/agy.py): one at a time
+# machine-wide, spaced apart, from an empty directory. --sandbox is deliberate:
+# a judge with tools could look up the source work while scoring a translation
+# of it, which stops it measuring the translation.
 - id: gemini-judge
   runner: agy
   model: gemini-3.7-flash-high
-  json_schema: config/schemas/judgment.json
+  json_schema: config/schemas/pairwise.json
   sandbox: true
+  # Measured on this run: a rubric call takes 1.5-2.5 minutes, and the one
+  # slow call observed hung for the full 900s default, then succeeded on retry
+  # in 1.5. Eight minutes is ~3x a normal call and wastes far less on a hang.
+  timeout_s: 480

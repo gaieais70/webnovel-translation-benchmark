@@ -340,3 +340,72 @@ def test_notes_distinguish_subscription_from_unknown_cost(tmp_path):
     md = render_markdown("r1", results, {}, True, {"judge_id": "j", "date": "d"})
     assert "`sub`" in md
     assert "billed" in md.lower()
+
+
+def test_the_ranking_shows_how_many_tasks_each_model_was_scored_on():
+    from ati.report import ModelResult, render_markdown
+
+    r = ModelResult(
+        model_id="m",
+        composite=80.0,
+        axis_means={},
+        axis_stdevs={},
+        refusal_rate=0.0,
+        cost_per_1k=None,
+        speed_per_1k=1.0,
+        value=None,
+        slop=0.1,
+        repetition=0.1,
+        judge_errors=0,
+        failed_tasks=2,
+        total_tasks=11,
+        anchor=None,
+        incomplete=False,
+    )
+    md = render_markdown("r", [r], {}, True, {"judge_id": "j", "date": "d"})
+    assert "| Scored |" in md
+    assert "| 9/11 |" in md
+
+
+def test_a_refused_chapter_does_not_count_as_scored():
+    from ati.report import ModelResult, render_markdown
+
+    r = ModelResult(
+        model_id="m",
+        composite=80.0,
+        axis_means={},
+        axis_stdevs={},
+        refusal_rate=9.1,
+        cost_per_1k=None,
+        speed_per_1k=1.0,
+        value=None,
+        slop=0.1,
+        repetition=0.1,
+        judge_errors=0,
+        failed_tasks=1,
+        total_tasks=11,
+        refused_tasks=1,
+    )
+    md = render_markdown("r", [r], {}, True, {"judge_id": "j", "date": "d"})
+    assert "| 9/11 |" in md
+
+
+def test_pairwise_records_count_wins_losses_and_ties():
+    from ati.report import pairwise_records
+
+    records = pairwise_records([("x", "y", "a"), ("x", "z", "b"), ("y", "z", "tie")])
+    assert records["x"] == (1, 1, 0)
+    assert records["y"] == (0, 1, 1)
+    assert records["z"] == (1, 0, 1)
+
+
+def test_the_head_to_head_table_shows_each_record():
+    from ati.report import render_markdown
+
+    md = render_markdown(
+        "r", [], {}, True, {"judge_id": "j", "date": "d"},
+        {"x": 1100.0, "y": 900.0}, {"x": (1000.0, 1200.0), "y": (800.0, 1000.0)},
+        None, {"x": (3, 1, 2), "y": (1, 3, 2)},
+    )
+    assert "W–L–T" in md
+    assert "| x | 1100 | 1000 – 1200 | 3–1–2 |" in md

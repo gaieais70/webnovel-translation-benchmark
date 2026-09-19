@@ -1,8 +1,15 @@
+import os
 from pathlib import Path
 
 import pytest
 
-from ati.config import AXES, ConfigError, load_models, load_weights
+from ati.config import (
+    AXES,
+    ConfigError,
+    load_env_file,
+    load_models,
+    load_weights,
+)
 
 
 def write(tmp_path: Path, name: str, text: str) -> Path:
@@ -183,3 +190,115 @@ def test_api_key_env_is_per_model(tmp_path):
         "- id: m\n  runner: api\n  model: x\n  api_key_env: OPENCODE_API_KEY\n",
     )
     assert load_models(p)[0].api_key_env == "OPENCODE_API_KEY"
+
+
+def test_params_must_be_a_mapping(tmp_path):
+    path = tmp_path / "models.yaml"
+    path.write_text(
+        "- id: m\n  runner: api\n  model: v/m\n  params: [1, 2]\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ConfigError):
+        load_models(path)
+
+
+def test_params_may_not_override_structural_fields(tmp_path):
+    path = tmp_path / "models.yaml"
+    path.write_text(
+        "- id: m\n  runner: api\n  model: v/m\n  params:\n    messages: []\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ConfigError):
+        load_models(path)
+
+
+def test_params_are_loaded_when_valid(tmp_path):
+    path = tmp_path / "models.yaml"
+    path.write_text(
+        "- id: m\n  runner: api\n  model: v/m\n"
+        "  params:\n    reasoning:\n      effort: high\n",
+        encoding="utf-8",
+    )
+    assert load_models(path)[0].params == {"reasoning": {"effort": "high"}}
+
+
+def test_load_env_file_sets_names_and_reports_them(tmp_path, monkeypatch):
+    env = tmp_path / ".env"
+    env.write_text(
+        "# comment\n"
+        "\n"
+        "OPENROUTER_API_KEY=or-value\n"
+        "export OPENCODE_API_KEY='oc-value'\n"
+        'COMMANDCODE_API_KEY="cc-value"\n',
+        encoding="utf-8",
+    )
+    for name in ("OPENROUTER_API_KEY", "OPENCODE_API_KEY", "COMMANDCODE_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+
+    loaded = load_env_file(env)
+
+    assert sorted(loaded) == [
+        "COMMANDCODE_API_KEY",
+        "OPENCODE_API_KEY",
+        "OPENROUTER_API_KEY",
+    ]
+    assert os.environ["OPENCODE_API_KEY"] == "oc-value"
+    assert os.environ["COMMANDCODE_API_KEY"] == "cc-value"
+
+
+def test_load_env_file_does_not_override_an_exported_key(tmp_path, monkeypatch):
+    env = tmp_path / ".env"
+    env.write_text("OPENROUTER_API_KEY=from-file\n", encoding="utf-8")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "from-shell")
+
+    assert load_env_file(env) == []
+    assert os.environ["OPENROUTER_API_KEY"] == "from-shell"
+
+
+def test_load_env_file_skips_empty_placeholders(tmp_path, monkeypatch):
+    """An unfilled placeholder must not shadow a real key with ''."""
+    env = tmp_path / ".env"
+    env.write_text("OPENROUTER_API_KEY=\n", encoding="utf-8")
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+
+    assert load_env_file(env) == []
+    assert "OPENROUTER_API_KEY" not in os.environ
+
+
+def test_load_env_file_is_silent_when_absent(tmp_path):
+    assert load_env_file(tmp_path / "nope.env") == []
+
+
+# --- Gemini is reached only through Antigravity -----------------------------
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        "- id: g\n  runner: api\n  model: google/gemini-3.7-flash\n",
+        "- id: gemini-judge\n  runner: api\n  model: something\n",
+        "- id: g\n  runner: cli\n  command: [opencode, run, -m, google/gemini-3.8-flash]\n",
+        "- id: g\n  runner: api\n  model: x/free\n  fallback:\n    model: google/gemini-3.7-flash\n",
+    ],
+)
+def test_gemini_is_refused_on_any_route_but_antigravity(tmp_path, entry):
+    with pytest.raises(ConfigError, match="Antigravity"):
+        load_models(write(tmp_path, "m.yaml", entry))
+
+
+def test_gemini_through_antigravity_is_accepted(tmp_path):
+    p = write(
+        tmp_path, "m.yaml", "- id: gemini-judge\n  runner: agy\n  model: gemini-3.7-flash-high\n"
+    )
+    assert load_models(p)[0].runner == "agy"
+
+
+def test_stream_defaults_off_and_is_read_when_set(tmp_path):
+    p = write(
+        tmp_path,
+        "m.yaml",
+        "- id: a\n  runner: api\n  model: x\n- id: b\n  runner: api\n  model: y\n  stream: true\n",
+    )
+    a, b = load_models(p)
+    assert a.stream is False
+    assert b.stream is True

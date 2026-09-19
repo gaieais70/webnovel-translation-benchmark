@@ -320,7 +320,7 @@ def test_pairwise_judge_gets_the_pairwise_schema_not_the_rubric_one(tmp_path):
         "gemini-judge", p, None, tmp_path, None,
         json_schema="config/schemas/pairwise.json",
     )
-    assert runner._schema == "config/schemas/pairwise.json"
+    assert Path(runner._schema) == Path("config/schemas/pairwise.json").resolve()
 
 
 def test_judge_runner_keeps_its_declared_schema_by_default(tmp_path):
@@ -333,4 +333,61 @@ def test_judge_runner_keeps_its_declared_schema_by_default(tmp_path):
         encoding="utf-8",
     )
     runner = build_judge_runner("gemini-judge", p, None, tmp_path, None)
-    assert runner._schema == "config/schemas/judgment.json"
+    assert Path(runner._schema) == Path("config/schemas/judgment.json").resolve()
+
+
+def test_the_antigravity_judge_is_always_gated(tmp_path):
+    from ati.cli import build_judge_runner
+    from ati.runners.agy import CallGate
+
+    p = tmp_path / "models.yaml"
+    p.write_text(
+        "- id: gemini-judge\n  runner: agy\n  model: gemini-3.7-flash-high\n",
+        encoding="utf-8",
+    )
+    runner = build_judge_runner("gemini-judge", p, None, tmp_path, None)
+    assert isinstance(runner._gate, CallGate)
+
+
+def test_an_undeclared_gemini_judge_is_not_sent_to_a_gateway(tmp_path):
+    from ati.cli import build_judge_runner
+    from ati.config import ConfigError
+
+    p = tmp_path / "models.yaml"
+    p.write_text("[]\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="Antigravity"):
+        build_judge_runner("google/gemini-3.7-flash", p, None, tmp_path, None)
+
+
+def test_build_runner_refuses_gemini_on_an_api_route(tmp_path):
+    from ati.cli import build_runner
+    from ati.config import ConfigError
+
+    m = ModelConfig(id="x", runner="api", model="google/gemini-3.8-flash")
+    with pytest.raises(ConfigError, match="Antigravity"):
+        build_runner(m, None, tmp_path)
+
+
+def test_the_rubric_stage_gives_the_judge_the_rubric_schema(tmp_path, monkeypatch):
+    """The shared Gemini judge declares the pairwise schema. Left to its
+    declared schema, every rubric reply would come back as {winner, reason}
+    and fail parsing for want of 'scores'."""
+    import ati.cli as cli
+
+    seen = {}
+
+    def fake_build(*args, **kwargs):
+        seen.update(kwargs)
+        return object()
+
+    monkeypatch.setattr(cli, "build_judge_runner", fake_build)
+    monkeypatch.setattr(cli, "judge_run", lambda **kwargs: 0)
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text('{"methodology_version": 1, "passages": []}', encoding="utf-8")
+    prompt = tmp_path / "judge.md"
+    prompt.write_text("T", encoding="utf-8")
+    cli.main([
+        "judge", "--run", "r", "--manifest", str(manifest),
+        "--judge-prompt", str(prompt), "--defaults", str(tmp_path / "none.yaml"),
+    ])
+    assert seen["json_schema"] == "config/schemas/judgment.json"
