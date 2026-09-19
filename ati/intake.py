@@ -17,6 +17,7 @@ from pathlib import Path
 import yaml
 
 from ati.corpus import passage_path, sha256_text
+from ati.fileio import write_text_atomic
 
 KINDS: tuple[str, ...] = ("passage", "consistency", "refusal")
 DEFAULT_CHARS = 800
@@ -207,9 +208,7 @@ def add_files(
         candidate_id = make_id(work, kind, position)
         index += 1
 
-        target = passage_path(corpus_root, candidate_id)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(text, encoding="utf-8")
+        write_text_atomic(passage_path(corpus_root, candidate_id), text)
 
         entry = {
             "id": candidate_id,
@@ -231,9 +230,8 @@ def add_files(
         by_source[source.name] = entry
         result.added.append(candidate_id)
 
-    Path(manifest_path).parent.mkdir(parents=True, exist_ok=True)
-    Path(manifest_path).write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
+    write_text_atomic(
+        manifest_path, json.dumps(manifest, ensure_ascii=False, indent=2)
     )
 
     # Append to the task suite rather than rewriting it: the operator may
@@ -248,8 +246,7 @@ def add_files(
             if pid not in task["passages"]:
                 task["passages"].append(pid)
 
-    Path(tasks_path).parent.mkdir(parents=True, exist_ok=True)
-    Path(tasks_path).write_text(
-        yaml.safe_dump(tasks, allow_unicode=True, sort_keys=False), encoding="utf-8"
+    write_text_atomic(
+        tasks_path, yaml.safe_dump(tasks, allow_unicode=True, sort_keys=False)
     )
     return result

@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 
 from ati.config import AXES
+from ati.fileio import iter_records
 from ati.scoring import (
     aggregate_axis,
     composite,
@@ -65,8 +65,14 @@ def fmt_cost(value: float | None) -> str:
 
 
 def _load_all(root: Path) -> list[dict]:
+    """Every readable record under `root` that names its model.
+
+    Anything else - a torn file, a stray copy - is reported and left out
+    rather than raising, so one bad file cannot stop a report of hundreds.
+    """
     return [
-        json.loads(p.read_text(encoding="utf-8")) for p in sorted(root.rglob("*.json"))
+        record
+        for _, record in iter_records(sorted(root.rglob("*.json")), required=("model_id",))
     ]
 
 
@@ -120,7 +126,7 @@ def aggregate(
         scored_runs = [
             r for r in model_runs if not r.get("unavailable") and not r.get("error")
         ]
-        texts = [r["text"] for r in scored_runs if r["text"]]
+        texts = [r["text"] for r in scored_runs if r.get("text")]
         joined = "\n".join(texts)
 
         costs = [r.get("cost_usd") for r in scored_runs]

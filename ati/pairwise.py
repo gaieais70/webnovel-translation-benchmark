@@ -24,8 +24,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ati.bradleyterry import win_probability
+from ati.bradleyterry import OUTCOMES, win_probability
 from ati.corpus import HashMismatch, PassageMissing, load_passage
+from ati.fileio import iter_records, write_json_atomic
 
 # One comparison sends the source plus both translations. Whole chapters run
 # to ~40,000 characters per prompt, and each pair is judged twice for order,
@@ -116,8 +117,10 @@ def select_pairs(models, ratings, counts, k):
 def _load_outputs(runs_root: Path, run_id: str):
     """model_id -> passage_id -> translation text, for scorable passage tasks."""
     outputs: dict[str, dict[str, str]] = {}
-    for path in sorted((Path(runs_root) / run_id).rglob("*.json")):
-        data = json.loads(path.read_text(encoding="utf-8"))
+    for _, data in iter_records(
+        sorted((Path(runs_root) / run_id).rglob("*.json")),
+        required=("model_id", "passage_id"),
+    ):
         if data.get("task_type") not in ("passage", "consistency"):
             continue
         if data.get("error") or data.get("unavailable") or data.get("refused"):
@@ -131,8 +134,15 @@ def _load_outputs(runs_root: Path, run_id: str):
 def load_comparisons(pairwise_root: Path, run_id: str):
     """Read completed comparisons back as (a, b, outcome) triples."""
     results = []
-    for path in sorted((Path(pairwise_root) / run_id).glob("*.json")):
-        data = json.loads(path.read_text(encoding="utf-8"))
+    for path, data in iter_records(
+        sorted((Path(pairwise_root) / run_id).glob("*.json")),
+        required=("a", "b", "outcome"),
+    ):
+        # An unknown outcome would make the Bradley-Terry fit raise, taking
+        # the report down with it over one bad file.
+        if data["outcome"] not in OUTCOMES:
+            print(f"  skipping {path}: unknown outcome {data['outcome']!r}")
+            continue
         results.append((data["a"], data["b"], data["outcome"]))
     return results
 
@@ -219,21 +229,16 @@ def run_pairwise(
             print(f"stopping after {executed} comparisons: {exc}")
             return executed
 
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(
-            json.dumps(
-                {
-                    "a": a,
-                    "b": b,
-                    "passage_id": passage_id,
-                    "forward": forward,
-                    "reverse": reverse,
-                    "outcome": outcome,
-                },
-                ensure_ascii=False,
-                indent=2,
-            ),
-            encoding="utf-8",
+        write_json_atomic(
+            out_path,
+            {
+                "a": a,
+                "b": b,
+                "passage_id": passage_id,
+                "forward": forward,
+                "reverse": reverse,
+                "outcome": outcome,
+            },
         )
         executed += 1
 

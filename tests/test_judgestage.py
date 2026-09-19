@@ -347,3 +347,16 @@ def test_a_scored_judgment_goes_stale_when_its_run_becomes_a_refusal(tmp_path):
     data = json.loads(out.read_text(encoding="utf-8"))
     assert data["refused"] is True
     assert data["scores"] == {}
+
+
+def test_a_torn_run_file_is_skipped_and_the_stage_carries_on(tmp_path, capsys):
+    """A lane still writing must not kill a judge pass reading beside it."""
+    p = seed_run(tmp_path)
+    torn = run_output_path(tmp_path / "runs", "r1", "m1", "t.cn-01.1")
+    torn.write_text('{"model_id": "m1", "te', encoding="utf-8")
+    runner = FakeRunner(responses=[valid_judge_reply()])
+    assert judge_run(**common_args(tmp_path, p, runner)) == 1
+    assert "skipping unreadable" in capsys.readouterr().out
+    assert not judgment_output_path(
+        tmp_path / "judgments", "r1", "m1", "t.cn-01.1"
+    ).exists()

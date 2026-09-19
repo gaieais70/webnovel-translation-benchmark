@@ -401,3 +401,26 @@ def test_the_last_caller_yields_to_anyone_else_waiting(tmp_path):
         pass
     assert first._remaining(courtesy=True) == 12.0
     assert second._remaining(courtesy=True) == 10.0
+
+
+def test_a_damaged_stamp_enforces_the_full_gap(tmp_path):
+    """Reading damage as 'long ago' would let the next call through with no gap."""
+    from ati.runners.agy import CallGate
+
+    clock = FakeClock()
+    (tmp_path / "last").write_text("garbage", encoding="utf-8")
+    gate = CallGate(
+        tmp_path, min_gap_s=10.0, sleep_fn=clock.sleep, clock_fn=clock, courtesy_s=0.0
+    )
+    assert gate._remaining(courtesy=False) == 10.0
+
+
+def test_the_stamp_is_written_beside_the_workspace_not_inside_it(tmp_path):
+    from ati.runners.agy import CallGate
+
+    gate = CallGate(tmp_path, min_gap_s=0.0, courtesy_s=0.0)
+    _ = gate.workspace
+    with gate.slot():
+        pass
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["last", "lock", "workspace"]
+    assert list((tmp_path / "workspace").iterdir()) == []

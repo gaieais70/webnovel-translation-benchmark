@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import hashlib
-import json
 from pathlib import Path
 
 from ati.corpus import HashMismatch, Passage, PassageMissing, load_passage
+from ati.fileio import iter_records, read_json, write_json_atomic
 from ati.judge import (
     JudgeRunnerError,
     JudgeSchemaError,
@@ -50,9 +50,8 @@ def _judgment_is_current(path: Path, run_data: dict) -> bool:
     current would keep rubric scores alive for output that is no longer
     considered a translation, and no amount of re-judging would clear them.
     """
-    try:
-        judgment = json.loads(path.read_text(encoding="utf-8"))
-    except (ValueError, OSError):
+    judgment = read_json(path)
+    if judgment is None:
         return False
     # A refusal is recorded as a non-skipped judgment with refused=True, so it
     # is compared on that flag. Folding it into "skipped" made every refusal
@@ -82,8 +81,15 @@ def _judgment_is_current(path: Path, run_data: dict) -> bool:
 
 
 def _write(path: Path, payload: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    write_json_atomic(path, payload)
+
+
+# Keys a run record must carry to be judged at all. A file without them is
+# not one the run stage wrote - a stray copy, or damage - and is skipped with
+# a warning instead of raising out of the stage.
+RUN_RECORD_KEYS = (
+    "model_id", "task_id", "task_type", "passage_id", "iteration", "text"
+)
 
 
 def judge_run(
@@ -100,8 +106,9 @@ def judge_run(
     run_dir = Path(runs_root) / run_id
     judged = 0
     runner_failures = 0
-    for run_file in sorted(run_dir.rglob("*.json")):
-        run_data = json.loads(run_file.read_text(encoding="utf-8"))
+    for run_file, run_data in iter_records(
+        sorted(run_dir.rglob("*.json")), required=RUN_RECORD_KEYS
+    ):
         model_id = run_data["model_id"]
         instance_id = run_file.stem
 

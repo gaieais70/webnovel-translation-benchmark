@@ -251,3 +251,30 @@ def test_run_pairwise_stops_on_a_judge_failure(tmp_path):
     seed_run(tmp_path, "m2", "beta")
     runner = FakeRunner(error="HTTP 429: usage limit reached")
     assert run_pairwise(**pairwise_args(tmp_path, runner)) == 0
+
+
+def test_damaged_comparison_files_are_skipped_not_fatal(tmp_path, capsys):
+    """An unknown outcome made the Bradley-Terry fit raise inside ati report."""
+    root = tmp_path / "pairwise" / "r1"
+    root.mkdir(parents=True)
+    (root / "good.json").write_text(
+        json.dumps({"a": "m1", "b": "m2", "outcome": "a"}), encoding="utf-8"
+    )
+    (root / "torn.json").write_text('{"a": "m1", "b"', encoding="utf-8")
+    (root / "odd.json").write_text(
+        json.dumps({"a": "m1", "b": "m2", "outcome": "A"}), encoding="utf-8"
+    )
+    assert load_comparisons(tmp_path / "pairwise", "r1") == [("m1", "m2", "a")]
+    out = capsys.readouterr().out
+    assert "skipping unreadable" in out and "unknown outcome" in out
+
+
+def test_a_torn_run_file_does_not_stop_pairing(tmp_path):
+    seed_run(tmp_path, "m1", "alpha")
+    seed_run(tmp_path, "m2", "beta")
+    torn = run_output_path(tmp_path / "runs", "r1", "m3", "t.cn-01.0")
+    torn.parent.mkdir(parents=True, exist_ok=True)
+    torn.write_text('{"model_id": "m3", "te', encoding="utf-8")
+    runner = FakeRunner(responses=[verdict("A"), verdict("B")])
+    args = pairwise_args(tmp_path, runner, models=["m1", "m2", "m3"])
+    assert run_pairwise(**args) == 1

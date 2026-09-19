@@ -6,10 +6,10 @@ skipped, so adding a model to an existing run costs only that model's calls.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from ati.corpus import HashMismatch, Passage, PassageMissing, load_passage
+from ati.fileio import read_json, write_json_atomic
 from ati.runners.api import is_transient_429
 from ati.tasks import TaskInstance
 
@@ -152,9 +152,8 @@ def _is_complete(path: Path) -> bool:
     A passage marked unavailable is different: the corpus itself is wrong, and
     retrying cannot help until that is fixed.
     """
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (ValueError, OSError):
+    data = read_json(path)
+    if data is None:
         return False
     # An unavailable passage is not finished work either. Re-checking costs
     # nothing - no model is called when the hash still mismatches - and
@@ -165,8 +164,7 @@ def _is_complete(path: Path) -> bool:
 
 
 def _write(path: Path, payload: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    write_json_atomic(path, payload)
 
 
 def run_model(

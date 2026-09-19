@@ -27,6 +27,7 @@ from ati.corpus import (
     load_passage,
     passage_path,
 )
+from ati.fileio import read_json, write_json_atomic, write_text_atomic
 from ati.judgestage import judge_run
 from ati.intake import DEFAULT_CHARS, KINDS, IntakeError, add_files
 from ati.pairwise import load_comparisons, run_pairwise
@@ -336,26 +337,25 @@ def cmd_report(args) -> int:
     previous: dict[str, float] = {}
     prev_path = results_dir / "anchors.json"
     if prev_path.exists():
-        previous = json.loads(prev_path.read_text(encoding="utf-8"))
+        previous = read_json(prev_path)
+        if previous is None:
+            print(f"WARNING: {prev_path} is unreadable; anchor drift not checked")
+            previous = {}
 
     drift = anchor_drift(results, previous)
     comparable = is_comparable(drift)
     metadata = {"judge_id": args.judge_model, "date": date.today().isoformat()}
 
-    (results_dir / f"{args.run}.json").write_text(
-        json.dumps(
-            {
-                "run_id": args.run,
-                "metadata": metadata,
-                "weights": weights,
-                "anchor_drift": drift,
-                "comparable": comparable,
-                "results": [asdict(r) for r in results],
-            },
-            ensure_ascii=False,
-            indent=2,
-        ),
-        encoding="utf-8",
+    write_json_atomic(
+        results_dir / f"{args.run}.json",
+        {
+            "run_id": args.run,
+            "metadata": metadata,
+            "weights": weights,
+            "anchor_drift": drift,
+            "comparable": comparable,
+            "results": [asdict(r) for r in results],
+        },
     )
     comparisons = load_comparisons(Path(args.pairwise), args.run)
     pairwise_ratings, pairwise_intervals = {}, {}
@@ -367,7 +367,8 @@ def cmd_report(args) -> int:
         pairwise_ratings = to_elo(fit(comparisons), anchor_id=anchor)
         pairwise_intervals = bootstrap_ci(comparisons, anchor_id=anchor)
 
-    (results_dir / "leaderboard.md").write_text(
+    write_text_atomic(
+        results_dir / "leaderboard.md",
         render_markdown(
             args.run,
             results,
@@ -379,9 +380,9 @@ def cmd_report(args) -> int:
             anchor,
             pairwise_records(comparisons) if comparisons else None,
         ),
-        encoding="utf-8",
     )
-    prev_path.write_text(
+    write_text_atomic(
+        prev_path,
         json.dumps(
             {
                 r.model_id: r.composite
@@ -390,7 +391,6 @@ def cmd_report(args) -> int:
             },
             indent=2,
         ),
-        encoding="utf-8",
     )
 
     print(f"wrote {results_dir / f'{args.run}.json'}")

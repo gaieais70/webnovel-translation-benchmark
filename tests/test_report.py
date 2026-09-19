@@ -409,3 +409,17 @@ def test_the_head_to_head_table_shows_each_record():
     )
     assert "W–L–T" in md
     assert "| x | 1100 | 1000 – 1200 | 3–1–2 |" in md
+
+
+def test_a_torn_or_stray_record_is_skipped_not_fatal(tmp_path, capsys):
+    """A report read while a stage is writing must not die on one file."""
+    seed(tmp_path, "m1", "t.cn-01.0")
+    torn = judgment_output_path(tmp_path / "judgments", "r1", "m1", "t.cn-01.1")
+    torn.write_text('{"model_id": "m1", "sco', encoding="utf-8")
+    stray = run_output_path(tmp_path / "runs", "r1", "m1", "notes")
+    stray.write_text('{"comment": "copied in by hand"}', encoding="utf-8")
+    results = run_aggregate(tmp_path)
+    assert results[0].composite == pytest.approx(75.0)
+    assert results[0].total_tasks == 1
+    out = capsys.readouterr().out
+    assert "skipping unreadable" in out and "missing model_id" in out

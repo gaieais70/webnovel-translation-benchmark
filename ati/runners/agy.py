@@ -22,6 +22,7 @@ import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
+from ati.fileio import write_text_atomic
 from ati.runners.base import RunResult, looks_like_refusal
 
 DEFAULT_TIMEOUT_S = 600.0
@@ -110,8 +111,13 @@ class CallGate:
                 (self._root / "last").read_text(encoding="utf-8").partition(" ")
             )
             return float(stamp), owner.strip()
+        except FileNotFoundError:
+            return 0.0, ""  # no call has ever been made from this machine
         except (OSError, ValueError):
-            return 0.0, ""
+            # The stamp exists but cannot be read. Assume a call just ended:
+            # waiting one gap too many costs seconds, while reading damage as
+            # "long ago" would let the next call through with no gap at all.
+            return self._clock(), ""
 
     def _remaining(self, courtesy: bool) -> float:
         stamp, owner = self._last()
@@ -139,10 +145,14 @@ class CallGate:
             finally:
                 # Recorded on failure too: a call that errored still reached
                 # the account, and the gap is measured from the account's view.
-                (self._root / "last").write_text(
-                    f"{self._clock()!r} {self._token}", encoding="utf-8"
-                )
-                _release(handle)
+                # Atomic, so a process killed mid-write cannot leave a stamp
+                # that the next reader has to guess about.
+                try:
+                    write_text_atomic(
+                        self._root / "last", f"{self._clock()!r} {self._token}"
+                    )
+                finally:
+                    _release(handle)
 
 
 # Windows caps a whole command line at 32,767 characters, and this runner
