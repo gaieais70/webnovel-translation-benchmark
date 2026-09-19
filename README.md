@@ -7,8 +7,10 @@ have no official translation.
 **This project publishes rankings, not translations.** No source text or
 translation text is committed or published.
 
-- [Latest published leaderboard](archive/2026-08-ghost-commute/results/leaderboard.md)
-  (run `2026-08`; run `2026-09` is being judged)
+- [Latest published leaderboard](archive/2026-09-hwasan/results/leaderboard.md)
+  (run `2026-09`: 20 models, 11 chapters of 화산귀환, Korean → English;
+  [run notes](docs/run-notes-2026-09.md)). Earlier:
+  [`2026-08`](archive/2026-08-ghost-commute/results/leaderboard.md).
 - [Methodology](docs/methodology.md)
 - [Rubric](docs/rubric.md)
 - [Runbook](docs/runbook.md) — operating a run end to end

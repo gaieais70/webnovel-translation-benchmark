@@ -1,0 +1,8 @@
+{
+  "a": "inkling-small",
+  "b": "nemotron-3-super-120b",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b"
+}

@@ -1,0 +1,8 @@
+{
+  "a": "qwen3.8-27b",
+  "b": "solar-pro4",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie"
+}

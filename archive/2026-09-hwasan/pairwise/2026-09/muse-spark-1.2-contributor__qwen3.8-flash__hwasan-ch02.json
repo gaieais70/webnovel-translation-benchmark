@@ -1,0 +1,8 @@
+{
+  "a": "muse-spark-1.2-contributor",
+  "b": "qwen3.8-flash",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a"
+}

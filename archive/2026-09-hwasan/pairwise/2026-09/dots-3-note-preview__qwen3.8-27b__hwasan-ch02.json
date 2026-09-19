@@ -1,0 +1,8 @@
+{
+  "a": "dots-3-note-preview",
+  "b": "qwen3.8-27b",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b"
+}

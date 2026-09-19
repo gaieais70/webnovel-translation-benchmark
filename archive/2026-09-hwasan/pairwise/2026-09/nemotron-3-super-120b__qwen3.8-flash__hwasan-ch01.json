@@ -1,0 +1,8 @@
+{
+  "a": "nemotron-3-super-120b",
+  "b": "qwen3.8-flash",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b"
+}

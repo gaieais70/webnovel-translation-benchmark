@@ -1,0 +1,8 @@
+{
+  "a": "deepseek-v4-flash",
+  "b": "gpt-5.6-luna",
+  "passage_id": "hwasan-ch02",
+  "forward": "tie",
+  "reverse": "A",
+  "outcome": "tie"
+}

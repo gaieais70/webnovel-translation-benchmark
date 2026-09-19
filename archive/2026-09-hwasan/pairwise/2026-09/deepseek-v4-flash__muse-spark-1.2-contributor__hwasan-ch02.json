@@ -1,0 +1,8 @@
+{
+  "a": "deepseek-v4-flash",
+  "b": "muse-spark-1.2-contributor",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b"
+}

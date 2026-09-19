@@ -1,0 +1,8 @@
+{
+  "a": "minimax-m3",
+  "b": "qwen3.8-27b",
+  "passage_id": "hwasan-ch02",
+  "forward": "tie",
+  "reverse": "tie",
+  "outcome": "tie"
+}

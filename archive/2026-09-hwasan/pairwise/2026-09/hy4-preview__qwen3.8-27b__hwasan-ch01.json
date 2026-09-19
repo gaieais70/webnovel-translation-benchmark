@@ -1,0 +1,8 @@
+{
+  "a": "hy4-preview",
+  "b": "qwen3.8-27b",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a"
+}

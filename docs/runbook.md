@@ -167,7 +167,9 @@ ati report --run 2026-10
    text and are never committed.
 3. Leave `results/anchors.json` where it is: the next run's report reads it as
    its baseline.
-4. Point the README's leaderboard link at the archived leaderboard.
+4. In the archived `leaderboard.md`, change its `../docs/` links to
+   `../../../docs/`: the copy sits two directories deeper than `results/`.
+5. Point the README's leaderboard link at the archived leaderboard.
 
 Working directories (`runs/`, `judgments/`, `pairwise/`, `results/`,
 `manual/`) are gitignored; only archived copies are published.

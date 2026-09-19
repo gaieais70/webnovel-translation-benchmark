@@ -2,7 +2,7 @@
 
 Run `2026-08` — 2026-08-27
 
-Judge: `gemini-judge`. Scores are LLM-judged against a fixed rubric; see [the rubric](../docs/rubric.md) and [the methodology](../docs/methodology.md).
+Judge: `gemini-judge`. Scores are LLM-judged against a fixed rubric; see [the rubric](../../../docs/rubric.md) and [the methodology](../../../docs/methodology.md).
 
 ## Ranking
 

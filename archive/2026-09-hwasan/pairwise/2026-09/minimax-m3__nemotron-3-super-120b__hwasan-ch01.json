@@ -1,0 +1,8 @@
+{
+  "a": "minimax-m3",
+  "b": "nemotron-3-super-120b",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a"
+}

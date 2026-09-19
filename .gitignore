@@ -27,3 +27,5 @@ Novel Sources/
 raw/
 novel_titles.json
 wiki_data.json
+# Git worktrees created by Claude Code agents live here; never part of the repo.
+.claude/worktrees/

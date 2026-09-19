@@ -1,0 +1,8 @@
+{
+  "a": "qwen3.8-27b",
+  "b": "qwen3.8-flash",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b"
+}

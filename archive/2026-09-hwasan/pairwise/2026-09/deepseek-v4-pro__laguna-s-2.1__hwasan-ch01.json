@@ -1,0 +1,8 @@
+{
+  "a": "deepseek-v4-pro",
+  "b": "laguna-s-2.1",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a"
+}

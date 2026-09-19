@@ -1,0 +1,8 @@
+{
+  "a": "deepseek-v4-pro",
+  "b": "hy4-preview",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a"
+}

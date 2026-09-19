@@ -1,0 +1,8 @@
+{
+  "a": "deepseek-v4-flash",
+  "b": "deepseek-v4-pro",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie"
+}

@@ -1,0 +1,8 @@
+{
+  "a": "qwen3.8-flash",
+  "b": "solar-pro4",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a"
+}
