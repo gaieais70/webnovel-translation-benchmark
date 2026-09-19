@@ -405,7 +405,7 @@ def test_ati_run_skips_a_model_whose_key_is_missing(tmp_path, monkeypatch, capsy
     assert main(["run", "--run", "r1"]) == 1
     out = capsys.readouterr().out
     assert "m: not run" in out and "COMMANDCODE_API_KEY" in out
-    assert not (tmp_path / "runs").exists()
+    assert list((tmp_path / "runs").rglob("*.json")) == []
 
 
 def test_a_config_error_is_one_line_not_a_traceback(tmp_path, monkeypatch, capsys):

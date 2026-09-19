@@ -34,6 +34,11 @@ from ati.fileio import iter_records, read_json, write_json_atomic
 # excerpts this stage was designed around.
 MAX_COMPARE_CHARS = 60000
 
+# Comparisons per invocation unless --max-comparisons says otherwise. One
+# number, used by both the stage and the CLI; they used to disagree (100 here,
+# 50 in the CLI, 200 in the README).
+DEFAULT_MAX_COMPARISONS = 50
+
 # Comparisons in a row whose verdict could not be parsed before the stage
 # stops. One is a glitch and is skipped. Several in a row is a judge that has
 # stopped answering in the expected shape, and a skipped comparison does not
@@ -227,12 +232,19 @@ def run_pairwise(
     passages: dict,
     template: str,
     models: list[str],
-    max_comparisons: int = 100,
+    max_comparisons: int = DEFAULT_MAX_COMPARISONS,
     ratings: dict | None = None,
     max_compare_chars: int = MAX_COMPARE_CHARS,
     judge_id: str | None = None,
     judge_fingerprint: str | None = None,
+    on_stop=None,
 ) -> int:
+    """Run up to `max_comparisons` new comparisons. Returns how many ran.
+
+    `on_stop`, if given, is called with the reason when the stage stops
+    early, so a caller can wait out a usage limit and resume.
+    """
+    stop = on_stop or (lambda _reason: None)
     outputs = _load_outputs(runs_root, run_id)
     eligible = [m for m in models if outputs.get(m)]
     if len(eligible) < 2:
@@ -305,6 +317,7 @@ def run_pairwise(
                     f"verdicts in a row could not be parsed. Check the judge "
                     f"before rerunning."
                 )
+                stop(f"{bad_verdicts} unparseable verdicts in a row: {exc}")
                 return executed
             continue
         except RuntimeError as exc:
@@ -312,6 +325,7 @@ def run_pairwise(
             # remaining comparison would fail the same way. Work already
             # written stays on disk; rerunning resumes from here.
             print(f"stopping after {executed} comparisons: {exc}")
+            stop(str(exc))
             return executed
 
         write_json_atomic(

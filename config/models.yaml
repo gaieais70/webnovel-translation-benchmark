@@ -282,7 +282,12 @@
 # converging. The 2026-08 rho of 0.936 had the same limitation.
 #
 # sonnet-judge is kept declared but unused this run.
+#
+# `role: judge` keeps both rows out of `ati run` and the head-to-head pool: they
+# are judges, not translation subjects. (An agy row is never a subject unless
+# named with --model, whatever its role.)
 - id: sonnet-judge
+  role: judge
   runner: api
   endpoint: https://api.commandcode.ai/provider/v1/chat/completions
   api_key_env: COMMANDCODE_API_KEY
@@ -296,6 +301,7 @@
 # a judge with tools could look up the source work while scoring a translation
 # of it, which stops it measuring the translation.
 - id: gemini-judge
+  role: judge
   runner: agy
   model: gemini-3.7-flash-high
   json_schema: config/schemas/pairwise.json

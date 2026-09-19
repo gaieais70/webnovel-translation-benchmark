@@ -17,7 +17,9 @@ from ati.config import (
     load_models,
     load_weights,
     requires_antigravity,
+    subjects,
 )
+from ati.activity import active_markers, run_activity
 from ati.bradleyterry import bootstrap_ci, fit, to_elo
 from ati.corpus import (
     HashMismatch,
@@ -37,7 +39,12 @@ from ati.fingerprint import (
 )
 from ati.judgestage import judge_run, pending_judgments
 from ati.intake import DEFAULT_CHARS, KINDS, IntakeError, add_files
-from ati.pairwise import load_comparisons, run_pairwise
+from ati.pairwise import (
+    DEFAULT_MAX_COMPARISONS,
+    load_comparisons,
+    pending_comparisons,
+    run_pairwise,
+)
 from ati.report import (
     aggregate,
     anchor_drift,
@@ -51,9 +58,11 @@ from ati.runners.api import ApiRunner
 from ati.runners.agy import AgyRunner, CallGate
 from ati.runners.cli import CliRunner
 from ati.runners.manual import ManualRunner
-from ati.runstage import run_model
+from ati.runstage import recheck, run_model
+from ati.status import render_status, run_progress
 from ati.tasks import expand, load_tasks
 from ati.textmetrics import load_slop_list
+from ati.waiting import Pass, drive
 
 DEFAULT_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_JUDGE_MODEL = "anthropic/claude-sonnet-5"
@@ -157,6 +166,7 @@ def cmd_add(args) -> int:
             tasks_path=Path(args.tasks),
             chars=args.chars,
             has_reference=args.reference,
+            strip_headers=not args.keep_headers,
         )
     except IntakeError as exc:
         print(f"error: {exc}")
@@ -201,10 +211,29 @@ def cmd_fetch(args) -> int:
     return 0 if not missing and not changed else 1
 
 
+def select_models(roster: list[ModelConfig], requested: list[str] | None):
+    """The models a stage works on: those named with --model, else every subject.
+
+    Judges are never included by default (see config.subjects). A name that
+    is not in the roster is an error; it used to select nothing, silently.
+    """
+    if not requested:
+        return subjects(roster)
+    known = {m.id for m in roster}
+    unknown = [m for m in requested if m not in known]
+    if unknown:
+        raise ConfigError(f"unknown model id(s): {', '.join(unknown)}")
+    return [m for m in roster if m.id in requested]
+
+
 def cmd_run(args) -> int:
-    models = load_models(Path(args.models))
-    if args.model:
-        models = [m for m in models if m.id in args.model]
+    """Translate; `--passes N` retries failures, `--wait` outlasts usage limits.
+
+    `--passes 3` is the retry policy run 2026-09 applied through lane.sh:
+    later passes only redo tasks that failed (completed and refused ones are
+    skipped), and passes stop early once one has nothing left to redo.
+    """
+    models = select_models(load_models(Path(args.models)), args.model)
     tasks = load_tasks(Path(args.tasks))
     if args.task:
         tasks = [t for t in tasks if t.id in args.task]
@@ -212,35 +241,62 @@ def cmd_run(args) -> int:
     passages = {p.id: p for p in load_manifest(Path(args.manifest))}
     system_prompt = Path(args.prompt).read_text(encoding="utf-8")
 
-    total = 0
+    # Every runner is built before the first call, so a missing key is
+    # reported up front rather than as a 401 recorded against the model.
+    runners = {}
     not_run: list[str] = []
     for model in models:
         try:
-            runner = build_runner(model, Path(args.manual))
+            runners[model.id] = build_runner(model, Path(args.manual))
         except ConfigError as exc:
-            # Before any call: a missing key would otherwise surface as a 401
-            # recorded against the model, as though the model had failed.
             print(f"{model.id}: not run - {exc}")
             not_run.append(model.id)
-            continue
-        executed = run_model(
-            runner=runner,
-            model_id=model.id,
-            instances=instances,
-            passages=passages,
-            corpus_root=Path(args.corpus),
-            system_prompt=system_prompt,
-            runs_root=Path(args.runs),
-            run_id=args.run,
-            force=args.force,
-        )
-        print(f"{model.id}: {executed} executed, {len(instances) - executed} skipped")
-        total += executed
-    print(f"total executed: {total}")
+    passes = max(1, args.passes)
+
+    def invocation() -> Pass:
+        limits: list[str] = []
+        done = 0
+        for number in range(1, passes + 1):
+            if passes > 1:
+                print(f"== pass {number} of {passes} ==")
+            this_pass = 0
+            for model in models:
+                if model.id not in runners:
+                    continue
+                executed = run_model(
+                    runner=runners[model.id],
+                    model_id=model.id,
+                    instances=instances,
+                    passages=passages,
+                    corpus_root=Path(args.corpus),
+                    system_prompt=system_prompt,
+                    runs_root=Path(args.runs),
+                    run_id=args.run,
+                    # --force means "redo everything once", not once per pass.
+                    force=args.force and number == 1,
+                    on_usage_limit=limits.append,
+                )
+                print(
+                    f"{model.id}: {executed} executed, "
+                    f"{len(instances) - executed} skipped"
+                )
+                this_pass += executed
+            done += this_pass
+            if this_pass == 0:
+                break  # nothing failed last pass, so nothing to retry
+        print(f"total executed: {done}")
+        return Pass(done, limits[-1] if limits else None)
+
+    label = ",".join(m.id for m in models) or "none"
+    with run_activity(Path(args.runs), args.run, label):
+        if args.wait:
+            completed = drive(invocation, wait=True, finished=lambda _p: True)
+        else:
+            completed = invocation().stopped is None
     if not_run:
         print(f"not run: {', '.join(not_run)}")
         return 1
-    return 0
+    return 0 if completed else 1
 
 
 def build_judge_runner(
@@ -317,20 +373,45 @@ def cmd_judge(args) -> int:
         args, args.judge_schema, rubric_prompt_frame(template)
     )
     print(f"judge {args.judge_model}, fingerprint {fingerprint}")
-    judged = judge_run(
-        judge_runner=judge_runner,
-        judge_id=args.judge_model,
-        run_id=args.run,
-        runs_root=Path(args.runs),
-        judgments_root=Path(args.judgments),
-        passages=passages,
-        corpus_root=Path(args.corpus),
-        template=template,
-        force=args.force,
-        judge_fingerprint=fingerprint,
-    )
-    print(f"judged: {judged}")
-    return 0
+
+    forced = {"left": args.force}
+
+    def one_pass() -> Pass:
+        reasons: list[str] = []
+        judged = judge_run(
+            judge_runner=judge_runner,
+            judge_id=args.judge_model,
+            run_id=args.run,
+            runs_root=Path(args.runs),
+            judgments_root=Path(args.judgments),
+            passages=passages,
+            corpus_root=Path(args.corpus),
+            template=template,
+            # --force redoes everything once, not on every pass of a loop.
+            force=forced.pop("left", False),
+            judge_fingerprint=fingerprint,
+            on_stop=reasons.append,
+        )
+        print(f"judged: {judged}")
+        return Pass(judged, reasons[0] if reasons else None)
+
+    if args.wait or args.follow:
+        # Repeat until a pass finds nothing to judge; with --follow, keep
+        # going while an `ati run` process is still producing translations.
+        completed = drive(
+            one_pass, wait=args.wait, active=_run_is_active(args) if args.follow else _never
+        )
+    else:
+        completed = one_pass().stopped is None
+    return 0 if completed else 1
+
+
+def _never() -> bool:
+    return False
+
+
+def _run_is_active(args):
+    return lambda: bool(active_markers(Path(args.runs), args.run))
 
 
 def cmd_pairwise(args) -> int:
@@ -343,9 +424,7 @@ def cmd_pairwise(args) -> int:
         json_schema=args.pairwise_schema,
     )
     declared = load_models(Path(args.models))
-    pool = [m.id for m in declared if m.runner != "agy"]
-    if args.model:
-        pool = [m for m in pool if m in args.model]
+    pool = [m.id for m in select_models(declared, args.model) if m.runner != "agy"]
 
     passages = {p.id: p for p in load_manifest(Path(args.manifest))}
     template = Path(args.pairwise_prompt).read_text(encoding="utf-8")
@@ -354,24 +433,45 @@ def cmd_pairwise(args) -> int:
     )
     print(f"judge {args.judge_model}, fingerprint {fingerprint}")
 
-    existing = load_comparisons(Path(args.pairwise), args.run)
-    ratings = to_elo(fit(existing)) if existing else {}
+    # --target N: keep running batches of --max-comparisons, refitting the
+    # ratings between batches so pairing stays adaptive, until N comparisons
+    # exist or nothing is left to compare. --wait alone finishes one batch,
+    # waiting out usage limits. Without either, one batch, as before.
+    target = args.target
+    if target is None and args.wait:
+        target = len(load_comparisons(Path(args.pairwise), args.run)) + args.max_comparisons
 
-    executed = run_pairwise(
-        judge_runner=judge_runner,
-        run_id=args.run,
-        runs_root=Path(args.runs),
-        pairwise_root=Path(args.pairwise),
-        corpus_root=Path(args.corpus),
-        passages=passages,
-        template=template,
-        models=pool,
-        max_comparisons=args.max_comparisons,
-        ratings=ratings,
-        judge_id=args.judge_model,
-        judge_fingerprint=fingerprint,
-    )
-    print(f"{executed} comparisons executed")
+    def one_pass() -> Pass:
+        existing = load_comparisons(Path(args.pairwise), args.run)
+        budget = args.max_comparisons
+        if target is not None:
+            budget = min(budget, target - len(existing))
+            if budget <= 0:
+                print(f"{len(existing)} comparisons on disk; target {target} reached")
+                return Pass(0)
+        reasons: list[str] = []
+        executed = run_pairwise(
+            judge_runner=judge_runner,
+            run_id=args.run,
+            runs_root=Path(args.runs),
+            pairwise_root=Path(args.pairwise),
+            corpus_root=Path(args.corpus),
+            passages=passages,
+            template=template,
+            models=pool,
+            max_comparisons=budget,
+            ratings=to_elo(fit(existing)) if existing else {},
+            judge_id=args.judge_model,
+            judge_fingerprint=fingerprint,
+            on_stop=reasons.append,
+        )
+        print(f"{executed} comparisons executed")
+        return Pass(executed, reasons[0] if reasons else None)
+
+    if target is not None:
+        completed = drive(one_pass, wait=args.wait)
+    else:
+        completed = one_pass().stopped is None
 
     comparisons = load_comparisons(Path(args.pairwise), args.run)
     if comparisons:
@@ -379,6 +479,72 @@ def cmd_pairwise(args) -> int:
         final = to_elo(fit(comparisons), anchor_id=anchor)
         for model_id, rating in sorted(final.items(), key=lambda kv: -kv[1]):
             print(f"  {rating:7.0f}  {model_id}")
+    return 0 if completed else 1
+
+
+def cmd_status(args) -> int:
+    """Where a run stands: translations, judgments, comparisons. No calls."""
+    roster = load_models(Path(args.models))
+    models = [m.id for m in select_models(roster, args.model)]
+    tasks = load_tasks(Path(args.tasks))
+    if args.task:
+        tasks = [t for t in tasks if t.id in args.task]
+    instance_ids = [i.instance_id for i in expand(tasks, iterations=args.iterations)]
+    progress = run_progress(args.run, Path(args.runs), models, instance_ids)
+
+    judgments = comparisons = None
+    try:
+        rubric = Path(args.judge_prompt).read_text(encoding="utf-8")
+        pairwise_template = Path(args.pairwise_prompt).read_text(encoding="utf-8")
+    except OSError:
+        rubric = pairwise_template = None
+    if rubric is not None:
+        fingerprint = judge_fingerprint_for(args, args.judge_schema, rubric_prompt_frame(rubric))
+        pending = pending_judgments(
+            args.run, Path(args.runs), Path(args.judgments),
+            judge_id=args.judge_model, judge_fingerprint=fingerprint,
+            warn=lambda _msg: None,
+        )
+        judgments = {
+            "missing": sum(1 for *_, why in pending if why == "missing"),
+            "stale": sum(1 for *_, why in pending if why == "stale"),
+            "judge_id": args.judge_model,
+            "fingerprint": fingerprint,
+        }
+        pair_fp = judge_fingerprint_for(
+            args, args.pairwise_schema, pairwise_prompt_frame(pairwise_template)
+        )
+        recorded = load_comparisons(Path(args.pairwise), args.run)
+        comparisons = {
+            "count": len(recorded),
+            "pairs": len({tuple(sorted((a, b))) for a, b, _ in recorded}),
+            "stale": len(
+                pending_comparisons(
+                    Path(args.pairwise), args.run, Path(args.runs),
+                    judge_id=args.judge_model, judge_fingerprint=pair_fp,
+                )
+            ),
+        }
+    print(
+        render_status(
+            args.run,
+            progress,
+            len(instance_ids),
+            len(active_markers(Path(args.runs), args.run)),
+            judgments,
+            comparisons,
+        )
+    )
+    return 0
+
+
+def cmd_recheck(args) -> int:
+    """Re-apply the current output guards to records already on disk."""
+    changes = recheck(args.run, Path(args.runs), apply=args.apply)
+    for path, what in changes:
+        print(f"  {path.parent.name} {path.stem}: {what}")
+    verb = "reclassified" if args.apply else "would be reclassified (dry run; --apply to write)"
+    print(f"{len(changes)} records {verb}")
     return 0
 
 
@@ -554,16 +720,28 @@ def cmd_bench(args) -> int:
         )
         return 1
 
+    incomplete = []
     if not args.skip_run:
         print("== run ==")
-        cmd_run(args)
+        if cmd_run(args) != 0:
+            incomplete.append("translation")
 
     if not args.skip_judge:
         print("== judge ==")
-        cmd_judge(args)
+        if cmd_judge(args) != 0:
+            incomplete.append("judging")
 
     print("== report ==")
-    return cmd_report(args)
+    status = cmd_report(args)
+    # The report is still written - partial results are worth seeing - but a
+    # pipeline that stopped early must not exit as though it had finished.
+    if incomplete:
+        print(
+            f"WARNING: {' and '.join(incomplete)} stopped before the end; the "
+            "leaderboard is partial. Rerun the same command to resume."
+        )
+        return 1
+    return status
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -592,9 +770,30 @@ def main(argv: list[str] | None = None) -> int:
     common.add_argument("--pairwise-prompt", default="config/prompts/pairwise.md")
     common.add_argument("--pairwise-schema", default="config/schemas/pairwise.json")
     common.add_argument("--judge-schema", default="config/schemas/judgment.json")
-    common.add_argument("--max-comparisons", type=int, default=50)
-    common.add_argument("--run", default="latest", help="run id")
+    common.add_argument(
+        "--max-comparisons", type=int, default=DEFAULT_MAX_COMPARISONS,
+        help="pairwise: comparisons per batch",
+    )
+    # No default: a forgotten --run used to write to runs/latest and read
+    # results/latest.json without a word.
+    common.add_argument("--run", default=None, help="run id, e.g. 2026-10")
     common.add_argument("--force", action="store_true")
+    common.add_argument(
+        "--passes", type=int, default=1,
+        help="run: passes over the suite; later passes redo only failures",
+    )
+    common.add_argument(
+        "--wait", action="store_true",
+        help="run/judge/pairwise: wait out usage limits and resume",
+    )
+    common.add_argument(
+        "--follow", action="store_true",
+        help="judge: keep going while an `ati run` on this run is still active",
+    )
+    common.add_argument(
+        "--target", type=int, default=None,
+        help="pairwise: keep running batches until this many comparisons exist",
+    )
     common.add_argument(
         "--baseline",
         default=None,
@@ -623,6 +822,19 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser(
         "report", help="aggregate into results and leaderboard", parents=[common]
     )
+    sub.add_parser(
+        "status",
+        help="progress of a run: translations, judgments, comparisons (no calls)",
+        parents=[common],
+    )
+    recheck_parser = sub.add_parser(
+        "recheck",
+        help="re-apply the current output guards to run records (no calls)",
+        parents=[common],
+    )
+    recheck_parser.add_argument(
+        "--apply", action="store_true", help="write the changes (default: dry run)"
+    )
 
     add_parser = sub.add_parser(
         "add", help="ingest local chapter files into the corpus", parents=[common]
@@ -635,6 +847,11 @@ def main(argv: list[str] | None = None) -> int:
     add_parser.add_argument("--url", required=True, help="source URL")
     add_parser.add_argument("--chars", type=int, default=DEFAULT_CHARS)
     add_parser.add_argument("--reference", action="store_true")
+    add_parser.add_argument(
+        "--keep-headers",
+        action="store_true",
+        help="do not strip scraped reader furniture from the top of each file",
+    )
 
     bench_parser = sub.add_parser(
         "bench", help="fetch, run, judge, and report in one command", parents=[common]
@@ -661,7 +878,12 @@ def main(argv: list[str] | None = None) -> int:
         "pairwise": cmd_pairwise,
         "report": cmd_report,
         "bench": cmd_bench,
+        "status": cmd_status,
+        "recheck": cmd_recheck,
     }
+    if args.command not in ("add", "fetch") and not args.run:
+        print(f"error: `ati {args.command}` needs --run, e.g. --run 2026-10")
+        return 2
     try:
         defaults = load_defaults(Path(args.defaults))
         if args.judge_model is None:

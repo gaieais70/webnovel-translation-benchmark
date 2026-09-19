@@ -19,6 +19,15 @@ AXES: tuple[str, ...] = (
 
 VALID_RUNNERS = ("api", "cli", "manual", "agy")
 VALID_ANCHORS = ("strong", "weak")
+# A roster row is either a model under test or a judge. The judges live in the
+# same file so that one declaration gets one route and one set of guards, but
+# they are not translation subjects: before this, `ati run` with no --model
+# would have translated every chapter with them too - through Antigravity, on
+# the operator's own Google account, for gemini-judge.
+VALID_ROLES = ("subject", "judge")
+# Characters Windows does not allow in a file name. Model ids become directory
+# and file names under runs/, judgments/ and pairwise/.
+_UNSAFE_ID_CHARS = set('<>:"\\|?*')
 DEFAULT_TEMPERATURE = 0.3
 # The one default for how long a model call may wait, used by every runner
 # and by any roster row that does not set `timeout_s`. For the api runner it
@@ -116,6 +125,17 @@ class ModelConfig:
     # buffered body. Needed on gateways that drop long-running buffered
     # requests; see ApiRunner. Transport only - the model generates the same.
     stream: bool = False
+    role: str = "subject"
+
+
+def subjects(models: list[ModelConfig]) -> list[ModelConfig]:
+    """The models under test: every row that is not a judge.
+
+    An Antigravity row is never a subject by default, whatever its role says:
+    that account is reserved for judging, and a translation run through it
+    has to be asked for by name.
+    """
+    return [m for m in models if m.role == "subject" and m.runner != "agy"]
 
 
 def load_models(path: Path) -> list[ModelConfig]:
@@ -129,6 +149,13 @@ def load_models(path: Path) -> list[ModelConfig]:
         model_id = entry.get("id")
         if not model_id:
             raise ConfigError("every model entry requires 'id'")
+        if _UNSAFE_ID_CHARS & set(str(model_id)) or any(
+            ord(ch) < 32 for ch in str(model_id)
+        ):
+            raise ConfigError(
+                f"model id {model_id!r} contains a character that cannot appear "
+                f"in a Windows file name; ids name directories under runs/"
+            )
         if model_id in seen:
             raise ConfigError(f"duplicate model id: {model_id}")
         seen.add(model_id)
@@ -199,6 +226,11 @@ def load_models(path: Path) -> list[ModelConfig]:
             raise ConfigError(
                 f"model {model_id}: anchor must be 'strong' or 'weak', got {anchor!r}"
             )
+        role = entry.get("role", "subject")
+        if role not in VALID_ROLES:
+            raise ConfigError(
+                f"model {model_id}: role must be one of {VALID_ROLES}, got {role!r}"
+            )
 
         models.append(
             ModelConfig(
@@ -216,6 +248,7 @@ def load_models(path: Path) -> list[ModelConfig]:
                 params=params,
                 fallback=fallback,
                 stream=bool(entry.get("stream", False)),
+                role=role,
             )
         )
     return models
@@ -252,4 +285,15 @@ def load_defaults(path: Path) -> dict:
     raw = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
     if not isinstance(raw, dict):
         raise ConfigError("ati.yaml must contain a mapping")
+    # Anything else in the file was silently ignored, so a misspelt key
+    # (`judge-model`, say) looked like a setting and did nothing.
+    unknown = sorted(set(raw) - set(DEFAULT_KEYS))
+    if unknown:
+        raise ConfigError(
+            f"ati.yaml: unknown key(s) {unknown}; it understands {list(DEFAULT_KEYS)}"
+        )
     return raw
+
+
+# The only keys config/ati.yaml can set. Every other setting is a CLI flag.
+DEFAULT_KEYS = ("judge_model", "judge_endpoint", "iterations")

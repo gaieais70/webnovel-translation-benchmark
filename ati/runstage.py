@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ati.corpus import HashMismatch, Passage, PassageMissing, load_passage
-from ati.fileio import read_json, write_json_atomic
+from ati.fileio import iter_records, read_json, write_json_atomic
 from ati.runners.api import is_transient_429
 from ati.runners.base import RunResult
 from ati.tasks import TaskInstance
@@ -150,8 +150,7 @@ def _is_complete(path: Path) -> bool:
     A recorded error is NOT finished work. Checkpointing failures as if they
     were complete would make a rerun skip them, so a run interrupted by a
     usage limit could never be resumed - it would silently produce nothing.
-    A passage marked unavailable is different: the corpus itself is wrong, and
-    retrying cannot help until that is fixed.
+    A refusal IS finished work: it is the measurement, and is not retried.
     """
     data = read_json(path)
     if data is None:
@@ -194,7 +193,14 @@ def run_model(
     runs_root: Path,
     run_id: str,
     force: bool = False,
+    on_usage_limit=None,
 ) -> int:
+    """Translate every instance not already complete. Returns how many ran.
+
+    `on_usage_limit`, if given, is called with the provider's message when a
+    usage limit stops the model, so a caller can hold back other models on
+    the same route instead of spending one refused call on each.
+    """
     executed = 0
     for instance in instances:
         out_path = run_output_path(
@@ -259,35 +265,13 @@ def run_model(
             set_task_id(instance.instance_id)
 
         result = _call(runner, system_prompt, source_text)
-        error = result.error
-        text = result.text
-        refused = result.refused
-        blocked = (
-            provider_blocked(text, error) or result.finish_reason == "content_filter"
+        text, error, refused, blocked = apply_guards(
+            result.text,
+            result.error,
+            result.refused,
+            result.finish_reason,
+            len(source_text),
         )
-        if blocked:
-            error, text, refused = None, "", True
-        if not error and text and left_untranslated(text):
-            error = "output is mostly in the source script; not a translation"
-            text = ""
-        # Recorded as a failure, not scored: judging a degenerate loop would
-        # hand the model rubric scores for text that is not a translation.
-        # The text is dropped for the same reason the api runner drops
-        # truncated output - it cannot be partially credited.
-        if not error and came_up_short(text, len(source_text), refused):
-            error = (
-                f"output came up short ({len(text)} characters from "
-                f"{len(source_text)} of source, "
-                f"{len(text) / len(source_text):.2f}x); not a translation"
-            )
-            text = ""
-        if not error and ran_away(text, len(source_text)):
-            error = (
-                f"output ran away ({len(text)} characters from "
-                f"{len(source_text)} of source, "
-                f"{len(text) / len(source_text):.1f}x); not a translation"
-            )
-            text = ""
         _write(
             out_path,
             {
@@ -316,5 +300,103 @@ def run_model(
                 f"{model_id}: stopping - provider usage limit reached. "
                 f"Rerun the same command once it resets; completed work is kept."
             )
+            if on_usage_limit is not None:
+                on_usage_limit(result.error)
             return executed
     return executed
+
+
+def apply_guards(
+    text: str,
+    error: str | None,
+    refused: bool,
+    finish_reason: str | None,
+    source_chars: int,
+) -> tuple[str, str | None, bool, bool]:
+    """Classify one output: (text, error, refused, blocked_by_provider).
+
+    The single place the output guards live, used by the run stage on every
+    new output and by `recheck` on outputs already on disk, so a record
+    written before a guard existed is judged by exactly the rules a new one
+    is. The guards only ever take text away; none can restore any.
+    """
+    blocked = provider_blocked(text, error) or finish_reason == "content_filter"
+    if blocked:
+        error, text, refused = None, "", True
+    if not error and text and left_untranslated(text):
+        error = "output is mostly in the source script; not a translation"
+        text = ""
+    # Recorded as a failure, not scored: judging a degenerate loop would
+    # hand the model rubric scores for text that is not a translation.
+    # The text is dropped for the same reason the api runner drops
+    # truncated output - it cannot be partially credited.
+    if not error and came_up_short(text, source_chars, refused):
+        error = (
+            f"output came up short ({len(text)} characters from "
+            f"{source_chars} of source, "
+            f"{len(text) / source_chars:.2f}x); not a translation"
+        )
+        text = ""
+    if not error and ran_away(text, source_chars):
+        error = (
+            f"output ran away ({len(text)} characters from "
+            f"{source_chars} of source, "
+            f"{len(text) / source_chars:.1f}x); not a translation"
+        )
+        text = ""
+    return text, error, bool(refused), bool(blocked)
+
+
+def recheck(run_id: str, runs_root: Path, apply: bool = False) -> list[tuple[Path, str]]:
+    """Re-apply the current output guards to every run record on disk.
+
+    For records written before a guard existed - on run 2026-09 that took a
+    one-off script (scripts/2026-09/reclassify.py) when the provider-block
+    and echo guards were added mid-run. Returns (path, what changed) for each
+    record the guards now classify differently, and rewrites them only when
+    `apply` is set. Makes no model calls; the judge stage then sees the
+    changed records as stale and re-judges or skips them.
+    """
+    changes = []
+    for path, record in iter_records(
+        sorted((Path(runs_root) / run_id).rglob("*.json")),
+        required=("model_id", "passage_id", "text", "source_chars"),
+    ):
+        # A provider block has already had its evidence - the text or the
+        # error that carried the marker - discarded, so the guards could not
+        # re-derive it and would un-classify it. A recheck only ever tightens.
+        if record.get("unavailable") or record.get("blocked_by_provider"):
+            continue
+        text, error, refused, blocked = apply_guards(
+            record.get("text") or "",
+            record.get("error"),
+            bool(record.get("refused")),
+            record.get("finish_reason"),
+            int(record.get("source_chars") or 0),
+        )
+        refused = refused or bool(record.get("refused"))
+        before = (
+            record.get("text") or "",
+            record.get("error"),
+            bool(record.get("refused")),
+            bool(record.get("blocked_by_provider")),
+        )
+        if (text, error, refused, blocked) == before:
+            continue
+        if blocked and not before[3]:
+            what = "refused (provider block)"
+        else:
+            what = f"failed ({error})" if error else "changed"
+        changes.append((path, what))
+        if apply:
+            _write(
+                path,
+                {
+                    **record,
+                    "text": text,
+                    "error": error,
+                    "refused": refused,
+                    "blocked_by_provider": blocked,
+                },
+            )
+    return changes

@@ -472,6 +472,72 @@ def test_a_content_filter_finish_is_recorded_as_a_provider_block(tmp_path):
     assert data["blocked_by_provider"] is True
 
 
+def test_a_usage_limit_is_reported_to_the_caller(tmp_path):
+    hits = []
+    passage = make_passage(tmp_path, "ko-01", "가" * 400)
+    task = Task(id="t", type="consistency", passage_ids=["ko-01"])
+    run_model(
+        runner=FakeRunner(error="HTTP 429: You've reached your 5-hour usage limit"),
+        model_id="m1",
+        instances=[TaskInstance(task=task, passage_id="ko-01", iteration=0)],
+        passages={passage.id: passage},
+        corpus_root=tmp_path / "corpus",
+        system_prompt="SYS",
+        runs_root=tmp_path / "runs",
+        run_id="r1",
+        on_usage_limit=hits.append,
+    )
+    assert hits == ["HTTP 429: You've reached your 5-hour usage limit"]
+
+
+# --- recheck: today's guards applied to yesterday's records -------------------
+
+
+def _record(tmp_path, name, **fields):
+    payload = {
+        "model_id": "m1", "task_id": "t", "task_type": "consistency",
+        "passage_id": name, "iteration": 0, "text": "An English chapter. " * 40,
+        "source_chars": 400, "refused": False, "unavailable": False, "error": None,
+    }
+    payload.update(fields)
+    path = run_output_path(tmp_path / "runs", "r1", "m1", f"t.{name}.0")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
+def test_recheck_finds_what_a_newer_guard_would_catch(tmp_path):
+    from ati.runstage import recheck
+
+    cut = "He drew his sword. " * 50 + "The request was rejected because it was considered high risk"
+    blocked = _record(tmp_path, "ko-01", text=cut)
+    echoed = _record(tmp_path, "ko-02", text="도운찬은 그만 할 말을 잃고 말았다. " * 20)
+    fine = _record(tmp_path, "ko-03")
+    before = {p: p.read_text(encoding="utf-8") for p in (blocked, echoed, fine)}
+
+    changes = recheck("r1", tmp_path / "runs")
+    assert {p.stem for p, _ in changes} == {"t.ko-01.0", "t.ko-02.0"}
+    assert all(p.read_text(encoding="utf-8") == before[p] for p in before)  # dry run
+
+    recheck("r1", tmp_path / "runs", apply=True)
+    data = json.loads(blocked.read_text(encoding="utf-8"))
+    assert data["refused"] is True and data["blocked_by_provider"] is True
+    assert data["text"] == "" and data["error"] is None
+    data = json.loads(echoed.read_text(encoding="utf-8"))
+    assert "source script" in data["error"] and data["text"] == ""
+    assert fine.read_text(encoding="utf-8") == before[fine]
+    assert recheck("r1", tmp_path / "runs") == []  # idempotent
+
+
+def test_recheck_never_undoes_a_provider_block(tmp_path):
+    """A block's evidence is discarded when it is recorded, so the guards cannot
+    re-derive it; re-applying them must not turn it back into a translation."""
+    from ati.runstage import recheck
+
+    _record(tmp_path, "ko-01", text="", refused=True, blocked_by_provider=True)
+    assert recheck("r1", tmp_path / "runs") == []
+
+
 def test_a_runner_that_raises_fails_its_task_not_the_run(tmp_path):
     """An exception from one call used to end the run for every model queued."""
 

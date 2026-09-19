@@ -158,7 +158,15 @@ def judge_run(
     template: str,
     force: bool = False,
     judge_fingerprint: str | None = None,
+    on_stop=None,
 ) -> int:
+    """Judge every run output without a current judgment. Returns how many.
+
+    `on_stop`, if given, is called with the reason when the stage stops
+    before the end - a usage limit, an unreachable judge, a judge answering
+    in the wrong shape - so a caller can wait and resume (see ati/waiting.py).
+    """
+    stop = on_stop or (lambda _reason: None)
     run_dir = Path(runs_root) / run_id
     judged = 0
     runner_failures = 0
@@ -231,6 +239,11 @@ def judge_run(
             )
             if reference_file.exists():
                 reference = reference_file.read_text(encoding="utf-8")
+            else:
+                # Judged without it, but not silently: the manifest promises
+                # a calibration this judgment did not get. `ati fetch` fails
+                # on the same condition.
+                print(f"  WARNING: {passage.id} has_reference but {reference_file} is missing")
 
         expect_term_table = run_data["task_type"] == "consistency"
         prompt = build_judge_prompt(
@@ -256,6 +269,7 @@ def judge_run(
                     f"stopping after {judged} judgments: {exc}. Rerun the same "
                     f"command later; completed judgments are kept."
                 )
+                stop(str(exc))
                 return judged
             print(f"  skipping {model_id} {instance_id}: {exc}")
             continue
@@ -270,6 +284,7 @@ def judge_run(
                     f"items in a row got no parseable answer from the judge "
                     f"(last: {exc}). Check the judge before rerunning."
                 )
+                stop(f"{schema_failures} unparseable judge answers in a row: {exc}")
                 return judged
             continue
 

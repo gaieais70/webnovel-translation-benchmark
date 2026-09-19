@@ -302,3 +302,56 @@ def test_stream_defaults_off_and_is_read_when_set(tmp_path):
     a, b = load_models(p)
     assert a.stream is False
     assert b.stream is True
+
+
+# --- roles, ids and the real configuration ------------------------------------
+
+REPO = Path(__file__).resolve().parents[1]
+
+
+def test_judges_and_antigravity_rows_are_not_translation_subjects(tmp_path):
+    from ati.config import subjects
+
+    p = write(
+        tmp_path,
+        "m.yaml",
+        "- id: a\n  runner: api\n  model: x\n"
+        "- id: j\n  role: judge\n  runner: api\n  model: y\n"
+        "- id: g\n  runner: agy\n  model: gemini-x\n",
+    )
+    assert [m.id for m in subjects(load_models(p))] == ["a"]
+
+
+def test_an_unknown_role_is_refused(tmp_path):
+    p = write(tmp_path, "m.yaml", "- id: a\n  role: referee\n  runner: api\n  model: x\n")
+    with pytest.raises(ConfigError, match="role"):
+        load_models(p)
+
+
+@pytest.mark.parametrize("bad", ["a:b", "a?b", "a*b", "a|b", 'a"b'])
+def test_an_id_that_cannot_be_a_windows_file_name_is_refused(tmp_path, bad):
+    p = write(tmp_path, "m.yaml", f"- id: '{bad}'\n  runner: api\n  model: x\n")
+    with pytest.raises(ConfigError, match="Windows"):
+        load_models(p)
+
+
+def test_unknown_keys_in_ati_yaml_are_refused(tmp_path):
+    from ati.config import load_defaults
+
+    p = write(tmp_path, "ati.yaml", "judge-model: x\n")
+    with pytest.raises(ConfigError, match="unknown key"):
+        load_defaults(p)
+
+
+def test_the_real_roster_loads_and_its_judges_are_not_subjects():
+    """`ati run` with no --model would otherwise translate through the judges -
+    gemini-judge through Antigravity on the operator's own account."""
+    from ati.config import load_defaults, subjects
+
+    roster = load_models(REPO / "config" / "models.yaml")
+    ids = {m.id for m in subjects(roster)}
+    assert "gemini-judge" not in ids and "sonnet-judge" not in ids
+    assert len(ids) == 20
+    defaults = load_defaults(REPO / "config" / "ati.yaml")
+    judge = next(m for m in roster if m.id == defaults["judge_model"])
+    assert judge.runner == "agy" and judge.role == "judge"
