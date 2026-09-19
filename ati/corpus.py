@@ -1,7 +1,10 @@
 """Corpus manifest handling.
 
 The manifest stores pointers and hashes only - never source text. Passage
-text lives in a gitignored local directory rebuilt by `ati fetch`.
+text lives in a gitignored local directory, corpus/passages/, written by
+`ati add`. Nothing downloads it: to restore it, run `ati add` again on the
+original source files with the same options, and every file that reproduces
+its manifest hash is written back. `ati fetch` only verifies.
 """
 
 from __future__ import annotations
@@ -31,8 +34,12 @@ class Passage:
     end: int
     sha256: str
     has_reference: bool
+    # Chapter order within a work. Recorded for consistency tasks; nothing
+    # reads it for scoring, it is the machine-readable record of the order.
     series: str | None = None
     series_index: int | None = None
+    # The file `ati add` read, which is what restoring the text needs.
+    source_file: str | None = None
 
 
 def sha256_text(text: str) -> str:
@@ -61,6 +68,7 @@ def load_manifest(path: Path) -> list[Passage]:
                 has_reference=bool(entry["has_reference"]),
                 series=entry.get("series"),
                 series_index=entry.get("series_index"),
+                source_file=entry.get("source_file"),
             )
         )
     return passages
@@ -74,7 +82,9 @@ def load_passage(root: Path, passage: Passage) -> str:
     path = passage_path(root, passage.id)
     if not path.exists():
         raise PassageMissing(
-            f"{passage.id}: not fetched. Run `ati fetch` to rebuild the corpus."
+            f"{passage.id}: no local text at {path}. Restore it by running "
+            f"`ati add` on the original source file with the same options; "
+            f"`ati fetch` lists what is missing."
         )
     text = path.read_text(encoding="utf-8")
     actual = sha256_text(text)

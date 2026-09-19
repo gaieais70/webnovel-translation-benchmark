@@ -257,6 +257,40 @@ def test_bench_stops_when_fetch_reports_missing_passages(tmp_path, monkeypatch, 
     out = capsys.readouterr().out
     assert "MISSING" in out
     assert "stopping" in out.lower()
+    # It says how to get the text back, and no longer promises a rebuild.
+    assert "run `ati add` again on the original source" in out
+
+
+def test_fetch_restore_round_trip(tmp_path, monkeypatch, capsys):
+    """Verify, lose the text, re-add the same file, verify again."""
+    monkeypatch.chdir(tmp_path)
+    raw = tmp_path / "raw" / "ch1.txt"
+    raw.parent.mkdir()
+    raw.write_text("云澈抬起头。" * 40, encoding="utf-8")
+    add = [
+        "add", str(raw), "--work", "sky", "--lang", "zh", "--genre", "x",
+        "--type", "consistency", "--url", "u",
+    ]
+    assert main(add) == 0
+    assert main(["fetch"]) == 0
+    (tmp_path / "corpus" / "passages" / "sky-ch01.txt").unlink()
+    assert main(["fetch"]) == 1
+    assert "MISSING  sky-ch01  from ch1.txt" in capsys.readouterr().out
+    assert main(add) == 0
+    assert "restored   sky-ch01" in capsys.readouterr().out
+    assert main(["fetch"]) == 0
+
+
+def test_fetch_fails_when_a_promised_reference_is_missing(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    raw = tmp_path / "ch1.txt"
+    raw.write_text("云澈抬起头。" * 40, encoding="utf-8")
+    assert main([
+        "add", str(raw), "--work", "sky", "--lang", "zh", "--genre", "x",
+        "--type", "consistency", "--url", "u", "--reference",
+    ]) == 0
+    assert main(["fetch"]) == 1
+    assert "NO REFERENCE  sky-ch01" in capsys.readouterr().out
 
 
 def test_build_runner_returns_agy_runner_for_agy_models(tmp_path):

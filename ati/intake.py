@@ -31,6 +31,7 @@ class IntakeError(Exception):
 class IntakeResult:
     added: list[str] = field(default_factory=list)
     unchanged: list[str] = field(default_factory=list)
+    restored: list[str] = field(default_factory=list)
     task_id: str = ""
 
 
@@ -193,7 +194,20 @@ def add_files(
         existing = by_source.get(source.name)
         if existing is not None:
             if existing["sha256"] == digest:
-                result.unchanged.append(existing["id"])
+                # The manifest already has it. If the local passage text is
+                # missing or damaged, this source reproduces it exactly - the
+                # hash just proved so - and this is the only way a fresh
+                # clone or a wiped corpus directory gets its text back.
+                target = passage_path(corpus_root, existing["id"])
+                try:
+                    intact = sha256_text(target.read_text(encoding="utf-8")) == digest
+                except OSError:
+                    intact = False
+                if intact:
+                    result.unchanged.append(existing["id"])
+                else:
+                    write_text_atomic(target, text)
+                    result.restored.append(existing["id"])
                 continue
             raise IntakeError(
                 f"{existing['id']}: already registered from {source.name} with "
@@ -238,7 +252,7 @@ def add_files(
     # have entries here that this call knows nothing about.
     tasks = _load_tasks(tasks_path)
     task = next((t for t in tasks if t.get("id") == result.task_id), None)
-    ids = result.added + result.unchanged
+    ids = result.added + result.unchanged + result.restored
     if task is None:
         tasks.append({"id": result.task_id, "type": kind, "passages": list(ids)})
     else:

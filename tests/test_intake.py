@@ -257,3 +257,38 @@ def test_chars_zero_takes_the_whole_file(tmp_path):
     call(tmp_path, [f], kind="passage", chars=0)
     entry = read_manifest(tmp_path)["passages"][0]
     assert entry["end"] > 800
+
+
+def test_re_adding_the_source_restores_missing_passage_text(tmp_path):
+    """A fresh clone has the manifest but no passage text, and re-adding the
+    same files used to be a no-op for anything already registered."""
+    f = write_raw(tmp_path, "ch1.txt", "云澈抬起头，看着天空。" * 20)
+    first = call(tmp_path, [f], kind="consistency")
+    pid = first.added[0]
+    target = passage_path(tmp_path / "corpus", pid)
+    original = target.read_text(encoding="utf-8")
+    manifest_before = read_manifest(tmp_path)
+
+    target.unlink()
+    result = call(tmp_path, [f], kind="consistency")
+    assert result.restored == [pid] and result.added == [] and result.unchanged == []
+    assert target.read_text(encoding="utf-8") == original
+    assert read_manifest(tmp_path) == manifest_before
+
+
+def test_re_adding_repairs_damaged_passage_text(tmp_path):
+    f = write_raw(tmp_path, "ch1.txt", "云澈抬起头，看着天空。" * 20)
+    pid = call(tmp_path, [f], kind="consistency").added[0]
+    target = passage_path(tmp_path / "corpus", pid)
+    target.write_text("tampered", encoding="utf-8")
+    assert call(tmp_path, [f], kind="consistency").restored == [pid]
+    assert sha256_text(target.read_text(encoding="utf-8")) == (
+        read_manifest(tmp_path)["passages"][0]["sha256"]
+    )
+
+
+def test_an_intact_passage_is_reported_unchanged_not_restored(tmp_path):
+    f = write_raw(tmp_path, "ch1.txt", "云澈抬起头，看着天空。" * 20)
+    call(tmp_path, [f], kind="consistency")
+    result = call(tmp_path, [f], kind="consistency")
+    assert result.unchanged and not result.restored

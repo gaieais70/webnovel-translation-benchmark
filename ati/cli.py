@@ -176,22 +176,27 @@ def cmd_add(args) -> int:
         print(f"  added      {pid}")
     for pid in result.unchanged:
         print(f"  unchanged  {pid}")
+    for pid in result.restored:
+        print(f"  restored   {pid}  (passage text rewritten; matches the manifest hash)")
     print(
-        f"{len(result.added)} added, {len(result.unchanged)} unchanged; "
+        f"{len(result.added)} added, {len(result.unchanged)} unchanged, "
+        f"{len(result.restored)} restored; "
         f"task '{result.task_id}' updated in {args.tasks}"
     )
     return 0
 
 
 def cmd_fetch(args) -> int:
-    """Verify local corpus against the manifest.
+    """Verify the local corpus against the manifest. It downloads nothing.
 
     Automatic downloading is deliberately not implemented: sources vary and
-    scraping them is the operator's decision, not the tool's. This reports
-    what is missing or changed so the operator can act.
+    scraping them is the operator's decision, not the tool's. Passage text is
+    restored by running `ati add` again on the original source files with
+    the same options; a file that reproduces the manifest hash is written
+    back. This reports what is missing or changed, and how to get it back.
     """
     passages = load_manifest(Path(args.manifest))
-    missing, changed, ok = [], [], 0
+    missing, changed, no_reference, ok = [], [], [], 0
     for p in passages:
         try:
             load_passage(Path(args.corpus), p)
@@ -200,15 +205,29 @@ def cmd_fetch(args) -> int:
             missing.append(p)
         except HashMismatch:
             changed.append(p)
+        if p.has_reference and not (
+            Path(args.corpus) / "references" / f"{p.id}.txt"
+        ).exists():
+            no_reference.append(p)
 
     print(f"verified: {ok}/{len(passages)}")
     for p in missing:
-        print(f"  MISSING  {p.id}  {p.source_url} chapter {p.chapter} "
-              f"chars {p.start}-{p.end} -> {passage_path(Path(args.corpus), p.id)}")
+        source = f"from {p.source_file} " if p.source_file else ""
+        print(f"  MISSING  {p.id}  {source}({p.source_url} chapter {p.chapter}, "
+              f"chars {p.start}-{p.end}) -> {passage_path(Path(args.corpus), p.id)}")
     for p in changed:
-        print(f"  CHANGED  {p.id}  source no longer matches manifest hash; "
+        print(f"  CHANGED  {p.id}  local text no longer matches the manifest hash; "
               "this passage is unavailable for scoring")
-    return 0 if not missing and not changed else 1
+    for p in no_reference:
+        print(f"  NO REFERENCE  {p.id}  has_reference is set but "
+              f"{Path(args.corpus) / 'references' / f'{p.id}.txt'} is missing")
+    if missing or changed:
+        print(
+            "To restore passage text, run `ati add` again on the original source "
+            "files with the same --work, --type, --chars (and --keep-headers if "
+            "used): each file that reproduces its manifest hash is written back."
+        )
+    return 0 if not missing and not changed and not no_reference else 1
 
 
 def select_models(roster: list[ModelConfig], requested: list[str] | None):
