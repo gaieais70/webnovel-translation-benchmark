@@ -1,0 +1,12 @@
+{
+  "a": "gemini-3.8-flash",
+  "b": "glm-5.2",
+  "passage_id": "hwasan-ch03",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "14e65917429287474d9e5b378add32637f6c2fb89675aeaa6e7b73faff035013",
+  "sha_b": "fc37551f21a6a5b4c91d352c04376d2879cda5c3bdeb36acae609285f66e65c0"
+}

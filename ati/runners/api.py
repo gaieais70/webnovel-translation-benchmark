@@ -293,13 +293,19 @@ class ApiRunner:
         return b"".join(chunks)
 
     def _run_once(self, system_prompt: str, source_text: str) -> RunResult:
+        # An empty system message is omitted, not sent empty. The judge stages
+        # pass "" and carry everything in the user turn; xAI answers HTTP 400
+        # "system message must have content" to the empty one, which made every
+        # API-routed judge fail before it judged anything. The Gemini judge
+        # never hit it: the agy runner concatenates the two instead.
+        messages = []
+        if system_prompt and system_prompt.strip():
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": source_text})
         payload = {
             "model": self._model,
             "temperature": self._temperature,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": source_text},
-            ],
+            "messages": messages,
         }
         # No max_tokens unless the roster row sets one in `params`; absent, the
         # provider's own default applies. Merged last so a roster entry can set

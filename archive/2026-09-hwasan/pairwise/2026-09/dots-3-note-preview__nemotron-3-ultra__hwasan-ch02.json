@@ -1,0 +1,12 @@
+{
+  "a": "dots-3-note-preview",
+  "b": "nemotron-3-ultra",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "21c69b31baca4958adaff4107030fc6ad783208ca05bd8fc87f946f026209258",
+  "sha_b": "6510142ac1088344ce20ac3a80a66e0dd0a8bf5d3580ac51224271a184e56a4f"
+}

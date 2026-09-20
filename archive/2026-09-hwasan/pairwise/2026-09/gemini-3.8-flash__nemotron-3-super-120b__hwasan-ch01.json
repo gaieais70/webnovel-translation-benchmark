@@ -1,0 +1,12 @@
+{
+  "a": "gemini-3.8-flash",
+  "b": "nemotron-3-super-120b",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "36aa9ecd0123b6bfc6f2c1592404aff166a9dbeb373ac8ecaa740fb15973abc3",
+  "sha_b": "031d5683584f247e5380cb5aeb37b15c523bee69bd2d8aa9f7b9e41f4e727ea7"
+}

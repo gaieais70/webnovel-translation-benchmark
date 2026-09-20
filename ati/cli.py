@@ -449,7 +449,15 @@ def cmd_pairwise(args) -> int:
         json_schema=args.pairwise_schema,
     )
     declared = load_models(Path(args.models))
-    pool = [m.id for m in select_models(declared, args.model) if m.runner != "agy"]
+    # Every non-judge row, whatever route produced it. `subjects()` also drops
+    # Antigravity rows, because a translation run there spends the operator's
+    # own Gemini quota - but this stage spends nothing on the route that wrote
+    # the translation: it reads text already on disk and pays only the judge.
+    # Excluding agy rows here left gemini-3.8-flash out of run 2026-09's
+    # head-to-head entirely, which is exactly the row that needed checking:
+    # the rubric judge is its own family.
+    chosen = select_models(declared, args.model) if args.model else declared
+    pool = [m.id for m in chosen if m.role != "judge"]
 
     passages = {p.id: p for p in load_manifest(Path(args.manifest))}
     template = Path(args.pairwise_prompt).read_text(encoding="utf-8")

@@ -1,0 +1,12 @@
+{
+  "a": "gemini-3.8-flash",
+  "b": "laguna-s-2.1",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "36aa9ecd0123b6bfc6f2c1592404aff166a9dbeb373ac8ecaa740fb15973abc3",
+  "sha_b": "147e2cb3f1cd21e5bf38b750784a4ae6367b869e696f38bc29161a8744a16e23"
+}

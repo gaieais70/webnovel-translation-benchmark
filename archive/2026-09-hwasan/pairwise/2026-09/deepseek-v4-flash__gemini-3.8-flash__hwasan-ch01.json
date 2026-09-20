@@ -1,0 +1,12 @@
+{
+  "a": "deepseek-v4-flash",
+  "b": "gemini-3.8-flash",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "a9674f2c6cafa20344af8d1396d6c6d05008ac7a3c2e722d9c25751a61b88a6b",
+  "sha_b": "36aa9ecd0123b6bfc6f2c1592404aff166a9dbeb373ac8ecaa740fb15973abc3"
+}

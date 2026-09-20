@@ -883,3 +883,30 @@ def test_the_runner_defaults_come_from_the_one_timeout_constant():
     runner = ApiRunner("http://x", "m", "k", 0.3)
     assert runner._client.timeout.read == DEFAULT_TIMEOUT_S
     assert runner._client.timeout.connect == 60.0
+
+
+def test_an_empty_system_prompt_is_omitted_not_sent_empty():
+    """The judge stages pass ""; xAI rejects an empty system message with
+    HTTP 400 "system message must have content"."""
+    seen = {}
+
+    def handler(request):
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    ApiRunner("http://x", "m", "k", 0.0, client=client).run("", "judge this")
+    assert [m["role"] for m in seen["messages"]] == ["user"]
+
+
+def test_a_real_system_prompt_is_still_sent():
+    seen = {}
+
+    def handler(request):
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    ApiRunner("http://x", "m", "k", 0.0, client=client).run("SYSTEM", "source")
+    assert [m["role"] for m in seen["messages"]] == ["system", "user"]
+    assert seen["messages"][0]["content"] == "SYSTEM"

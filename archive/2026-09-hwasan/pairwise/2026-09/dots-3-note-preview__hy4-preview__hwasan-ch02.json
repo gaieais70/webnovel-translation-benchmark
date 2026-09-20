@@ -1,0 +1,12 @@
+{
+  "a": "dots-3-note-preview",
+  "b": "hy4-preview",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "21c69b31baca4958adaff4107030fc6ad783208ca05bd8fc87f946f026209258",
+  "sha_b": "e7beda24b93b99a543965b490da7f67977961e81e75133b812d18a31c9b4c5a6"
+}

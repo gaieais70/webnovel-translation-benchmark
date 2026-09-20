@@ -1,0 +1,12 @@
+{
+  "a": "laguna-s-2.1",
+  "b": "muse-spark-1.3-contributor",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "147e2cb3f1cd21e5bf38b750784a4ae6367b869e696f38bc29161a8744a16e23",
+  "sha_b": "1ccb315814777d3c0153632bbdea5828f9629cdfb5df848ff2a3697100d11c00"
+}

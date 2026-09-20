@@ -1,0 +1,12 @@
+{
+  "a": "gpt-5.6-luna",
+  "b": "hy4-preview",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "ca1b79debb7ac1e9edd3eec7782d6cf17c2860603c522bd31b766bb4e1db56da",
+  "sha_b": "e7beda24b93b99a543965b490da7f67977961e81e75133b812d18a31c9b4c5a6"
+}

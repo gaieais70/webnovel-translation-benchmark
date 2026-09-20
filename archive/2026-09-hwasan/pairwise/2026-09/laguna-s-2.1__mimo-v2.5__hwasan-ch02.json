@@ -1,0 +1,12 @@
+{
+  "a": "laguna-s-2.1",
+  "b": "mimo-v2.5",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "c994f4c49c6dba9fc46514e0c2df81e019a28aabec5faae1264598aae028abe4",
+  "sha_b": "c5a605ffc7b251d26900dd4f30a07de4b98c94ea3a5cce43cbcb136ad9a097d5"
+}

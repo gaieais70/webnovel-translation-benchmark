@@ -1,8 +1,10 @@
 # Run notes — `2026-09`
 
-Operational findings from run `2026-09`: twenty models translating eleven
-consecutive chapters of 화산귀환 (*Return of the Mount Hua Sect*, chapters
-410–420, Korean → English), judged by Gemini through Antigravity. Everything
+Operational findings from run `2026-09`: twenty-three models translating
+eleven consecutive chapters of 화산귀환 (*Return of the Mount Hua Sect*,
+chapters 410–420, Korean → English), judged by Gemini through Antigravity.
+Twenty were scored first; three more were added on 2026-09-19 under the same
+conditions (§10), and one of them is Gemini itself, which is why §11 exists. Everything
 here is measured, not inferred. Per-call data lives in `runs/` and
 `judgments/`; this file records what the numbers add up to.
 
@@ -288,3 +290,94 @@ fingerprints on new judgments, and input and code fingerprints in
 `ati run` without `--model` would have sent the judge rows through the
 translation stage — including Gemini through Antigravity; judges now carry
 `role: judge` and are never translation subjects.
+
+## 10. Three models added after the first twenty were scored
+
+`muse-spark-1.3-contributor` and `deepseek-v4.1-flash` (Command Code), and
+`gemini-3.8-flash` — Gemini as a translation *subject*, through Antigravity,
+the only route this project reaches Gemini by. Same corpus, prompts, guards
+and judge as the rest of the run; they entered late, nothing else changed.
+All three completed 11/11 with no failures. Gemini was the fastest row in the
+run at 37s per chapter; deepseek-v4.1-flash the slowest of the three at 204s.
+
+Head-to-head was extended from 300 to 445 comparisons so every one of the new
+253 model pairs is covered, and all 33 new outputs were judged on the rubric.
+
+Final ordering (rubric composite, then Bradley-Terry rating):
+
+     1  gemini-3.8-flash            88.0   1229   34-0-0   <- see §11
+     2  gpt-5.6-luna                80.3   1138   26-2-7
+     3  muse-spark-1.2-contributor  79.6   1138   27-3-5
+     4  muse-spark-1.3-contributor  79.3   1071   23-6-10
+     5  deepseek-v4-pro             78.5   1099   25-5-7
+     6  deepseek-v4.1-flash         74.7   1060   23-7-10
+
+Spearman rho between the two methods is 0.978 over all 23 models, maximum
+displacement 4 places. Position bias fell again: the first-shown translation
+won 57% of decisive verdicts (59% at 300 comparisons, 80% in 2026-08); 34 of
+445 comparisons resolved as slot-preference ties and were discarded.
+
+muse-spark 1.3 lands a shade below 1.2 on both measures while writing
+markedly cleaner prose (slop 0.31 against 0.90). deepseek v4.1-flash beats
+v4-flash on the rubric and trails it head to head; both intervals overlap.
+
+## 11. The judge favours its own family - measured, not assumed
+
+gemini-3.8-flash tops both rankings, scored by gemini-3.7-flash-high. That is
+not an independent measurement, and the numbers look like it: a flat 5.0 with
+**zero variance** on five of six axes where no other model exceeds 4.5 on
+accuracy, and 34 head-to-head wins with **no losses and not one tie**, in a
+field where every other leader ties several times.
+
+So the check the methodology has always described was finally run. grok-4.6 -
+not a subject in this run, and no relation to either the judge or the models
+it scores - re-judged the same translations against the same rubric. Composite
+over the judge-scored axes only, so both judges are measured the same way
+(these are not the published composites, which use computed term stability):
+
+    model                 Gemini judge   grok judge   change
+    gemini-3.8-flash            100.0         93.5     -6.5
+    deepseek-v4-pro              90.0         92.6     +2.6
+    gpt-5.6-luna                 90.8         92.0     +1.2
+    deepseek-v4.1-flash          88.3         88.8     +0.5
+
+Both judges rank gemini-3.8-flash first, so the result is not invented. But
+its lead over the next model falls from **+9.2 to +0.9**. The Gemini judge
+gave its own family 5.0 on accuracy and fidelity; the independent judge gave
+4.7 and 4.5, and simultaneously raised gpt-5.6-luna's fidelity from 3.7 to
+4.1 on the same text. About nine tenths of the margin is the judge.
+
+Read the top row as "among the best", not as a nine-point lead. The
+leaderboard and the published page both carry that warning.
+
+**Scope, and what is still owed.** Four models, 44 judgments, one independent
+judge, rubric only. The remaining three models and an independent head-to-head
+pass stopped when Command Code's **weekly** limit was reached (resets
+2026-09-21 21:40 local); 2 of 20 independent comparisons exist. Both resume
+with the same commands, against the partial results kept in
+`judgments/secondary/2026-09/` and `pairwise/secondary/2026-09/`:
+
+    python -m ati.cli judge --run 2026-09 --judge-model grok-judge         --runs <snapshot of the seven models' runs>         --judgments judgments/secondary --wait
+    python -m ati.cli pairwise --run 2026-09 --judge-model grok-judge         --pairwise pairwise/secondary --target 20 --max-comparisons 10 --wait         --model gemini-3.8-flash --model gpt-5.6-luna         --model muse-spark-1.2-contributor --model deepseek-v4-pro --model hy3
+
+Until they run, the cross-judge evidence covers the top four models on the
+rubric only.
+
+## 12. Harness defects found while adding the three models
+
+- **`ati run` with no `--model` would have translated through the judges** -
+  including Gemini on the operator's own Antigravity account. Only the
+  explicit model lists in the lane scripts prevented it. Judges now carry
+  `role: judge`, agy rows are never subjects unless named, and a test asserts
+  both.
+- **No API-routed judge could ever have worked.** The judge stages pass an
+  empty system prompt, and xAI answers HTTP 400 "system message must have
+  content". The empty message is now omitted. The Gemini judge never hit this:
+  the agy runner concatenates system and user text.
+- **`sonnet-judge` has never been usable.** Command Code serves Claude only on
+  `/provider/v1/messages` in the Anthropic Messages shape; this harness speaks
+  the OpenAI-compatible shape. It is kept declared, with a note.
+- **The head-to-head pool excluded agy rows**, so gemini-3.8-flash - the row
+  most in need of checking - was left out of the comparison stage entirely.
+  Comparing a translation costs judge calls, not the route that wrote it, so
+  the pool is now every non-judge row.

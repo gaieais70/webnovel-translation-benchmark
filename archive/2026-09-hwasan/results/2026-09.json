@@ -2,9 +2,9 @@
   "run_id": "2026-09",
   "metadata": {
     "judge_id": "gemini-judge",
-    "date": "2026-09-19",
+    "date": "2026-09-20",
     "inputs": {
-      "models": "7c7808f8251b4f90e61daf798485414ac5855b29e3d4c25e6c6954cc36c37fc4",
+      "models": "a889c7a6032fc8bc9d318994e762db477e00716897092eff3c1576e446e9b4da",
       "weights": "afb5c698ea565900c370eeb82e75afac581d2abd0dcc3038af6d0315b94fd887",
       "tasks": "625461c5080c47d7ab710b501a3934d0357713494739f1958f7d3d3c0282a3e2",
       "manifest": "5abc050ba298775eb78ecf5d83894ff5dd6051c7a066271e7c403c75e892c4e6",
@@ -16,7 +16,7 @@
       "slop_list": "e3b8465dbc08c3d5747905e88775648c9bfb297c04bf1bee41f27470ec163a11",
       "defaults": "a21892b6d39e98dd8f0e4b0dbdfe6e24f39b95f2114f59d9054748f31e1e0133"
     },
-    "code": "d98bc7c9f91ea271",
+    "code": "e453202a72633783",
     "judge_fingerprints": {
       "rubric": "0d9a96352a305529",
       "pairwise": "4c3d3c5b48b908ce"
@@ -24,9 +24,9 @@
     "pending_judgments": 0,
     "anchor_baseline": null,
     "pairwise_coverage": {
-      "comparisons": 300,
-      "pairs": 190,
-      "possible_pairs": 190
+      "comparisons": 445,
+      "pairs": 253,
+      "possible_pairs": 253
     }
   },
   "weights": {
@@ -40,6 +40,38 @@
   "anchor_drift": {},
   "comparable": true,
   "results": [
+    {
+      "model_id": "gemini-3.8-flash",
+      "composite": 87.95918367346938,
+      "axis_means": {
+        "accuracy": 5.0,
+        "terminology": 2.5918367346938775,
+        "register": 5.0,
+        "fluency": 5.0,
+        "fidelity": 5.0,
+        "sanitization": 5.0
+      },
+      "axis_stdevs": {
+        "accuracy": 0.0,
+        "terminology": 0.0,
+        "register": 0.0,
+        "fluency": 0.0,
+        "fidelity": 0.0,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": null,
+      "speed_per_1k": 4.949308725038402,
+      "value": null,
+      "slop": 0.5497526113249038,
+      "repetition": 0.10750438526783775,
+      "judge_errors": 0,
+      "failed_tasks": 0,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false,
+      "refused_tasks": 0
+    },
     {
       "model_id": "gpt-5.6-luna",
       "composite": 80.28225806451613,
@@ -105,6 +137,38 @@
       "refused_tasks": 0
     },
     {
+      "model_id": "muse-spark-1.3-contributor",
+      "composite": 79.33794466403161,
+      "axis_means": {
+        "accuracy": 4.2727272727272725,
+        "terminology": 1.9130434782608696,
+        "register": 5.0,
+        "fluency": 4.909090909090909,
+        "fidelity": 4.909090909090909,
+        "sanitization": 5.0
+      },
+      "axis_stdevs": {
+        "accuracy": 0.4453617714151233,
+        "terminology": 0.616575453011388,
+        "register": 0.0,
+        "fluency": 0.28747978728803447,
+        "fidelity": 0.28747978728803447,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": null,
+      "speed_per_1k": 12.914550641938392,
+      "value": null,
+      "slop": 0.30952299067991884,
+      "repetition": 0.10975537627647843,
+      "judge_errors": 0,
+      "failed_tasks": 0,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false,
+      "refused_tasks": 0
+    },
+    {
       "model_id": "deepseek-v4-pro",
       "composite": 78.47439916405435,
       "axis_means": {
@@ -129,6 +193,38 @@
       "value": null,
       "slop": 0.7514687798879628,
       "repetition": 0.10887267860721224,
+      "judge_errors": 0,
+      "failed_tasks": 0,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false,
+      "refused_tasks": 0
+    },
+    {
+      "model_id": "deepseek-v4.1-flash",
+      "composite": 74.74521531100478,
+      "axis_means": {
+        "accuracy": 3.909090909090909,
+        "terminology": 1.9263157894736842,
+        "register": 4.818181818181818,
+        "fluency": 4.818181818181818,
+        "fidelity": 4.545454545454546,
+        "sanitization": 5.0
+      },
+      "axis_stdevs": {
+        "accuracy": 0.7925270806437589,
+        "terminology": 0.6428243465332251,
+        "register": 0.38569460791993504,
+        "fluency": 0.38569460791993504,
+        "fidelity": 0.7820295697311479,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": null,
+      "speed_per_1k": 27.067000441761945,
+      "value": null,
+      "slop": 0.5280760429501848,
+      "repetition": 0.10509955712178475,
       "judge_errors": 0,
       "failed_tasks": 0,
       "total_tasks": 11,

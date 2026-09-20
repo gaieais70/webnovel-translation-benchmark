@@ -574,3 +574,36 @@ def test_the_rubric_stage_gives_the_judge_the_rubric_schema(tmp_path, monkeypatc
         "--judge-prompt", str(prompt), "--defaults", str(tmp_path / "none.yaml"),
     ])
     assert seen["json_schema"] == "config/schemas/judgment.json"
+
+
+def test_the_head_to_head_pool_includes_an_antigravity_subject(tmp_path, monkeypatch):
+    """Comparing a translation costs judge calls, not the route that wrote it.
+    Excluding agy rows left run 2026-09's rubric leader out of the head-to-head."""
+    import ati.cli as cli
+
+    seen = {}
+
+    def fake_run_pairwise(**kwargs):
+        seen.update(kwargs)
+        return 0
+
+    monkeypatch.setattr(cli, "run_pairwise", fake_run_pairwise)
+    monkeypatch.setattr(cli, "build_judge_runner", lambda *a, **k: object())
+    models = tmp_path / "models.yaml"
+    models.write_text(
+        "- id: api-subject\n  runner: api\n  model: x/y\n"
+        "- id: gemini-subject\n  runner: agy\n  model: gemini-3.8-flash-high\n"
+        "- id: gemini-judge\n  runner: agy\n  role: judge\n  model: gemini-3.7-flash-high\n",
+        encoding="utf-8",
+    )
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text('{"methodology_version": 1, "passages": []}', encoding="utf-8")
+    prompt = tmp_path / "p.md"
+    prompt.write_text("T", encoding="utf-8")
+    cli.main([
+        "pairwise", "--run", "r", "--models", str(models), "--manifest", str(manifest),
+        "--pairwise-prompt", str(prompt), "--defaults", str(tmp_path / "none.yaml"),
+        "--pairwise", str(tmp_path / "pw"), "--runs", str(tmp_path / "runs"),
+    ])
+    assert "gemini-subject" in seen["models"]
+    assert "gemini-judge" not in seen["models"]

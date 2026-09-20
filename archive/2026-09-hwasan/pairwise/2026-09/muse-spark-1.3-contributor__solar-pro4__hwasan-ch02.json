@@ -1,0 +1,12 @@
+{
+  "a": "muse-spark-1.3-contributor",
+  "b": "solar-pro4",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "c060b22062c87957037cb674f9c06dcd81df33a4489c15c84d80ecac65e360ee",
+  "sha_b": "4aaf841729533c1cca09a4421b4f237835b31e9e36ba5ebea311ce6051278b33"
+}

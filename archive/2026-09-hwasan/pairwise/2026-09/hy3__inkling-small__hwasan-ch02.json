@@ -1,0 +1,12 @@
+{
+  "a": "hy3",
+  "b": "inkling-small",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "fb08a9cd624abfa651579279e88e95c4d3b66a4619cd071db2c62fe6801fbaa2",
+  "sha_b": "b8002227c0a8d4d522adab4ec7e1fb7aced487c5da153b0abaf282214ef82280"
+}

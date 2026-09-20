@@ -351,7 +351,15 @@ def test_the_real_roster_loads_and_its_judges_are_not_subjects():
     roster = load_models(REPO / "config" / "models.yaml")
     ids = {m.id for m in subjects(roster)}
     assert "gemini-judge" not in ids and "sonnet-judge" not in ids
-    assert len(ids) == 20
+    # Every judge row is excluded, and so is every agy row: reaching Gemini
+    # costs the operator's own Antigravity quota, so an agy subject runs only
+    # when it is named with --model. Asserted as the rule rather than a count,
+    # which a new roster row would break for no reason.
+    assert ids == {
+        m.id for m in roster if m.role != "judge" and m.runner != "agy"
+    }
+    assert any(m.runner == "agy" and m.role != "judge" for m in roster)
+    assert len(ids) >= 20
     defaults = load_defaults(REPO / "config" / "ati.yaml")
     judge = next(m for m in roster if m.id == defaults["judge_model"])
     assert judge.runner == "agy" and judge.role == "judge"

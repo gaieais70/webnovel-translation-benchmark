@@ -1,0 +1,12 @@
+{
+  "a": "muse-spark-1.3-contributor",
+  "b": "nemotron-3-ultra",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "tie",
+  "outcome": "tie",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "1ccb315814777d3c0153632bbdea5828f9629cdfb5df848ff2a3697100d11c00",
+  "sha_b": "58e8f5ae4633c7236178fcd7928350ff8beff5ff69a29a531efbb8796501d620"
+}

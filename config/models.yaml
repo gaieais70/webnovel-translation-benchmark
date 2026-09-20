@@ -64,6 +64,45 @@
   params:
     reasoning_effort: max
 
+# Added 2026-09-19, after the first twenty rows were scored. Same corpus,
+# prompts, judge and guards as the rest of the run, so they are comparable
+# within it; they simply entered late.
+- id: muse-spark-1.3-contributor
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: meta/muse-spark-1.3-contributor
+  params:
+    reasoning_effort: max
+
+- id: deepseek-v4.1-flash
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: deepseek/deepseek-v4.1-flash
+  params:
+    reasoning_effort: max
+
+# Gemini as a translation SUBJECT, through Antigravity - the only route this
+# project reaches Gemini by. Two things follow from that and are disclosed in
+# the report rather than corrected:
+#   - The judge (gemini-3.7-flash-high) is the same model family. Self-
+#     preference is possible; it is not the same model, but it is not
+#     independent either.
+#   - agy is an agent, so this row's prompt carries the no-tools line every
+#     agy call carries (ati/runners/agy.py). No other row is told that.
+# It shares the operator's Antigravity quota with the judge, and the CallGate
+# serializes the two: a translation and a judge call never run at once.
+# `ati run` never runs an agy row unless it is named with --model.
+- id: gemini-3.8-flash
+  runner: agy
+  model: gemini-3.8-flash-high
+  sandbox: true
+  # Chapters take longer than judgments: the judge row uses 480s.
+  timeout_s: 900
+
 - id: mimo-v2.5
   runner: api
   endpoint: https://api.commandcode.ai/provider/v1/chat/completions
@@ -286,12 +325,32 @@
 # `role: judge` keeps both rows out of `ati run` and the head-to-head pool: they
 # are judges, not translation subjects. (An agy row is never a subject unless
 # named with --model, whatever its role.)
+# UNUSABLE as configured, found 2026-09-19: Command Code serves Claude only on
+# /provider/v1/messages in the Anthropic Messages shape, and this harness speaks
+# the OpenAI-compatible /chat/completions shape. It answers HTTP 400
+# "must be called via /provider/v1/messages". Kept declared so the next attempt
+# starts from this note; using it needs a Messages-shaped runner.
 - id: sonnet-judge
   role: judge
   runner: api
   endpoint: https://api.commandcode.ai/provider/v1/chat/completions
   api_key_env: COMMANDCODE_API_KEY
   model: claude-sonnet-5
+  json_schema: config/schemas/judgment.json
+
+# Secondary judge, for the self-preference check the methodology describes.
+# Deliberately a family that is in neither the judge's nor any subject's
+# lineage: the primary judge is Gemini and gemini-3.8-flash is now a subject,
+# so a Gemini judge cannot settle whether that row's scores are earned. grok is
+# not a subject in this run. Default reasoning effort: this judges a sample for
+# comparison, not the whole run.
+- id: grok-judge
+  role: judge
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: xai/grok-4.6
   json_schema: config/schemas/judgment.json
 
 # Gemini, through the Antigravity CLI on the operator's own Google account and

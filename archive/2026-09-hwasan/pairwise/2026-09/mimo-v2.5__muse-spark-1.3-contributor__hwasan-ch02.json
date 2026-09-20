@@ -1,0 +1,12 @@
+{
+  "a": "mimo-v2.5",
+  "b": "muse-spark-1.3-contributor",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "c5a605ffc7b251d26900dd4f30a07de4b98c94ea3a5cce43cbcb136ad9a097d5",
+  "sha_b": "c060b22062c87957037cb674f9c06dcd81df33a4489c15c84d80ecac65e360ee"
+}
