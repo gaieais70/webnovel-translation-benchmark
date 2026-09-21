@@ -494,3 +494,51 @@ def test_a_torn_run_file_is_skipped_and_the_stage_carries_on(tmp_path, capsys):
     assert not judgment_output_path(
         tmp_path / "judgments", "r1", "m1", "t.cn-01.1"
     ).exists()
+
+
+def seed_second_model(tmp_path, passage, model_id="m2", instance_id="t.cn-01.0"):
+    """A second model's output for the same passage."""
+    payload = {
+        "model_id": model_id,
+        "task_id": "t",
+        "task_type": "passage",
+        "passage_id": passage.id,
+        "iteration": 0,
+        "text": "Another English output",
+        "source_chars": 3,
+        "latency_s": 1.0,
+        "tokens_in": 10,
+        "tokens_out": 5,
+        "cost_usd": 0.001,
+        "refused": False,
+        "unavailable": False,
+        "error": None,
+    }
+    out = run_output_path(tmp_path / "runs", "r1", model_id, instance_id)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def test_models_limits_judging_to_the_named_models(tmp_path):
+    """`--model` reached the parser but never judge_run, so scoping a pass to
+    one model judged the whole run - on an Antigravity judge, that spends the
+    operator's own Gemini quota on work nobody asked for."""
+    p = seed_run(tmp_path)
+    seed_second_model(tmp_path, p)
+    runner = FakeRunner(responses=[valid_judge_reply()] * 4)
+
+    count = judge_run(**common_args(tmp_path, p, runner), models={"m2"})
+
+    assert count == 1
+    assert judgment_output_path(tmp_path / "judgments", "r1", "m2", "t.cn-01.0").exists()
+    assert not judgment_output_path(
+        tmp_path / "judgments", "r1", "m1", "t.cn-01.0"
+    ).exists()
+
+
+def test_models_none_judges_every_model(tmp_path):
+    p = seed_run(tmp_path)
+    seed_second_model(tmp_path, p)
+    runner = FakeRunner(responses=[valid_judge_reply()] * 4)
+
+    assert judge_run(**common_args(tmp_path, p, runner), models=None) == 2

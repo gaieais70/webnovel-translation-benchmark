@@ -159,12 +159,19 @@ def judge_run(
     force: bool = False,
     judge_fingerprint: str | None = None,
     on_stop=None,
+    models: set[str] | None = None,
 ) -> int:
     """Judge every run output without a current judgment. Returns how many.
 
     `on_stop`, if given, is called with the reason when the stage stops
     before the end - a usage limit, an unreachable judge, a judge answering
     in the wrong shape - so a caller can wait and resume (see ati/waiting.py).
+
+    `models` limits the stage to those model ids. `--model` reached the
+    argument parser but never this function, so scoping a judging pass to one
+    model silently judged the whole run instead - which on an Antigravity
+    judge means spending the operator's own Gemini quota on work nobody asked
+    for. None means every model, which is what an unscoped run wants.
     """
     stop = on_stop or (lambda _reason: None)
     run_dir = Path(runs_root) / run_id
@@ -175,6 +182,8 @@ def judge_run(
         sorted(run_dir.rglob("*.json")), required=RUN_RECORD_KEYS
     ):
         model_id = run_data["model_id"]
+        if models is not None and model_id not in models:
+            continue
         instance_id = run_file.stem
 
         out_path = judgment_output_path(

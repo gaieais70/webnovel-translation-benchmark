@@ -412,6 +412,16 @@ def cmd_judge(args) -> int:
     )
     print(f"judge {args.judge_model}, fingerprint {fingerprint}")
 
+    # --model is a common argument, so it reaches every stage; before this it
+    # was accepted and ignored here.
+    judge_scope = (
+        {m.id for m in select_models(load_models(Path(args.models)), args.model)}
+        if args.model
+        else None
+    )
+    if judge_scope:
+        print(f"judging only: {', '.join(sorted(judge_scope))}")
+
     forced = {"left": args.force}
 
     def one_pass() -> Pass:
@@ -429,6 +439,7 @@ def cmd_judge(args) -> int:
             force=forced.pop("left", False),
             judge_fingerprint=fingerprint,
             on_stop=reasons.append,
+            models=judge_scope,
         )
         print(f"judged: {judged}")
         return Pass(judged, reasons[0] if reasons else None)
