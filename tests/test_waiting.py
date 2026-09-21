@@ -177,3 +177,15 @@ def test_backoff_waits_out_a_weekly_limit_instead_of_an_hour():
 
 def test_relative_resets_still_parse():
     assert reset_wait_s(QUOTA) == 4655
+
+
+CLAUDE_SESSION = "exit 1: You've hit your session limit \u00b7 resets 12am (America/New_York)"
+
+
+def test_claude_cli_session_limit_is_a_usage_limit():
+    """The CLI's own spelling. Unmatched, it read as an ordinary task failure
+    and the run stage retried it instead of waiting."""
+    from ati.runstage import is_usage_limit
+
+    assert is_usage_limit(CLAUDE_SESSION)
+    assert backoff_s(CLAUDE_SESSION) == LIMIT_BACKOFF_S

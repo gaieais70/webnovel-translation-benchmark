@@ -34,6 +34,11 @@ USAGE_LIMIT_MARKERS = (
     # OpenRouter's answer (HTTP 402) when prepaid credit runs out. Every
     # remaining call would get it too, so it is a stop, not a task failure.
     "insufficient credit",
+    # The Claude Code CLI's spelling: "You've hit your session limit · resets
+    # 12am (America/New_York)". Without this it matched no marker, so run
+    # 2026-09 spent all three passes retrying it in seconds and recorded five
+    # sonnet-5 and ten haiku-4.5 tasks as ordinary failures.
+    "session limit",
 )
 
 # A translation is bounded in length by its source. The api runner already
