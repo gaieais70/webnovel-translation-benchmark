@@ -379,7 +379,11 @@
   runner: cli
   system_prompt_flag: --system-prompt
   sandbox: true
-  timeout_s: 1800
+  # 1800 was too short: at max effort sonnet-5 took 403s and 1,189s on the two
+  # chapters that finished first, then a third ran past 1,800s and was killed
+  # (2026-09-21). A timeout is only how long the harness waits, not a
+  # generation setting, so raising it changes nothing about what is measured.
+  timeout_s: 3600
   command:
     - claude
     - -p
