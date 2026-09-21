@@ -44,6 +44,16 @@ ABSOLUTE_RESET_RE = re.compile(
     r"(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)",
     re.IGNORECASE,
 )
+
+# The third spelling, the Claude Code CLI's: a wall-clock time in a named zone
+# ("You've hit your session limit - resets 12am (America/New_York)"). Unparsed
+# it fell back to the hourly backoff, and MAX_STOPS gave up six hours in - so a
+# limit hit in the afternoon ended the run hours before the midnight reset.
+CLOCK_RESET_RE = re.compile(
+    r"resets?\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)\s*"
+    r"\(([A-Za-z_]+(?:/[A-Za-z0-9_+\-]+)+)\)",
+    re.IGNORECASE,
+)
 RESET_MARGIN_S = 3 * 60
 LIMIT_BACKOFF_S = 60 * 60
 ERROR_BACKOFF_S = 10 * 60
@@ -62,16 +72,19 @@ class Pass:
 def reset_wait_s(message: str | None, now: datetime | None = None) -> int | None:
     """Seconds until the quota returns, when the message says so.
 
-    Two providers, two spellings: a duration ("Resets in 1h17m35s", which
-    Antigravity gives) or an instant ("resets at 2026-09-22T01:40:52.743Z",
-    which Command Code gives). `now` is injectable so the absolute form is
-    testable.
+    Three spellings: a duration ("Resets in 1h17m35s", Antigravity), an
+    instant ("resets at 2026-09-22T01:40:52.743Z", Command Code), or a wall
+    clock time in a named zone ("resets 12am (America/New_York)", the Claude
+    Code CLI). `now` is injectable so the last two are testable.
     """
     match = RESET_RE.search(message or "")
     if match and any(match.groups()):
         hours, minutes, seconds = (int(g or 0) for g in match.groups())
         return hours * 3600 + minutes * 60 + seconds
-    return _absolute_reset_wait_s(message, now)
+    absolute = _absolute_reset_wait_s(message, now)
+    if absolute is not None:
+        return absolute
+    return _clock_reset_wait_s(message, now)
 
 
 def _absolute_reset_wait_s(message: str | None, now: datetime | None) -> int | None:
@@ -160,3 +173,28 @@ def drive(
                 sleep_fn(idle_wait_s)
                 continue
             return True
+
+
+def _clock_reset_wait_s(message: str | None, now: datetime | None) -> int | None:
+    match = CLOCK_RESET_RE.search(message or "")
+    if not match:
+        return None
+    hour, minute, meridiem, zone_name = match.groups()
+    hour, minute = int(hour) % 12, int(minute or 0)
+    if meridiem.lower() == "pm":
+        hour += 12
+    try:
+        from zoneinfo import ZoneInfo
+
+        zone = ZoneInfo(zone_name)
+    except Exception:  # noqa: BLE001 - no tz database: fall back to hourly
+        return None
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    local = now.astimezone(zone)
+    when = local.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    # "resets 12am" names the next midnight, never the one already past.
+    if when <= local:
+        when += timedelta(days=1)
+    return int((when - local).total_seconds())

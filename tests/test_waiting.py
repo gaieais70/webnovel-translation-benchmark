@@ -170,9 +170,19 @@ def test_reset_wait_s_treats_a_past_reset_as_open():
 
 def test_backoff_waits_out_a_weekly_limit_instead_of_an_hour():
     """The bug this covers: a weekly limit backed off one hour, so `--wait`
-    hit MAX_STOPS six hours into a wait of more than a day and gave up."""
-    assert backoff_s(CC_WEEKLY) > 12 * 3600
-    assert backoff_s(CC_WEEKLY) != LIMIT_BACKOFF_S
+    hit MAX_STOPS six hours into a wait of more than a day and gave up.
+
+    backoff_s reads the real clock, so the reset instant is built from it: a
+    fixed date made this test fail once that date came within twelve hours.
+    """
+    from datetime import timedelta
+
+    later = (datetime.now(timezone.utc) + timedelta(hours=30)).strftime(
+        "%Y-%m-%dT%H:%M:%S.000Z"
+    )
+    message = f"HTTP 429: weekly usage limit. Your limit resets at {later}."
+    assert backoff_s(message) > 29 * 3600
+    assert backoff_s(message) != LIMIT_BACKOFF_S
 
 
 def test_relative_resets_still_parse():
@@ -188,4 +198,30 @@ def test_claude_cli_session_limit_is_a_usage_limit():
     from ati.runstage import is_usage_limit
 
     assert is_usage_limit(CLAUDE_SESSION)
-    assert backoff_s(CLAUDE_SESSION) == LIMIT_BACKOFF_S
+
+
+def test_clock_time_reset_waits_until_that_time_in_that_zone():
+    """13:00 in New York; the limit resets at midnight there - eleven hours.
+
+    Before this the message fell back to the hourly backoff, and MAX_STOPS
+    ended the run six hours in, well short of a midnight reset.
+    """
+    now = datetime(2026, 9, 21, 17, 0, tzinfo=timezone.utc)  # 13:00 EDT
+    assert reset_wait_s(CLAUDE_SESSION, now=now) == 11 * 3600
+
+
+def test_clock_time_reset_is_the_next_occurrence_not_the_last():
+    now = datetime(2026, 9, 21, 22, 30, tzinfo=timezone.utc)  # 18:30 EDT
+    msg = "exit 1: You've hit your session limit · resets 5pm (America/New_York)"
+    assert reset_wait_s(msg, now=now) == 22 * 3600 + 30 * 60
+
+
+def test_clock_time_reset_with_unknown_zone_falls_back_to_hourly():
+    msg = "exit 1: You've hit your session limit · resets 12am (Nowhere/Atlantis)"
+    assert reset_wait_s(msg) is None
+    assert backoff_s(msg) == LIMIT_BACKOFF_S
+
+
+def test_iso_instant_is_not_misread_as_a_clock_time():
+    now = datetime(2026, 9, 20, 17, 40, 52, tzinfo=timezone.utc)
+    assert reset_wait_s(CC_WEEKLY, now=now) == 32 * 3600
