@@ -125,6 +125,9 @@ class ModelConfig:
     # buffered body. Needed on gateways that drop long-running buffered
     # requests; see ApiRunner. Transport only - the model generates the same.
     stream: bool = False
+    # For `runner: cli`: pass the system prompt as this flag instead of
+    # concatenating it onto stdin. See CliRunner.
+    system_prompt_flag: str | None = None
     role: str = "subject"
 
 
@@ -248,6 +251,7 @@ def load_models(path: Path) -> list[ModelConfig]:
                 params=params,
                 fallback=fallback,
                 stream=bool(entry.get("stream", False)),
+                system_prompt_flag=entry.get("system_prompt_flag"),
                 role=role,
             )
         )

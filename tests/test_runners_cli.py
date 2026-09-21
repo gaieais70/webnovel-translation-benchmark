@@ -81,3 +81,93 @@ def test_cli_runner_decodes_output_leniently():
     runner.run("s", "t")
     _, kwargs = capture[0]
     assert kwargs["errors"] == "replace"
+
+
+def test_system_prompt_flag_replaces_stdin_delivery():
+    """A row naming the flag sends the prompt as an argument, source on stdin.
+
+    `claude --system-prompt` replaces the agent's own system prompt; leaving
+    the prompt on stdin instead would run the translation underneath the
+    coding-agent framing and measure that, not the model.
+    """
+    capture = []
+    runner = CliRunner(
+        command=["no-such-cli-for-tests", "-p"],
+        system_prompt_flag="--system-prompt",
+        runner_fn=fake_run_factory(stdout="translated\n", capture=capture),
+    )
+    result = runner.run("SYSTEM PROMPT", "SOURCE TEXT")
+    assert result.text == "translated"
+    cmd, kwargs = capture[0]
+    assert cmd[-2:] == ["--system-prompt", "SYSTEM PROMPT"]
+    assert kwargs["input"].strip() == "SOURCE TEXT"
+    assert "SYSTEM PROMPT" not in kwargs["input"]
+
+
+def test_without_the_flag_stdin_delivery_is_unchanged():
+    capture = []
+    runner = CliRunner(
+        command=["no-such-cli-for-tests"],
+        runner_fn=fake_run_factory(stdout="t", capture=capture),
+    )
+    runner.run("SYSTEM PROMPT", "SOURCE TEXT")
+    cmd, kwargs = capture[0]
+    assert cmd == ["no-such-cli-for-tests"]
+    assert "SYSTEM PROMPT" in kwargs["input"] and "SOURCE TEXT" in kwargs["input"]
+    assert "cwd" not in kwargs
+
+
+def test_workspace_runs_the_cli_from_an_empty_directory(tmp_path):
+    """An agentic CLI reads its working directory; a translator that can see
+    the benchmark scoring it is not under test conditions."""
+    capture = []
+    workspace = tmp_path / "ws"
+    runner = CliRunner(
+        command=["no-such-cli-for-tests"],
+        workspace=workspace,
+        runner_fn=fake_run_factory(stdout="t", capture=capture),
+    )
+    runner.run("S", "T")
+    _, kwargs = capture[0]
+    assert kwargs["cwd"] == str(workspace)
+    assert workspace.is_dir()
+    assert list(workspace.iterdir()) == []
+
+
+def test_failure_message_falls_back_to_stdout():
+    """`claude -p` reports a usage limit on stdout, then exits non-zero.
+
+    Reading stderr alone recorded those as a bare "exit 1: ", which
+    is_usage_limit cannot classify, so the run stage kept retrying a rate
+    limit instead of waiting it out.
+    """
+    from ati.runstage import is_usage_limit
+
+    runner = CliRunner(
+        command=["no-such-cli-for-tests"],
+        runner_fn=fake_run_factory(
+            stdout="Claude usage limit reached. Your limit will reset at 5pm.",
+            stderr="",
+            returncode=1,
+        ),
+    )
+    result = runner.run("S", "T")
+    assert "usage limit" in result.error
+    assert is_usage_limit(result.error)
+
+
+def test_failure_with_no_output_says_so():
+    runner = CliRunner(
+        command=["no-such-cli-for-tests"],
+        runner_fn=fake_run_factory(stdout="", stderr="", returncode=1),
+    )
+    result = runner.run("S", "T")
+    assert result.error == "exit 1 with no output on either stream"
+
+
+def test_stderr_still_wins_when_both_are_present():
+    runner = CliRunner(
+        command=["no-such-cli-for-tests"],
+        runner_fn=fake_run_factory(stdout="noise", stderr="the real error", returncode=2),
+    )
+    assert runner.run("S", "T").error == "exit 2: the real error"

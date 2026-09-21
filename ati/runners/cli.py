@@ -7,6 +7,7 @@ because CLI entry points vary too much to assume a system-prompt flag.
 from __future__ import annotations
 
 import shutil
+from pathlib import Path
 import subprocess
 import time
 
@@ -36,18 +37,35 @@ class CliRunner:
         command: list[str],
         timeout_s: float = DEFAULT_TIMEOUT_S,
         runner_fn=None,
+        system_prompt_flag: str | None = None,
+        workspace: Path | None = None,
     ) -> None:
         self._command = resolve_executable(list(command))
         self._timeout_s = timeout_s
         self._runner_fn = runner_fn or subprocess.run
+        self._system_prompt_flag = system_prompt_flag
+        self._workspace = workspace
 
     def run(self, system_prompt: str, source_text: str) -> RunResult:
-        stdin_text = f"{system_prompt}\n\n---\n\n{source_text}\n"
+        command = list(self._command)
+        if self._system_prompt_flag:
+            # `claude --system-prompt` REPLACES the agent's own system prompt.
+            # Appending would leave the coding-agent framing in place, and the
+            # row would measure that agent rather than the model.
+            command += [self._system_prompt_flag, system_prompt]
+            stdin_text = f"{source_text}\n"
+        else:
+            stdin_text = f"{system_prompt}\n\n---\n\n{source_text}\n"
+        extra = {}
+        if self._workspace is not None:
+            self._workspace.mkdir(parents=True, exist_ok=True)
+            extra["cwd"] = str(self._workspace)
         started = time.monotonic()
         try:
             completed = self._runner_fn(
-                self._command,
+                command,
                 input=stdin_text,
+                **extra,
                 capture_output=True,
                 text=True,
                 timeout=self._timeout_s,
@@ -68,11 +86,24 @@ class CliRunner:
         latency = time.monotonic() - started
 
         if completed.returncode != 0:
-            detail = (completed.stderr or "").strip()[:200]
+            # stdout as well as stderr: `claude -p` prints a usage-limit
+            # message on stdout and exits non-zero, so reading stderr alone
+            # discarded the one thing that identified the cause. Run 2026-09
+            # recorded nine sonnet-5 and eleven haiku-4.5 failures as a bare
+            # "exit 1: " - is_usage_limit had nothing to match, so the stage
+            # treated a rate limit as ordinary failure and spent passes 2 and 3
+            # on it in seconds instead of waiting.
+            detail = (
+                (completed.stderr or "").strip() or (completed.stdout or "").strip()
+            )[:200]
             return RunResult(
                 text="",
                 latency_s=latency,
-                error=f"exit {completed.returncode}: {detail}",
+                error=(
+                    f"exit {completed.returncode}: {detail}"
+                    if detail
+                    else f"exit {completed.returncode} with no output on either stream"
+                ),
             )
 
         text = (completed.stdout or "").strip()

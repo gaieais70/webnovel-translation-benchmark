@@ -25,12 +25,23 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from ati.runstage import is_usage_limit
 
 RESET_RE = re.compile(
     r"resets?\s+in\s+(?:(\d+)\s*h)?\s*(?:(\d+)\s*m(?!s))?\s*(?:(\d+)\s*s)?",
+    re.IGNORECASE,
+)
+
+# Command Code states the other kind of reset: an absolute instant, not a
+# duration ("Your limit resets at 2026-09-22T01:40:52.743Z"). Its weekly limit
+# can be a day or more away, and without this the message parsed as "no time
+# given", fell back to the one-hour backoff, and `--wait` gave up after
+# MAX_STOPS hours of knocking - six hours into a thirty-three hour wait.
+ABSOLUTE_RESET_RE = re.compile(
+    r"resets?\s+at\s+"
+    r"(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)",
     re.IGNORECASE,
 )
 RESET_MARGIN_S = 3 * 60
@@ -48,13 +59,42 @@ class Pass:
     stopped: str | None = None
 
 
-def reset_wait_s(message: str | None) -> int | None:
-    """Seconds until the quota returns, when the message says so."""
+def reset_wait_s(message: str | None, now: datetime | None = None) -> int | None:
+    """Seconds until the quota returns, when the message says so.
+
+    Two providers, two spellings: a duration ("Resets in 1h17m35s", which
+    Antigravity gives) or an instant ("resets at 2026-09-22T01:40:52.743Z",
+    which Command Code gives). `now` is injectable so the absolute form is
+    testable.
+    """
     match = RESET_RE.search(message or "")
-    if not match or not any(match.groups()):
+    if match and any(match.groups()):
+        hours, minutes, seconds = (int(g or 0) for g in match.groups())
+        return hours * 3600 + minutes * 60 + seconds
+    return _absolute_reset_wait_s(message, now)
+
+
+def _absolute_reset_wait_s(message: str | None, now: datetime | None) -> int | None:
+    match = ABSOLUTE_RESET_RE.search(message or "")
+    if not match:
         return None
-    hours, minutes, seconds = (int(g or 0) for g in match.groups())
-    return hours * 3600 + minutes * 60 + seconds
+    text = match.group(1).replace(" ", "T")
+    if text.endswith(("Z", "z")):
+        text = text[:-1] + "+00:00"
+    try:
+        when = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    # A bare timestamp from an API is UTC; reading it as local time would wait
+    # hours too few or too many depending on the operator's offset.
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    # A reset already in the past means the window is open: retry at once
+    # rather than returning a negative sleep.
+    return max(0, int((when - now).total_seconds()))
 
 
 def backoff_s(message: str | None) -> int:
@@ -100,8 +140,16 @@ def drive(
                 log(f"{stops} stops in a row without progress; leaving it for the operator")
                 return False
             delay = backoff_s(result.stopped)
-            until = (datetime.now() + timedelta(seconds=delay)).strftime("%H:%M")
-            log(f"stopped ({stops} in a row): waiting {delay // 60} min, until about {until}")
+            until = datetime.now() + timedelta(seconds=delay)
+            # A weekly limit is waited out in days, so minutes stop being a
+            # readable unit and the date matters, not just the clock time.
+            if delay >= 12 * 3600:
+                span = f"{delay / 3600:.1f} h"
+                stamp = until.strftime("%a %d %b %H:%M")
+            else:
+                span = f"{delay // 60} min"
+                stamp = until.strftime("%H:%M")
+            log(f"stopped ({stops} in a row): waiting {span}, until about {stamp}")
             sleep_fn(delay)
             continue
         stops = 0

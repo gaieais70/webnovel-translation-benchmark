@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tempfile
 import argparse
 import os
 import sys
@@ -138,7 +139,19 @@ def build_runner(model: ModelConfig, manual_root: Path):
             stream=model.stream,
         )
     if model.runner == "cli":
-        return CliRunner(command=model.command or [], timeout_s=model.timeout_s)
+        return CliRunner(
+            command=model.command or [],
+            timeout_s=model.timeout_s,
+            system_prompt_flag=model.system_prompt_flag,
+            # Same reason as the agy runner's empty workspace: a CLI that can
+            # read the repository it is being benchmarked in is not under test
+            # conditions. `sandbox: false` opts out.
+            workspace=(
+                Path(tempfile.gettempdir()) / "ati-cli" / model.id
+                if model.sandbox
+                else None
+            ),
+        )
     if model.runner == "agy":
         return AgyRunner(
             model=model.model or model.id,

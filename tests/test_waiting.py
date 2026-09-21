@@ -1,5 +1,6 @@
 import os
 import time
+from datetime import datetime, timezone
 
 import pytest
 
@@ -147,3 +148,32 @@ def test_the_heartbeat_keeps_a_long_run_fresh(tmp_path):
         while time.time() < deadline and not active_markers(tmp_path, "r1"):
             time.sleep(0.05)
         assert active_markers(tmp_path, "r1") == [marker]
+
+
+CC_WEEKLY = (
+    "HTTP 429: {\"error\":{\"message\":\"You've reached your weekly usage limit "
+    "for your plan. Your limit resets at 2026-09-22T01:40:52.743Z. Please wait "
+    "for the window to reset or upgrade your plan to continue.\"}}"
+)
+
+
+def test_reset_wait_s_reads_an_absolute_reset_instant():
+    """Command Code gives an instant, not a duration."""
+    now = datetime(2026, 9, 20, 17, 40, 52, tzinfo=timezone.utc)
+    assert reset_wait_s(CC_WEEKLY, now=now) == 32 * 3600
+
+
+def test_reset_wait_s_treats_a_past_reset_as_open():
+    now = datetime(2026, 9, 23, 0, 0, 0, tzinfo=timezone.utc)
+    assert reset_wait_s(CC_WEEKLY, now=now) == 0
+
+
+def test_backoff_waits_out_a_weekly_limit_instead_of_an_hour():
+    """The bug this covers: a weekly limit backed off one hour, so `--wait`
+    hit MAX_STOPS six hours into a wait of more than a day and gave up."""
+    assert backoff_s(CC_WEEKLY) > 12 * 3600
+    assert backoff_s(CC_WEEKLY) != LIMIT_BACKOFF_S
+
+
+def test_relative_resets_still_parse():
+    assert reset_wait_s(QUOTA) == 4655

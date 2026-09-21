@@ -1,3 +1,4 @@
+import yaml
 import os
 from pathlib import Path
 
@@ -363,3 +364,35 @@ def test_the_real_roster_loads_and_its_judges_are_not_subjects():
     defaults = load_defaults(REPO / "config" / "ati.yaml")
     judge = next(m for m in roster if m.id == defaults["judge_model"])
     assert judge.runner == "agy" and judge.role == "judge"
+
+
+def test_system_prompt_flag_reaches_the_runner(tmp_path):
+    """Declared in the roster and carried onto the runner.
+
+    The field was added to ModelConfig and read by CliRunner before the loader
+    passed it, so a row that asked for `--system-prompt` silently fell back to
+    stdin delivery - which runs the translation underneath the coding agent's
+    own system prompt instead of replacing it.
+    """
+    path = tmp_path / "models.yaml"
+    path.write_text(
+        "- id: m\n"
+        "  runner: cli\n"
+        "  system_prompt_flag: --system-prompt\n"
+        "  command: [echo, hi]\n",
+        encoding="utf-8",
+    )
+    (model,) = load_models(path)
+    assert model.system_prompt_flag == "--system-prompt"
+
+
+def test_every_roster_row_declaring_a_field_has_it_loaded(tmp_path):
+    """Every key the shipped roster uses maps onto a ModelConfig field."""
+    import dataclasses
+
+    from ati.config import ModelConfig
+
+    known = {f.name for f in dataclasses.fields(ModelConfig)}
+    raw = yaml.safe_load(Path("config/models.yaml").read_text(encoding="utf-8"))
+    used = {key for entry in raw for key in entry}
+    assert used <= known, f"roster keys with no ModelConfig field: {used - known}"
