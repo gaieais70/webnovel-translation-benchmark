@@ -321,6 +321,24 @@
     reasoning:
       effort: max
 
+# Released from the held-back tier 2026-09-20 as the second middle-priced
+# step, on the operator's reading of the tiers ($1.70/$8.50 per 1M tokens).
+#
+# No max_tokens: three of the twenty-three models on this route turned out to
+# have silent output caps, and all three accepted 65,536 once probed - but the
+# weekly limit was spent when this row was added, so nothing could be probed,
+# and the roster only carries a cap it has evidence for. If pass 1 shows
+# finish_reason=length, that is the cap; set max_tokens and the two remaining
+# passes will redo the affected chapters.
+- id: kimi-k3
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: moonshotai/Kimi-K3
+  params:
+    reasoning_effort: max
+
 # --- Claude, through the local Claude Code CLI ----------------------------
 # Command Code serves no Claude model on this plan: every one answers
 # MODEL_NOT_IN_PLAN (Sonnet and Haiku want Pro+, Opus wants Provider+), so the
@@ -394,10 +412,10 @@
     - --disable-slash-commands
 
 # --- held back --------------------------------------------------------------
-# The expensive tier below the blank row in the routing sheet, held by request.
-# GLM-5.3 was released 2026-09-20 and is declared above; still held:
-#   xai/grok-4.6 ($2.00/$6.00), Qwen/Qwen3.8-Max ($2.00/$6.00),
-#   moonshotai/Kimi-K3 ($1.70/$8.50)
+# The expensive tier below the blank row in the routing sheet. The operator
+# splits it into middle and high; the middle half is released and declared
+# above (glm-5.3, kimi-k3), and the high half stays held:
+#   xai/grok-4.6 ($2.00/$6.00), Qwen/Qwen3.8-Max ($2.00/$6.00)
 # The sheet marks one break, not three tiers: everything above row 16 has run,
 # and these are what is left. Prices are OpenRouter list, 2026-09-20.
 # Kimi K2.6 is dropped outright - it is not used enough to be worth a row.
