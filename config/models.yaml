@@ -255,6 +255,15 @@
   model: zai-org/GLM-5.3
   params:
     reasoning_effort: max
+    # Command Code's default output ceiling for this model is not one number:
+    # on run 2026-09 one call stopped at 131,072 tokens and another at 65,535,
+    # each with finish_reason=length and every token spent on reasoning, and
+    # a third came back with no reasoning at all. Completed chapters used
+    # 64k-110k, so a 64k ceiling cannot fit one. Stating the ceiling makes it
+    # the same for every call. 131,072 is the largest default observed, and a
+    # probe on 2026-09-22 confirmed the route accepts it. It is a ceiling, not
+    # a target: a chapter that finishes below it is unaffected.
+    max_tokens: 131072
 
 # --- OpenRouter -------------------------------------------------------------
 # https://openrouter.ai/api/v1/chat/completions, OPENROUTER_API_KEY
