@@ -7,6 +7,12 @@ REM 21:40 local). Registered as a Scheduled Task rather than a detached
 REM process: run 2026-09 launched the waiter with Start-Process twice and both
 REM times it was gone by morning.
 REM
+REM The task launches this through a hidden PowerShell host (-WindowStyle
+REM Hidden), not directly. Run directly, a .cmd opens a visible console in the
+REM operator's session, and closing that window ends the run: the first launch
+REM died that way at 23:47 on 2026-09-21 (0xC000013A), seven chapters in. To
+REM stop it on purpose:  schtasks /End /TN ATI-middle-tier-2026-09
+REM
 REM Every Gemini stage is scoped. judge: --model on the two new rows, which
 REM only works since judge_run honours it. pairwise: the pool is the 23
 REM published subjects plus the two new rows, generated from the roster -
