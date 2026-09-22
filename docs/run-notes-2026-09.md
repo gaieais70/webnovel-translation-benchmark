@@ -381,3 +381,88 @@ rubric only.
   most in need of checking - was left out of the comparison stage entirely.
   Comparing a translation costs judge calls, not the route that wrote it, so
   the pool is now every non-judge row.
+
+## 13. A second independent judge, and figures that can be reproduced
+
+- **jev-1.13 scored all 243 scorable outputs** through OpenRouter's decisions
+  endpoint (`typesafe/jev-1.13`), which is not a chat model: each rubric axis
+  is a `score` question whose criteria are the five anchors, and it returns a
+  probability-weighted value over them rather than a whole number. That value
+  is continuous (3.12, not 3); truncating it with `int()` was a bug caught in
+  the first probe, where four of five axes disagreed with their own
+  distributions. Terminology is not scored - jev returns no term table - so it
+  is compared on the five judged axes. Cost: $0.11.
+- **It confirms the self-preference, more strongly than grok.** On the five
+  axes, gemini-3.8-flash leads the next model by +9.1 under Gemini and +2.8
+  under grok. Under jev it does not lead: deepseek-v4-pro edges it, and across
+  the field glm-5.3-flash scores highest.
+- **Compression is now measured.** Gemini gives a flat 5.0 on 46.6% of every
+  axis score in the run. On the four models all three judges scored: Gemini
+  79.1%, grok 75.0%, jev 4.5%. The first independent check was nearly as
+  compressed as the judge it checked.
+- **jev detects bias; it does not rank.** Its top eight models fall within
+  2.6 points and every 95% bootstrap interval overlaps every other, and it
+  scores the weakest models 25-33 points above Gemini. Its ordering at the
+  top is noise, and it is not a replacement leaderboard.
+- **§11's figures stand, on their basis.** The cross-judge table was first
+  computed in a session scratchpad that did not survive. The method is the
+  weighted mean of the axes, each normalised 1 -> 0 and 5 -> 100; on all six
+  axes, including judged terminology, it reproduces both of §11's columns
+  exactly, and the +9.2 -> +0.9 lead. The page now uses five axes so that jev
+  can sit beside the others, which is why it says +2.8. Both are reproducible
+  from `scripts/2026-09/cross_judge.py`.
+
+## 14. Five more models: the middle tier and the Claude column
+
+- **The tiers.** The routing sheet marks one break - the blank row 16 - not
+  three tiers. The operator split what sits below it into middle (glm-5.3 at
+  $0.91/$2.86 per 1M tokens, kimi-k3 at $1.70/$8.50) and high (grok-4.6 and
+  Qwen3.8-Max, both $2.00/$6.00), which stay held. Prices are OpenRouter list,
+  2026-09-20.
+- **Three routes were checked for the middle tier, and it waited.** Command
+  Code serves both but its weekly limit was spent until 2026-09-21 21:40.
+  opencode (`opencode.ai/zen/go/v1`) still lists both, but the workspace
+  balance is zero. OpenRouter would have cost about $10 at list price, and
+  the operator keeps OpenRouter use to a minimum, so both ran on Command Code
+  after the reset.
+- **The Claude column runs on the local Claude Code CLI.** Command Code
+  answers MODEL_NOT_IN_PLAN for every Claude model, so the Messages-shaped
+  runner its `/provider/v1/messages` wants would not have helped. The CLI
+  runs on the operator's own subscription with `--system-prompt` (which
+  replaces the agent's prompt rather than appending to it), every tool
+  denied, and an empty working directory. It is a different route from every
+  other row, so these are not directly comparable to the API rows. All three
+  were translated 11/11 by 2026-09-21 19:45; sonnet-5 averaged 1,040 s per
+  chapter against 127 for opus-5 and 144 for haiku-4.5. They are not judged:
+  33 rubric calls on the operator's Antigravity account were not asked for.
+- **Nine defects, nearly all of them a limit the harness could not see:**
+  - `--wait` read a duration ("Resets in 1h17m35s") but not an instant
+    ("resets at 2026-09-22T01:40:52.743Z"), so a weekly limit backed off one
+    hour and gave up six hours into a thirty-two hour wait.
+  - The CLI runner read only stderr on failure; `claude -p` reports its limit
+    on stdout, so twenty failures were recorded as a bare "exit 1: ".
+  - The CLI's "session limit" matched no usage-limit marker, so it was
+    retried as an ordinary failure instead of waited out.
+  - Its reset is a wall-clock time in a named zone ("resets 12am
+    (America/New_York)"), which `--wait` also could not read.
+  - `load_models` never passed `system_prompt_flag` through, so the three
+    Claude rows would have run underneath the coding agent's prompt. A test
+    now requires every roster key to map to a real field.
+  - `--model` reached the judge stage's parser but not `judge_run`, so a
+    scoped judging pass judged the whole run - on the operator's own Gemini
+    quota.
+  - A test compared the real clock with a fixed reset date, and began failing
+    once that date came within twelve hours.
+  - The middle-tier waiter was launched as a detached process twice, and both
+    times it was gone by morning. It is a Scheduled Task instead.
+  - That task ran its script in a visible console, and closing the window
+    ended the run seven chapters in (0xC000013A, about 23:47). It now starts
+    hidden.
+- **Two glm-5.3 chapters did not run under the row's conditions.** ch06 spent
+  the provider's whole default of 131,072 output tokens on reasoning and
+  produced no text; the other chapters finished at 64k-110k, so it is left to
+  the retry passes at the same cap. ch07 came back with zero reasoning tokens
+  in 69 s, on the same route and request, so it was not produced at max
+  effort; it is kept in `runs/quarantine-2026-09/` and regenerated.
+- **Results: pending.** As of 2026-09-22 00:22 the chain - translate, rubric
+  judge, +80 head-to-head comparisons, report - was running.

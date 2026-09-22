@@ -3,8 +3,8 @@
 Method, fixed here so the published figures are reproducible: the weighted
 mean of the rubric axes, each score normalised so 1 maps to 0 and 5 maps to
 100. Run 2026-09's first cross-judge table was computed in a session
-scratchpad that no longer exists; this reproduces its Gemini column exactly
-(six axes) and is what the page now cites.
+scratchpad that no longer exists; on all six axes this reproduces both of
+its columns exactly, and the page now cites it on five (see below).
 
 Terminology is excluded by default. jev returns no term table, and comparing
 judges on axes one of them cannot score is not a comparison - so all three
