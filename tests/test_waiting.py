@@ -225,3 +225,35 @@ def test_clock_time_reset_with_unknown_zone_falls_back_to_hourly():
 def test_iso_instant_is_not_misread_as_a_clock_time():
     now = datetime(2026, 9, 20, 17, 40, 52, tzinfo=timezone.utc)
     assert reset_wait_s(CC_WEEKLY, now=now) == 32 * 3600
+
+
+CREDITS = (
+    'HTTP 400: {"error":{"message":"You have insufficient credits to make this '
+    'request. Please purchase more credits to continue using the service."}}'
+)
+
+
+def test_an_empty_balance_stops_at_once_instead_of_waiting():
+    """Command Code emptied its balance mid-run on 2026-09-22. Treated as a
+    quota, `--wait` would have retried hourly until MAX_STOPS - six hours of
+    knocking at a door that only a purchase opens."""
+    slept, logs = [], []
+    stage = Script(Pass(2, CREDITS), Pass(0))
+    assert drive(stage, sleep_fn=slept.append, log=logs.append) is False
+    assert slept == []
+    assert stage.calls == 1
+    assert any("out of credit" in m for m in logs)
+
+
+def test_an_empty_balance_is_still_a_stop_for_the_run_stage():
+    """It must stop the stage: every remaining call would get the same answer."""
+    from ati.runstage import is_usage_limit
+
+    assert is_usage_limit(CREDITS)
+
+
+def test_a_closed_window_is_still_waited_out():
+    slept = []
+    stage = Script(Pass(1, QUOTA), Pass(0))
+    assert drive(stage, sleep_fn=slept.append, log=lambda m: None) is True
+    assert slept == [4655 + RESET_MARGIN_S]

@@ -54,6 +54,16 @@ CLOCK_RESET_RE = re.compile(
     r"\(([A-Za-z_]+(?:/[A-Za-z0-9_+\-]+)+)\)",
     re.IGNORECASE,
 )
+# A provider saying the balance is empty is not saying a window is closed.
+# Command Code answers HTTP 400 "You have insufficient credits to make this
+# request. Please purchase more credits"; OpenRouter answers 402. Both stop the
+# stage, like a quota, but no amount of waiting refills a balance, so waiting
+# only hides the failure behind hours of retries.
+CREDIT_MARKERS = (
+    "insufficient credit",
+    "purchase more credits",
+)
+
 RESET_MARGIN_S = 3 * 60
 LIMIT_BACKOFF_S = 60 * 60
 ERROR_BACKOFF_S = 10 * 60
@@ -110,6 +120,12 @@ def _absolute_reset_wait_s(message: str | None, now: datetime | None) -> int | N
     return max(0, int((when - now).total_seconds()))
 
 
+def out_of_credit(message: str | None) -> bool:
+    """Whether the provider says the account has no balance left to spend."""
+    lowered = (message or "").lower()
+    return any(marker in lowered for marker in CREDIT_MARKERS)
+
+
 def backoff_s(message: str | None) -> int:
     reset = reset_wait_s(message)
     if reset is not None:
@@ -145,6 +161,12 @@ def drive(
             result = Pass(0, f"{type(exc).__name__}: {exc}")
         if result.stopped:
             if not wait:
+                return False
+            if out_of_credit(result.stopped):
+                log(
+                    "the provider says the account is out of credit; waiting does "
+                    "not refill a balance, so this is where it stops"
+                )
                 return False
             # Progress before the stop means the window was used well; only
             # stops that achieved nothing count toward giving up.
