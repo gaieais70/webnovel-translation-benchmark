@@ -36,6 +36,9 @@ from ati.config import load_models  # noqa: E402
 from ati.pairwise import load_comparisons  # noqa: E402
 from ati.report import pairwise_records  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cross_judge  # noqa: E402
+
 RUN = "2026-09"
 AXES = ["accuracy", "terminology", "register", "fluency", "fidelity", "sanitization"]
 # Scored by a judge of its own family; see the page's callout.
@@ -81,7 +84,11 @@ def heat_class(value: float) -> str:
     return "h1"
 
 
-def leaderboard_body(rows, ratings, intervals, records, anchor, new_ids) -> str:
+def judged(value) -> str:
+    return f"{value:.1f}" if value is not None else "&mdash;"
+
+
+def leaderboard_body(rows, ratings, intervals, records, anchor, new_ids, cj) -> str:
     out = []
     for rank, r in enumerate(rows, 1):
         mid = r["model_id"]
@@ -131,6 +138,11 @@ def leaderboard_body(rows, ratings, intervals, records, anchor, new_ids) -> str:
         out.append(f'{PAD_CELL}<td class="num">{wlt}</td>')
         out.append(f'{PAD_CELL}<td class="num">{scored(r)}/{r["total_tasks"]}</td>')
         out.append(f'{PAD_CELL}<td class="num">{r["refusal_rate"]:.1f}</td>')
+        # Five judged axes, normalised 0-100, for Gemini and jev alike: the
+        # only basis on which the two judges can be read side by side.
+        c = cj.get(mid, {})
+        out.append(f'{PAD_CELL}<td class="num judged">{judged(c.get("gemini"))}</td>')
+        out.append(f'{PAD_CELL}<td class="num judged">{judged(c.get("jev"))}</td>')
         out.append(f"{PAD_ROW}</tr>")
     return "\n".join(out)
 
@@ -190,8 +202,11 @@ def render(results_path: Path, pairwise_root: Path, models_path: Path, new_ids=(
         pairwise_root, models_path
     )
     rows = ranked(results)
+    cj = {row["model"]: row for row in cross_judge.table()}
     return {
-        "leaderboard": leaderboard_body(rows, ratings, intervals, records, anchor, set(new_ids)),
+        "leaderboard": leaderboard_body(
+            rows, ratings, intervals, records, anchor, set(new_ids), cj
+        ),
         "axes": heat_body(rows, anchor, set(new_ids)),
         "rows": rows,
         "comparisons": n_comp,
@@ -215,6 +230,10 @@ def main() -> int:
     mode.add_argument("--check", metavar="PAGE", type=Path)
     mode.add_argument("--apply", metavar="PAGE", type=Path)
     ap.add_argument("--new", action="append", default=[], metavar="ID")
+    ap.add_argument(
+        "--source", choices=("live", "archive"), default="live",
+        help="data for --apply: live results/ and pairwise/, or the archived run",
+    )
     args = ap.parse_args()
 
     if args.check:
@@ -253,10 +272,12 @@ def main() -> int:
         print(f"{got['comparisons']} comparisons over {got['pairs']} pairs, {got['rated']} rated")
         return 0 if ok else 1
 
-    got = render(
-        REPO / "results" / "2026-09.json", REPO / "pairwise", REPO / "config" / "models.yaml",
-        new_ids=args.new,
-    )
+    if args.source == "archive":
+        arch = REPO / "archive" / "2026-09-hwasan"
+        paths = (arch / "results" / "2026-09.json", arch / "pairwise", arch / "config" / "models.yaml")
+    else:
+        paths = (REPO / "results" / "2026-09.json", REPO / "pairwise", REPO / "config" / "models.yaml")
+    got = render(*paths, new_ids=args.new)
     page = args.apply.read_text(encoding="utf-8")
     for key, rx in SECTION_TBODY.items():
         page, n = rx.subn(lambda m, k=key: m.group(1) + got[k] + m.group(3), page, count=1)
