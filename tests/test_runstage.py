@@ -2,7 +2,13 @@ import json
 
 from ati.corpus import Passage, passage_path, sha256_text
 from ati.runners.fake import FakeRunner
-from ati.runstage import came_up_short, ran_away, run_model, run_output_path
+from ati.runstage import (
+    came_up_short,
+    completed_count,
+    ran_away,
+    run_model,
+    run_output_path,
+)
 from ati.tasks import Task, TaskInstance
 
 
@@ -576,3 +582,47 @@ def test_a_runner_that_raises_fails_its_task_not_the_run(tmp_path):
         run_output_path(tmp_path / "runs", "r1", "m1", "t.ko-02.0").read_text(encoding="utf-8")
     )
     assert ok["error"] is None
+
+
+def write_record(tmp_path, model_id, instance_id, **fields):
+    out = run_output_path(tmp_path / "runs", "r1", model_id, instance_id)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "model_id": model_id, "task_id": "t", "task_type": "passage",
+        "passage_id": "cn-01", "iteration": 0, "text": "English output",
+        "source_chars": 2, "latency_s": 1.0, "tokens_in": 1, "tokens_out": 1,
+        "cost_usd": None, "refused": False, "unavailable": False, "error": None,
+    }
+    payload.update(fields)
+    out.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def test_completed_count_counts_only_finished_work(tmp_path):
+    """The count drive reads as progress.
+
+    A failure is not finished work - a rerun retries it - and a refusal is,
+    because it is the measurement.
+    """
+    write_record(tmp_path, "m1", "t.cn-01.0")
+    write_record(tmp_path, "m1", "t.cn-02.0", text="", error="HTTP 429: usage limit")
+    write_record(tmp_path, "m1", "t.cn-03.0", text="", refused=True)
+    write_record(tmp_path, "m2", "t.cn-01.0", text="", unavailable=True)
+
+    ids = ["t.cn-01.0", "t.cn-02.0", "t.cn-03.0"]
+    assert completed_count(tmp_path / "runs", "r1", ["m1"], ids) == 2
+    assert completed_count(tmp_path / "runs", "r1", ["m2"], ids) == 0
+    assert completed_count(tmp_path / "runs", "r1", ["m1", "m2"], ids) == 2
+    assert completed_count(tmp_path / "runs", "r1", ["m3"], ids) == 0
+
+
+def test_a_pass_of_pure_failures_counts_as_no_progress(tmp_path):
+    """Why this exists: run_model returns attempts, and every attempt failing
+    on a usage limit still counted as progress, so drive's give-up counter
+    reset each pass and MAX_STOPS never fired. Run 2026-09 retried an empty
+    credit balance hourly for nine hours."""
+    ids = ["t.cn-01.0", "t.cn-02.0"]
+    before = completed_count(tmp_path / "runs", "r1", ["m1"], ids)
+    for instance_id in ids:
+        write_record(tmp_path, "m1", instance_id, text="", error="HTTP 400: insufficient credits")
+    after = completed_count(tmp_path / "runs", "r1", ["m1"], ids)
+    assert after - before == 0

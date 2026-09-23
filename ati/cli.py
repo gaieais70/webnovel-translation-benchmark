@@ -59,7 +59,7 @@ from ati.runners.api import ApiRunner
 from ati.runners.agy import AgyRunner, CallGate
 from ati.runners.cli import CliRunner
 from ati.runners.manual import ManualRunner
-from ati.runstage import recheck, run_model
+from ati.runstage import completed_count, recheck, run_model
 from ati.status import render_status, run_progress
 from ati.tasks import expand, load_tasks
 from ati.textmetrics import load_slop_list
@@ -288,6 +288,11 @@ def cmd_run(args) -> int:
     def invocation() -> Pass:
         limits: list[str] = []
         done = 0
+        # Progress reported to `drive` is work that finished, not calls made:
+        # see completed_count.
+        selected = [m.id for m in models if m.id in runners]
+        instance_ids = [i.instance_id for i in instances]
+        before = completed_count(Path(args.runs), args.run, selected, instance_ids)
         for number in range(1, passes + 1):
             if passes > 1:
                 print(f"== pass {number} of {passes} ==")
@@ -316,8 +321,9 @@ def cmd_run(args) -> int:
             done += this_pass
             if this_pass == 0:
                 break  # nothing failed last pass, so nothing to retry
-        print(f"total executed: {done}")
-        return Pass(done, limits[-1] if limits else None)
+        finished = completed_count(Path(args.runs), args.run, selected, instance_ids)
+        print(f"total executed: {done}, newly finished: {finished - before}")
+        return Pass(finished - before, limits[-1] if limits else None)
 
     label = ",".join(m.id for m in models) or "none"
     with run_activity(Path(args.runs), args.run, label):

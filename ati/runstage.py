@@ -191,6 +191,25 @@ def _call(runner, system_prompt: str, source_text: str) -> RunResult:
         )
 
 
+def completed_count(runs_root, run_id, model_ids, instance_ids) -> int:
+    """How many of these tasks are finished work, by the same rule as a rerun.
+
+    `run_model` returns how many tasks it *attempted*, which is what the pass
+    loop needs to decide whether anything is left to retry. `drive` reads that
+    number as progress, and an attempt that failed on a usage limit still
+    counts as attempted - so a stage whose every attempt fails resets drive's
+    give-up counter on each pass and MAX_STOPS never fires. Run 2026-09
+    retried an empty credit balance hourly for nine hours that way. Counting
+    finished work instead makes "no progress" mean what drive thinks it means.
+    """
+    return sum(
+        1
+        for model_id in model_ids
+        for instance_id in instance_ids
+        if _is_complete(run_output_path(runs_root, run_id, model_id, instance_id))
+    )
+
+
 def run_model(
     runner,
     model_id: str,
