@@ -129,6 +129,18 @@ class ModelConfig:
     # concatenating it onto stdin. See CliRunner.
     system_prompt_flag: str | None = None
     role: str = "subject"
+    # Extra request headers, sent as declared. `session_header` names a header
+    # that gets a fresh id on every call. opencode Go refuses a request that
+    # lacks x-opencode-session, and asks a client to name itself in its
+    # User-Agent; each chapter is its own conversation, so each call gets its
+    # own id. Neither can replace the Authorization header.
+    headers: dict | None = None
+    session_header: str | None = None
+    # List price in USD per 1M tokens, {input, output}: what `ati cost` turns
+    # recorded tokens into. It is not what a subscription debits, but
+    # Command Code and opencode Go both meter their allowances in dollars at
+    # roughly these rates, so it shows how fast a run drains one.
+    price: dict | None = None
 
 
 def subjects(models: list[ModelConfig]) -> list[ModelConfig]:
@@ -235,6 +247,23 @@ def load_models(path: Path) -> list[ModelConfig]:
                 f"model {model_id}: role must be one of {VALID_ROLES}, got {role!r}"
             )
 
+        headers = entry.get("headers")
+        if headers is not None and not isinstance(headers, dict):
+            raise ConfigError(f"model {model_id}: 'headers' must be a mapping")
+        price = entry.get("price")
+        if price is not None:
+            if not isinstance(price, dict) or set(price) != {"input", "output"}:
+                raise ConfigError(
+                    f"model {model_id}: 'price' must be {{input: <USD/1M>, "
+                    f"output: <USD/1M>}}"
+                )
+            try:
+                price = {k: float(v) for k, v in price.items()}
+            except (TypeError, ValueError):
+                raise ConfigError(f"model {model_id}: 'price' values must be numbers")
+            if any(v < 0 for v in price.values()):
+                raise ConfigError(f"model {model_id}: 'price' cannot be negative")
+
         models.append(
             ModelConfig(
                 id=model_id,
@@ -253,6 +282,9 @@ def load_models(path: Path) -> list[ModelConfig]:
                 stream=bool(entry.get("stream", False)),
                 system_prompt_flag=entry.get("system_prompt_flag"),
                 role=role,
+                headers=headers,
+                session_header=entry.get("session_header"),
+                price=price,
             )
         )
     return models

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import time
+import uuid
 from dataclasses import replace
 
 import httpx
@@ -172,6 +173,8 @@ class ApiRunner:
         stream: bool = False,
         deadline_s: float | None = STREAM_DEADLINE_S,
         clock_fn=time.monotonic,
+        headers: dict | None = None,
+        session_header: str | None = None,
     ) -> None:
         self._endpoint = endpoint
         self._model = model
@@ -194,6 +197,8 @@ class ApiRunner:
         # maximum effort could never succeed however often it was retried.
         # Streaming keeps bytes moving for the whole generation.
         self._stream = stream
+        self._headers = dict(headers or {})
+        self._session_header = session_header
 
     def _post(self, payload: dict, headers: dict):
         """Send the request, retrying only failures that cost nothing to redo.
@@ -317,7 +322,14 @@ class ApiRunner:
             payload["stream"] = True
             payload["stream_options"] = {"include_usage": True}
 
-        headers = {"Authorization": f"Bearer {self._api_key}"}
+        headers = dict(self._headers)
+        if self._session_header:
+            headers[self._session_header] = f"ati-{uuid.uuid4().hex}"
+        # Set last, and case-insensitively, so no declared header can replace
+        # the route's own credential.
+        for name in [k for k in headers if k.lower() == "authorization"]:
+            del headers[name]
+        headers["Authorization"] = f"Bearer {self._api_key}"
         started = time.monotonic()
 
         response, error = self._post(payload, headers)

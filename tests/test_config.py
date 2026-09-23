@@ -396,3 +396,32 @@ def test_every_roster_row_declaring_a_field_has_it_loaded(tmp_path):
     raw = yaml.safe_load(Path("config/models.yaml").read_text(encoding="utf-8"))
     used = {key for entry in raw for key in entry}
     assert used <= known, f"roster keys with no ModelConfig field: {used - known}"
+
+
+def test_headers_session_header_and_price_are_loaded(tmp_path):
+    path = tmp_path / "models.yaml"
+    path.write_text(
+        "- id: m\n"
+        "  runner: api\n"
+        "  model: vendor/m\n"
+        "  headers: {User-Agent: ati-translation-index/1.0}\n"
+        "  session_header: x-opencode-session\n"
+        "  price: {input: 3.0, output: 15.0}\n",
+        encoding="utf-8",
+    )
+    (model,) = load_models(path)
+    assert model.headers == {"User-Agent": "ati-translation-index/1.0"}
+    assert model.session_header == "x-opencode-session"
+    assert model.price == {"input": 3.0, "output": 15.0}
+
+
+def test_a_price_needs_both_input_and_output(tmp_path):
+    import pytest
+
+    path = tmp_path / "models.yaml"
+    path.write_text(
+        "- id: m\n  runner: api\n  model: vendor/m\n  price: {output: 15.0}\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ConfigError):
+        load_models(path)

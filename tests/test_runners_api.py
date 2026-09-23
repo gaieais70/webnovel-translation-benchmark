@@ -910,3 +910,48 @@ def test_a_real_system_prompt_is_still_sent():
     ApiRunner("http://x", "m", "k", 0.0, client=client).run("SYSTEM", "source")
     assert [m["role"] for m in seen["messages"]] == ["system", "user"]
     assert seen["messages"][0]["content"] == "SYSTEM"
+
+
+def test_api_runner_sends_declared_headers_and_a_fresh_session_per_call():
+    """opencode Go refuses a request without x-opencode-session. Each chapter
+    is its own conversation, so each call gets its own id."""
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    runner = ApiRunner(
+        endpoint="https://example.invalid/v1/chat/completions",
+        model="vendor/model",
+        api_key="k",
+        temperature=0.3,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+        headers={"User-Agent": "ati-translation-index/1.0"},
+        session_header="x-opencode-session",
+    )
+    runner.run("sys", "src")
+    runner.run("sys", "src")
+    assert all(h["user-agent"] == "ati-translation-index/1.0" for h in seen)
+    sessions = [h["x-opencode-session"] for h in seen]
+    assert all(sessions) and sessions[0] != sessions[1]
+    assert all(h["authorization"] == "Bearer k" for h in seen)
+
+
+def test_api_runner_declared_headers_cannot_replace_the_credential():
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    runner = ApiRunner(
+        endpoint="https://example.invalid/v1/chat/completions",
+        model="vendor/model",
+        api_key="k",
+        temperature=0.3,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+        headers={"Authorization": "Bearer other"},
+    )
+    runner.run("sys", "src")
+    assert seen[0]["authorization"] == "Bearer k"

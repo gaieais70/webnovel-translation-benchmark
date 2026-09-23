@@ -60,6 +60,7 @@ from ati.runners.agy import AgyRunner, CallGate
 from ati.runners.cli import CliRunner
 from ati.runners.manual import ManualRunner
 from ati.runstage import completed_count, recheck, run_model
+from ati.cost import render_cost, run_cost
 from ati.status import render_status, run_progress
 from ati.tasks import expand, load_tasks
 from ati.textmetrics import load_slop_list
@@ -110,6 +111,8 @@ def build_alternate_runner(model: ModelConfig):
         timeout_s=model.timeout_s,
         extra_params=spec.get("params", model.params),
         stream=bool(spec.get("stream", model.stream)),
+        headers=spec.get("headers", model.headers),
+        session_header=spec.get("session_header", model.session_header),
     )
 
 
@@ -137,6 +140,8 @@ def build_runner(model: ModelConfig, manual_root: Path):
             extra_params=model.params,
             fallback=build_alternate_runner(model),
             stream=model.stream,
+            headers=model.headers,
+            session_header=model.session_header,
         )
     if model.runner == "cli":
         return CliRunner(
@@ -601,6 +606,18 @@ def cmd_status(args) -> int:
     return 0
 
 
+def cmd_cost(args) -> int:
+    """What a run's recorded tokens come to at list price. No calls."""
+    roster = load_models(Path(args.models))
+    tasks = load_tasks(Path(args.tasks))
+    if args.task:
+        tasks = [t for t in tasks if t.id in args.task]
+    instance_ids = [i.instance_id for i in expand(tasks, iterations=args.iterations)]
+    prices = {m.id: m.price for m in select_models(roster, args.model)}
+    print(render_cost(args.run, run_cost(args.run, Path(args.runs), prices, instance_ids)))
+    return 0
+
+
 def cmd_recheck(args) -> int:
     """Re-apply the current output guards to records already on disk."""
     changes = recheck(args.run, Path(args.runs), apply=args.apply)
@@ -890,6 +907,11 @@ def main(argv: list[str] | None = None) -> int:
         help="progress of a run: translations, judgments, comparisons (no calls)",
         parents=[common],
     )
+    sub.add_parser(
+        "cost",
+        help="list-price cost of a run's recorded tokens, and of what is left (no calls)",
+        parents=[common],
+    )
     recheck_parser = sub.add_parser(
         "recheck",
         help="re-apply the current output guards to run records (no calls)",
@@ -943,6 +965,7 @@ def main(argv: list[str] | None = None) -> int:
         "bench": cmd_bench,
         "status": cmd_status,
         "recheck": cmd_recheck,
+        "cost": cmd_cost,
     }
     if args.command not in ("add", "fetch") and not args.run:
         print(f"error: `ati {args.command}` needs --run, e.g. --run 2026-10")
