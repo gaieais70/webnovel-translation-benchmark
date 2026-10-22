@@ -350,18 +350,38 @@ gave its own family 5.0 on accuracy and fidelity; the independent judge gave
 Read the top row as "among the best", not as a nine-point lead. The
 leaderboard and the published page both carry that warning.
 
-**Scope, and what is still owed.** Four models, 44 judgments, one independent
-judge, rubric only. The remaining three models and an independent head-to-head
-pass stopped when Command Code's **weekly** limit was reached (resets
-2026-09-21 21:40 local); 2 of 20 independent comparisons exist. Both resume
-with the same commands, against the partial results kept in
-`judgments/secondary/2026-09/` and `pairwise/secondary/2026-09/`:
+**Scope.** The first pass covered four models (44 judgments) and 2 of 20
+comparisons before Command Code's limit stopped it. The rest ran on
+2026-09-23: three more models on the rubric (muse-spark 1.2 and 1.3, hy3; 33
+judgments) and the remaining 18 comparisons among five. By then Command Code
+had no credit left at all (§14), so grok moved to OpenRouter
+(`x-ai/grok-4.6`). xAI is that slug's only provider, so the model is the same
+one; the route is not, and a route change changes the judge fingerprint and
+would have marked the first 44 judgments stale. The new pass was scoped with
+`--model` to the three missing rows instead, so both sets stand. Cost $3.77,
+against an estimate of $1.50.
 
-    python -m ati.cli judge --run 2026-09 --judge-model grok-judge         --runs <snapshot of the seven models' runs>         --judgments judgments/secondary --wait
-    python -m ati.cli pairwise --run 2026-09 --judge-model grok-judge         --pairwise pairwise/secondary --target 20 --max-comparisons 10 --wait         --model gemini-3.8-flash --model gpt-5.6-luna         --model muse-spark-1.2-contributor --model deepseek-v4-pro --model hy3
+On the five judged axes (the basis of §13), all seven models:
 
-Until they run, the cross-judge evidence covers the top four models on the
-rubric only.
+    model                   Gemini judge   grok judge   change
+    gemini-3.8-flash              100.0         95.3     -4.7
+    muse-spark-1.3                 93.5         89.9     -3.6
+    deepseek-v4-pro                90.9         92.5     +1.6
+    muse-spark-1.2                 90.3         91.2     +0.9
+    gpt-5.6-luna                   89.1         90.6     +1.5
+    deepseek-v4.1-flash            87.6         88.8     +1.2
+    hy3                            75.1         84.4     +9.3
+
+gemini-3.8-flash still ranks first under grok, by +2.8, against +6.5 over the
+next of these seven under Gemini. Only one other model loses ground:
+muse-spark-1.3, which Gemini ranks second of seven and grok fifth. hy3's +9.3
+is mostly grok's compression (70.6% of its axis scores are a flat 5.0 against
+Gemini's 51.9%), which lifts weak rows most.
+
+Head to head under grok (20 comparisons, hy3 anchored at 1000):
+gemini-3.8-flash 1265, gpt-5.6-luna 1239, muse-spark-1.2 1239,
+deepseek-v4-pro 1190. The same leader, by a margin that twenty comparisons
+among five models cannot separate from its neighbours.
 
 ## 12. Harness defects found while adding the three models
 
@@ -418,13 +438,35 @@ rubric only.
   three tiers. The operator split what sits below it into middle (glm-5.3 at
   $0.91/$2.86 per 1M tokens, kimi-k3 at $1.70/$8.50) and high (grok-4.6 and
   Qwen3.8-Max, both $2.00/$6.00), which stay held. Prices are OpenRouter list,
-  2026-09-20.
+  2026-09-20; by 2026-09-23 glm-5.3 was $0.84/$2.64 and kimi-k3 $3.00/$15.00.
 - **Three routes were checked for the middle tier, and it waited.** Command
   Code serves both but its weekly limit was spent until 2026-09-21 21:40.
   opencode (`opencode.ai/zen/go/v1`) still lists both, but the workspace
   balance is zero. OpenRouter would have cost about $10 at list price, and
-  the operator keeps OpenRouter use to a minimum, so both ran on Command Code
-  after the reset.
+  the operator keeps OpenRouter use to a minimum, so both started on Command
+  Code after the reset.
+- **Command Code then ran out of money, not time.** At 13:42 on 2026-09-22
+  every model on the account began answering HTTP 400 "You have insufficient
+  credits". That is a third limit, separate from the 5-hour and weekly
+  windows: a monthly dollar bucket that refills only at the billing cycle or
+  by purchase, with no balance endpoint to check it. Max-effort reasoning had
+  emptied it - about 90% of the run's Command Code output tokens are
+  reasoning, and glm-5.3 alone spent 55k-126k per chapter. glm-5.3 stood at
+  10/11 and kimi-k3 at 2/11. `ati cost` (below) puts the run's Command Code
+  translations at $8.59 at list price, which fits a $10 bucket once grok
+  judging and overwritten retries are added.
+- **The middle tier finished on opencode Go**, the operator's own
+  subscription (dollar allowances per 5 hours, week and month). kimi-k3's two
+  Command Code chapters were quarantined in `runs/quarantine-2026-09/` and
+  regenerated there, so all eleven share one provider; glm-5.3 keeps its ten
+  Command Code chapters and took ch10 from Go. `route` on each record says
+  which provider wrote it. The model weights are the same on both routes; the
+  serving stack is not, which is the same caveat the roster already makes
+  about opencode in 2026-08. Go's 5-hour allowance stopped the pair twice on
+  2026-09-23 (about 15:45 and 20:14), and `--wait` waited out the first. The
+  machine went down unexpectedly during the second wait, so the chain was
+  restarted on 2026-09-26; it translated the last two chapters in seven
+  minutes. Cost at list price: glm-5.3 $2.60, kimi-k3 $5.56.
 - **The Claude column runs on the local Claude Code CLI.** Command Code
   answers MODEL_NOT_IN_PLAN for every Claude model, so the Messages-shaped
   runner its `/provider/v1/messages` wants would not have helped. The CLI
@@ -433,8 +475,10 @@ rubric only.
   denied, and an empty working directory. It is a different route from every
   other row, so these are not directly comparable to the API rows. All three
   were translated 11/11 by 2026-09-21 19:45; sonnet-5 averaged 1,040 s per
-  chapter against 127 for opus-5 and 144 for haiku-4.5. They are not judged:
-  33 rubric calls on the operator's Antigravity account were not asked for.
+  chapter against 127 for opus-5 and 144 for haiku-4.5. The operator then
+  asked for everything outstanding to be finished, so on 2026-09-23 Gemini
+  judged all 33, and they joined head to head after the middle tier
+  (+120 comparisons, 525 -> 645).
 - **Nine defects, nearly all of them a limit the harness could not see:**
   - `--wait` read a duration ("Resets in 1h17m35s") but not an instant
     ("resets at 2026-09-22T01:40:52.743Z"), so a weekly limit backed off one
@@ -458,11 +502,27 @@ rubric only.
   - That task ran its script in a visible console, and closing the window
     ended the run seven chapters in (0xC000013A, about 23:47). It now starts
     hidden.
-- **Two glm-5.3 chapters did not run under the row's conditions.** ch06 spent
-  the provider's whole default of 131,072 output tokens on reasoning and
-  produced no text; the other chapters finished at 64k-110k, so it is left to
-  the retry passes at the same cap. ch07 came back with zero reasoning tokens
-  in 69 s, on the same route and request, so it was not produced at max
-  effort; it is kept in `runs/quarantine-2026-09/` and regenerated.
+- **Found once the credit ran out:**
+  - The credit message matched the usage-limit markers, so `--wait` treated
+    an empty balance as a window and retried it hourly. A balance does not
+    reopen on its own; it now ends the run at once (97c4a96).
+  - Progress was counted in calls attempted, and a call that fails on a limit
+    is still an attempt, so every stop logged "1 in a row" and the give-up
+    count never fired: nine hours of hourly retries, 13:42 to 23:01, that
+    would have gone on indefinitely. Progress is now finished work (77e1eb3).
+  - Nothing could say what a batch would cost before it ran. `ati cost`
+    prices each row's recorded tokens at list price and projects what is left
+    from the average finished chapter. It is a floor: a retry overwrites the
+    record of the attempt it replaced.
+- **Three glm-5.3 chapters needed a second attempt.** ch06 spent the
+  provider's whole default of 131,072 output tokens on reasoning and produced
+  no text; ch10 did the same on Go. Both were left to the retry passes at the
+  same cap and finished there (101,834 and 103,281 reasoning tokens; the
+  other chapters took 52k-122k). ch07 came back with zero reasoning tokens in
+  69 s, on the same route and request, so it was not produced at max effort;
+  it is kept in `runs/quarantine-2026-09/` and was regenerated at 79,636.
+  kimi-k3's ch07 on Go reports no reasoning count at all, but it emitted
+  45,851 tokens for about 4k of text, so it reasoned like the others; the
+  route omitted the breakdown on that call.
 - **Results: pending.** As of 2026-09-22 00:22 the chain - translate, rubric
   judge, +80 head-to-head comparisons, report - was running.
