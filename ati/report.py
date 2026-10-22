@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ati.config import AXES
+from ati.cost import record_cost
 from ati.fileio import iter_records, read_json
 from ati.scoring import (
     aggregate_axis,
@@ -45,6 +46,11 @@ class ModelResult:
     # run. Shown beside the panel's, so a judge favouring its own family is
     # visible in the table rather than averaged out of sight.
     judge_composites: dict[str, float | None] = field(default_factory=dict)
+    # At the roster's list price (or the route's own list figure), averaged
+    # over scored chapters. Every route has one, subscription or metered, so
+    # unlike the billed cost it compares models whatever they ran on.
+    list_cost_per_chapter: float | None = None
+    tokens_out_per_chapter: float | None = None
 
 
 def fmt(value: float | None, places: int = 1) -> str:
@@ -52,6 +58,14 @@ def fmt(value: float | None, places: int = 1) -> str:
     if value is None:
         return "N/A"
     return f"{value:.{places}f}"
+
+
+def fmt_list_cost(value: float | None) -> str:
+    return "N/A" if value is None else f"${value:.4f}"
+
+
+def fmt_tokens(value: float | None) -> str:
+    return "N/A" if value is None else f"{value:,.0f}"
 
 
 def fmt_cost(value: float | None) -> str:
@@ -159,6 +173,7 @@ def aggregate(
     slop_list: list[str],
     anchors: dict[str, str],
     judge_roots: dict[str, Path] | None = None,
+    prices: dict[str, dict | None] | None = None,
 ) -> list[ModelResult]:
     """Results per model. `judge_roots` names a panel, judge id to judgments
     root; without it, `judgments_root` is the one judge."""
@@ -196,6 +211,16 @@ def aggregate(
 
         comp = composite(axis_means, weights)
         cost_1k = cost_per_1k_chars(total_cost, total_chars)
+
+        # --- list-price cost and output tokens, per scored chapter ---
+        price = (prices or {}).get(model_id)
+        list_costs = [record_cost(r, price) for r in scored_runs]
+        list_total = (
+            sum(list_costs)
+            if list_costs and all(c is not None for c in list_costs)
+            else None
+        )
+        outs = [r["tokens_out"] for r in scored_runs if r.get("tokens_out") is not None]
         failed = sum(
             1 for r in model_runs if r.get("unavailable") or r.get("error")
         )
@@ -214,7 +239,9 @@ def aggregate(
                     [r.get("latency_s", 0.0) for r in scored_runs],
                     [r.get("source_chars", 0) for r in scored_runs],
                 ),
-                value=value_score(comp, cost_1k),
+                # Per list dollar: a billed figure is zero or unknown for
+                # nearly every route here, so it cannot rank value.
+                value=value_score(comp, cost_per_1k_chars(list_total, total_chars)),
                 slop=slop_score(joined, slop_list),
                 repetition=repetition_score(joined),
                 judge_errors=sum(
@@ -231,6 +258,10 @@ def aggregate(
                 incomplete=bool(model_runs)
                 and failed / len(model_runs) > FAILURE_THRESHOLD,
                 judge_composites=judge_composites,
+                list_cost_per_chapter=(
+                    list_total / len(scored_runs) if list_total is not None else None
+                ),
+                tokens_out_per_chapter=sum(outs) / len(outs) if outs else None,
             )
         )
 
@@ -433,8 +464,9 @@ def render_markdown(
         "## Ranking",
         "",
         "| # | Model | Composite |" + judge_header
-        + " Scored | Refusal % | Cost /1k ch | Sec /1k ch | Value | Slop | Repetition |",
-        "|---" * (10 + len(judges)) + "|",
+        + " Scored | List $ /ch | Out tok /ch | Refusal % | Billed /1k ch | Sec /1k ch"
+        " | Value | Slop | Repetition |",
+        "|---" * (12 + len(judges)) + "|",
     ]
     for i, r in enumerate(ranked, start=1):
         label = r.model_id + (f" _{r.anchor} anchor_" if r.anchor else "")
@@ -446,7 +478,9 @@ def render_markdown(
         )
         judge_cells = "".join(f" {fmt(r.judge_composites.get(j))} |" for j in judges)
         lines.append(
-            f"| {i} | {label} | {fmt(r.composite)} |{judge_cells} {scored} | {fmt(r.refusal_rate)} | "
+            f"| {i} | {label} | {fmt(r.composite)} |{judge_cells} {scored} | "
+            f"{fmt_list_cost(r.list_cost_per_chapter)} | {fmt_tokens(r.tokens_out_per_chapter)} | "
+            f"{fmt(r.refusal_rate)} | "
             f"{fmt_cost(r.cost_per_1k)} | {fmt(r.speed_per_1k)} | "
             f"{fmt(r.value, 0)} | {fmt(r.slop, 2)} | {fmt(r.repetition, 3)} |"
         )
@@ -537,7 +571,14 @@ def render_markdown(
         "",
         "## Notes",
         "",
-        "- **Cost `sub`** means a subscription covered the call, so it billed "
+        "- **List $ /ch** is what one chapter costs at the provider's list "
+        "price: the tokens each call recorded, priced from the roster (OpenRouter "
+        "list), or the route's own list-price figure where it reports one. It "
+        "compares every model on one basis, whatever route ran it. Reasoning is "
+        "billed as output, so **Out tok /ch** includes it. CLI routes carry "
+        "their harness's own input overhead. **Value** is composite points per "
+        "list dollar per 1,000 source characters.",
+        "- **Billed `sub`** means a subscription covered the call, so it billed "
         "zero. That is not the same as the model being free to run. **`N/A`** "
         "means the access path reports no cost at all. Neither is a price.",
         "- **Slop** counts LLM-tell and translationese phrases per 1,000 words. "

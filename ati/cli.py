@@ -148,6 +148,7 @@ def build_runner(model: ModelConfig, manual_root: Path):
             command=model.command or [],
             timeout_s=model.timeout_s,
             system_prompt_flag=model.system_prompt_flag,
+            output_format=model.output_format,
             # Same reason as the agy runner's empty workspace: a CLI that can
             # read the repository it is being benchmarked in is not under test
             # conditions. `sandbox: false` opts out.
@@ -631,9 +632,9 @@ def cmd_recheck(args) -> int:
 def cmd_report(args) -> int:
     weights = load_weights(Path(args.weights))
     slop_list = load_slop_list(Path(args.slop))
-    anchors = {
-        m.id: m.anchor for m in load_models(Path(args.models)) if m.anchor
-    }
+    roster = load_models(Path(args.models))
+    anchors = {m.id: m.anchor for m in roster if m.anchor}
+    prices = {m.id: m.price for m in roster}
 
     # A panel reads each judge from its own subdirectory, so no judge's
     # records can overwrite another's, and pools them only at this stage.
@@ -646,6 +647,7 @@ def cmd_report(args) -> int:
         slop_list=slop_list,
         anchors=anchors,
         judge_roots={j: Path(args.judgments) / j for j in panel} or None,
+        prices=prices,
     )
 
     results_dir = Path(args.results)

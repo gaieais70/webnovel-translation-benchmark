@@ -1,3 +1,5 @@
+import json
+import pytest
 import subprocess
 
 from ati.runners.cli import CliRunner
@@ -244,3 +246,95 @@ def test_each_distinct_system_prompt_gets_its_own_file(tmp_path):
     paths = [cmd[1] for cmd, _ in capture]
     assert paths[0] == paths[2] != paths[1]
     assert len(list(tmp_path.iterdir())) == 2
+
+
+# --- usage from the CLI's structured output ----------------------------------
+
+CLAUDE_JSON = json.dumps({
+    "type": "result", "subtype": "success", "is_error": False,
+    "result": "Cheongmyeong drew his sword.",
+    "total_cost_usd": 0.00118926,
+    "usage": {
+        "input_tokens": 2, "cache_creation_input_tokens": 2836,
+        "cache_read_input_tokens": 12036, "output_tokens": 1003,
+        "output_tokens_details": {"thinking_tokens": 976},
+    },
+})
+
+CODEX_JSONL = "\n".join(json.dumps(e) for e in [
+    {"type": "thread.started", "thread_id": "t"},
+    {"type": "item.completed", "item": {"id": "i0", "type": "error",
+                                        "message": "Codex is ignoring 1 setting"}},
+    {"type": "turn.started"},
+    {"type": "item.completed", "item": {"id": "i1", "type": "agent_message",
+                                        "text": "Cheongmyeong drew his sword."}},
+    {"type": "turn.completed", "usage": {
+        "input_tokens": 10884, "cached_input_tokens": 4096,
+        "output_tokens": 173, "reasoning_output_tokens": 152}},
+]) + "\n"
+
+
+def test_claude_json_output_yields_text_tokens_and_list_cost():
+    runner = CliRunner(
+        command=["x"], output_format="claude-json",
+        runner_fn=fake_run_factory(stdout=CLAUDE_JSON),
+    )
+    r = runner.run("s", "t")
+    assert r.text == "Cheongmyeong drew his sword." and r.error is None
+    assert r.tokens_in == 2 + 2836 + 12036
+    assert r.cached_tokens_in == 12036
+    assert (r.tokens_out, r.reasoning_tokens) == (1003, 976)
+    # What the CLI itself prices the call at, list basis. Not billed: the
+    # subscription paid, so cost_usd stays unknown.
+    assert r.list_cost_usd == pytest.approx(0.00118926)
+    assert r.cost_usd is None
+
+
+def test_a_claude_json_error_result_is_an_error():
+    body = json.dumps({"type": "result", "is_error": True,
+                       "result": "You've hit your session limit · resets 12am"})
+    from ati.runstage import is_usage_limit
+
+    for code in (0, 1):
+        runner = CliRunner(
+            command=["x"], output_format="claude-json",
+            runner_fn=fake_run_factory(stdout=body, returncode=code),
+        )
+        r = runner.run("s", "t")
+        assert r.text == "" and is_usage_limit(r.error)
+
+
+def test_codex_jsonl_output_yields_the_last_message_and_usage():
+    runner = CliRunner(
+        command=["x"], output_format="codex-jsonl",
+        runner_fn=fake_run_factory(stdout=CODEX_JSONL),
+    )
+    r = runner.run("s", "t")
+    assert r.text == "Cheongmyeong drew his sword." and r.error is None
+    assert (r.tokens_in, r.cached_tokens_in) == (10884, 4096)
+    assert (r.tokens_out, r.reasoning_tokens) == (173, 152)
+    assert r.list_cost_usd is None  # priced from the roster instead
+
+
+def test_a_codex_failure_reports_its_turn_failed_message():
+    from ati.runstage import is_usage_limit
+
+    events = "\n".join(json.dumps(e) for e in [
+        {"type": "turn.started"},
+        {"type": "turn.failed", "error": {
+            "message": "You've hit your usage limit. Try again in 3 hours."}},
+    ])
+    runner = CliRunner(
+        command=["x"], output_format="codex-jsonl",
+        runner_fn=fake_run_factory(stdout=events, returncode=1),
+    )
+    assert is_usage_limit(runner.run("s", "t").error)
+
+
+def test_unparseable_structured_output_is_an_error_not_a_translation():
+    runner = CliRunner(
+        command=["x"], output_format="claude-json",
+        runner_fn=fake_run_factory(stdout="not json at all"),
+    )
+    r = runner.run("s", "t")
+    assert r.text == "" and "could not be parsed" in r.error

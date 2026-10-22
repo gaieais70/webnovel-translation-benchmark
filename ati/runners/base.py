@@ -36,6 +36,13 @@ class RunResult:
     # OpenRouter's free routes cut nemotron-3.5-lightning off at 600 seconds
     # mid-sentence, and without this there was no trace of why.
     finish_reason: str | None = None
+    # Of tokens_in, how many were read from a prompt cache, where the route
+    # says. Priced at the roster's `cached_input` rate when it declares one.
+    cached_tokens_in: int | None = None
+    # What the call comes to at the provider's list price, as the route itself
+    # reports it (the Claude CLI does, cache pricing included). Not what was
+    # billed - a subscription paid - so it never fills cost_usd.
+    list_cost_usd: float | None = None
 
 
 class Runner(Protocol):

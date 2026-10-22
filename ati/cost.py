@@ -32,8 +32,31 @@ class CostRow:
     unmetered: int = 0
 
 
-def _dollars(price: dict, tokens_in: int, tokens_out: int) -> float:
-    return (tokens_in * price["input"] + tokens_out * price["output"]) / 1_000_000
+def _dollars(price: dict, tokens_in: int, tokens_out: int, cached: int = 0) -> float:
+    cached = min(cached, tokens_in)
+    cached_rate = price.get("cached_input", price["input"])
+    return (
+        (tokens_in - cached) * price["input"]
+        + cached * cached_rate
+        + tokens_out * price["output"]
+    ) / 1_000_000
+
+
+def record_cost(record: dict, price: dict | None) -> float | None:
+    """One call at list price, or None when it cannot be known.
+
+    The route's own list-price figure wins where it reports one: the Claude
+    CLI prices its cache reads and writes itself, which tokens times a flat
+    rate cannot. Otherwise recorded tokens times the roster's `price`, cached
+    input at its `cached_input` rate when the row declares one.
+    """
+    own = record.get("list_cost_usd")
+    if isinstance(own, (int, float)):
+        return float(own)
+    t_in, t_out = record.get("tokens_in"), record.get("tokens_out")
+    if price is None or (t_in is None and t_out is None):
+        return None
+    return _dollars(price, t_in or 0, t_out or 0, record.get("cached_tokens_in") or 0)
 
 
 def run_cost(
@@ -62,8 +85,9 @@ def run_cost(
             continue
         row.tokens_in += t_in or 0
         row.tokens_out += t_out or 0
-        if price is not None:
-            dollars = _dollars(price, t_in or 0, t_out or 0)
+        dollars = record_cost(record, price)
+        if dollars is not None:
+            row.priced = True
             row.spent = (row.spent or 0.0) + dollars
             if not failed:
                 row.ok += 1

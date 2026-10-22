@@ -325,6 +325,8 @@ def run_model(
                 "tokens_in": result.tokens_in,
                 "tokens_out": result.tokens_out,
                 "reasoning_tokens": result.reasoning_tokens,
+                "cached_tokens_in": result.cached_tokens_in,
+                "list_cost_usd": result.list_cost_usd,
                 "route": result.route,
                 "finish_reason": result.finish_reason,
                 "cost_usd": result.cost_usd,

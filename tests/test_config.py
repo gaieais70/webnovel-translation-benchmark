@@ -433,3 +433,30 @@ def test_a_price_needs_both_input_and_output(tmp_path):
     )
     with pytest.raises(ConfigError):
         load_models(path)
+
+
+def test_output_format_reaches_the_runner(tmp_path):
+    from ati.cli import build_runner
+
+    p = write(tmp_path, "models.yaml",
+              "- id: m\n  runner: cli\n  command: [x]\n  output_format: codex-jsonl\n")
+    [m] = load_models(p)
+    assert m.output_format == "codex-jsonl"
+    assert build_runner(m, tmp_path)._parse is not None
+
+
+def test_an_unknown_output_format_is_refused(tmp_path):
+    p = write(tmp_path, "models.yaml",
+              "- id: m\n  runner: cli\n  command: [x]\n  output_format: yaml\n")
+    with pytest.raises(ConfigError):
+        load_models(p)
+
+
+def test_a_price_may_declare_a_cached_input_rate(tmp_path):
+    p = write(tmp_path, "models.yaml", "- id: m\n  runner: api\n  model: x\n"
+              "  price: {input: 2, output: 10, cached_input: 0.1}\n")
+    assert load_models(p)[0].price == {"input": 2.0, "output": 10.0, "cached_input": 0.1}
+    bad = write(tmp_path, "bad.yaml", "- id: m\n  runner: api\n  model: x\n"
+                "  price: {input: 2, output: 10, batch: 1}\n")
+    with pytest.raises(ConfigError):
+        load_models(bad)

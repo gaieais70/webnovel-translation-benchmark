@@ -130,6 +130,9 @@ class ModelConfig:
     # For `runner: cli`: pass the system prompt as this flag instead of
     # concatenating it onto stdin. See CliRunner.
     system_prompt_flag: str | None = None
+    # For `runner: cli`: ask the CLI for structured output so the record
+    # carries token counts ("claude-json", "codex-jsonl"). See CliRunner.
+    output_format: str | None = None
     role: str = "subject"
     # Extra request headers, sent as declared. `session_header` names a header
     # that gets a fresh id on every call. opencode Go refuses a request that
@@ -138,7 +141,8 @@ class ModelConfig:
     # own id. Neither can replace the Authorization header.
     headers: dict | None = None
     session_header: str | None = None
-    # List price in USD per 1M tokens, {input, output}: what `ati cost` turns
+    # List price in USD per 1M tokens, {input, output[, cached_input]}: what
+    # `ati cost` and the leaderboard's list-cost column turn
     # recorded tokens into. It is not what a subscription debits, but
     # Command Code and opencode Go both meter their allowances in dollars at
     # roughly these rates, so it shows how fast a run drains one.
@@ -182,6 +186,10 @@ def load_models(path: Path) -> list[ModelConfig]:
             raise ConfigError(f"unknown runner {runner!r} for model {model_id}")
         if runner == "api" and not entry.get("model"):
             raise ConfigError(f"model {model_id}: runner 'api' requires 'model'")
+        if entry.get("output_format") not in (None, "text", "claude-json", "codex-jsonl"):
+            raise ConfigError(
+                f"model {model_id}: unknown output_format {entry.get('output_format')!r}"
+            )
         if runner == "cli" and not entry.get("command"):
             raise ConfigError(f"model {model_id}: runner 'cli' requires 'command'")
         if runner == "agy" and not entry.get("model"):
@@ -254,10 +262,14 @@ def load_models(path: Path) -> list[ModelConfig]:
             raise ConfigError(f"model {model_id}: 'headers' must be a mapping")
         price = entry.get("price")
         if price is not None:
-            if not isinstance(price, dict) or set(price) != {"input", "output"}:
+            if (
+                not isinstance(price, dict)
+                or not {"input", "output"} <= set(price)
+                or not set(price) <= {"input", "output", "cached_input"}
+            ):
                 raise ConfigError(
                     f"model {model_id}: 'price' must be {{input: <USD/1M>, "
-                    f"output: <USD/1M>}}"
+                    f"output: <USD/1M>}}, optionally with cached_input"
                 )
             try:
                 price = {k: float(v) for k, v in price.items()}
@@ -286,6 +298,7 @@ def load_models(path: Path) -> list[ModelConfig]:
                 fallback=fallback,
                 stream=bool(entry.get("stream", False)),
                 system_prompt_flag=entry.get("system_prompt_flag"),
+                output_format=entry.get("output_format"),
                 role=role,
                 headers=headers,
                 session_header=entry.get("session_header"),

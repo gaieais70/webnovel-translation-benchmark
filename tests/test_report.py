@@ -635,3 +635,42 @@ def test_the_leaderboard_shows_each_panel_judge(tmp_path):
     md = render_markdown("r1", [r], {}, True, {"judge_id": "haiku-judge + gemini-judge"})
     assert "| haiku-judge | gemini-judge |" in md
     assert "| 70.0 | 80.0 |" in md
+
+
+# --- list-price cost, the basis every route shares ---------------------------
+
+
+def test_list_cost_and_tokens_per_chapter_come_from_the_roster_price(tmp_path):
+    seed(tmp_path, "m1", "t.cn-01.0",
+         run={"cost_usd": None, "tokens_in": 1_000_000, "tokens_out": 100_000})
+    [r] = aggregate(
+        run_id="r1", runs_root=tmp_path / "runs", judgments_root=tmp_path / "judgments",
+        weights=WEIGHTS, slop_list=[], anchors={},
+        prices={"m1": {"input": 1.0, "output": 10.0}},
+    )
+    assert r.list_cost_per_chapter == pytest.approx(2.0)
+    assert r.tokens_out_per_chapter == pytest.approx(100_000)
+    # Value is composite points per list dollar per 1k source characters:
+    # $2.00 over 800 characters is $2.50 per 1k.
+    assert r.value == pytest.approx(r.composite / 2.5)
+
+
+def test_a_model_with_unpriced_chapters_has_no_list_cost(tmp_path):
+    seed(tmp_path, "m1", "t.cn-01.0", run={"tokens_in": None, "tokens_out": None})
+    [r] = aggregate(
+        run_id="r1", runs_root=tmp_path / "runs", judgments_root=tmp_path / "judgments",
+        weights=WEIGHTS, slop_list=[], anchors={}, prices={"m1": {"input": 1, "output": 1}},
+    )
+    assert r.list_cost_per_chapter is None and r.tokens_out_per_chapter is None
+
+
+def test_the_ranking_shows_list_cost_and_output_tokens(tmp_path):
+    seed(tmp_path, "m1", "t.cn-01.0", run={"tokens_in": 1000, "tokens_out": 12_345})
+    results = aggregate(
+        run_id="r1", runs_root=tmp_path / "runs", judgments_root=tmp_path / "judgments",
+        weights=WEIGHTS, slop_list=[], anchors={}, prices={"m1": {"input": 1, "output": 1}},
+    )
+    md = render_markdown("r1", results, {}, True, {"judge_id": "j", "date": "d"})
+    assert "List $ /ch" in md and "Out tok /ch" in md
+    assert "| $0.0133 | 12,345 |" in md
+    assert "list price" in md.lower()
