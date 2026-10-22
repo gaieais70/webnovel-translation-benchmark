@@ -1,0 +1,12 @@
+{
+  "a": "kimi-k3",
+  "b": "muse-spark-1.2-contributor",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "0677839fc396b93a645c88cc325a43872a13d55c43601e441a580a36e48bdd5f",
+  "sha_b": "30c1b009bfadc77c307bc3dfbaba33272dac8202f50d52c855a5dce57a10e266"
+}

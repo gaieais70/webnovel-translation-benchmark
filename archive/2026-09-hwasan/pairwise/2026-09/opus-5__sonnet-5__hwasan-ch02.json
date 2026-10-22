@@ -1,0 +1,12 @@
+{
+  "a": "opus-5",
+  "b": "sonnet-5",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "f7ce17f6d60b1c01ee472107ac57774c8f683685627c434bee0bf2374f137026",
+  "sha_b": "d228205d3fcad96dd312871eecd318e07afc824643f322cc790dff7e80f26737"
+}

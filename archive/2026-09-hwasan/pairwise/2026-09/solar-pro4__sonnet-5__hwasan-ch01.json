@@ -1,0 +1,12 @@
+{
+  "a": "solar-pro4",
+  "b": "sonnet-5",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "ceb1acb3a34a08f2ab4d030aa36b418150a0b4d5c9a803fddf48e69cf0d051e1",
+  "sha_b": "89499d9f84342dccfe21f9f0f0ff06ca0fb6de3883116a3d2161d5688ff018af"
+}

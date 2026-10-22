@@ -1,0 +1,12 @@
+{
+  "a": "haiku-4.5",
+  "b": "sonnet-5",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "7307afd8e1ae39cb9544b6fed1badd80a182ea9b2f622b478c9f3533a2491a98",
+  "sha_b": "89499d9f84342dccfe21f9f0f0ff06ca0fb6de3883116a3d2161d5688ff018af"
+}

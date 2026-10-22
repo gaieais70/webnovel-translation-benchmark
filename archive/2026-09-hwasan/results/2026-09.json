@@ -2,9 +2,9 @@
   "run_id": "2026-09",
   "metadata": {
     "judge_id": "gemini-judge",
-    "date": "2026-09-20",
+    "date": "2026-10-22",
     "inputs": {
-      "models": "a889c7a6032fc8bc9d318994e762db477e00716897092eff3c1576e446e9b4da",
+      "models": "acca6615c6b31bc6247371dc2d0e74d0f2c5a56243253b0a833f78f732eb9932",
       "weights": "afb5c698ea565900c370eeb82e75afac581d2abd0dcc3038af6d0315b94fd887",
       "tasks": "625461c5080c47d7ab710b501a3934d0357713494739f1958f7d3d3c0282a3e2",
       "manifest": "5abc050ba298775eb78ecf5d83894ff5dd6051c7a066271e7c403c75e892c4e6",
@@ -14,9 +14,9 @@
       "judge_schema": "f59d3182b1fcfd701149f090e7c31820f4fa508a7478777fab9e11858d5520cf",
       "pairwise_schema": "67f4ff6fbd3266a2dbadc301dc726dbf7eaa8d69a1d158d75dc089f0c2e154f6",
       "slop_list": "e3b8465dbc08c3d5747905e88775648c9bfb297c04bf1bee41f27470ec163a11",
-      "defaults": "a21892b6d39e98dd8f0e4b0dbdfe6e24f39b95f2114f59d9054748f31e1e0133"
+      "defaults": "f85fb271a8e6ba20c6961e6315ecfb28fe1d3f7fe76ab18d8180859e8d02538e"
     },
-    "code": "e453202a72633783",
+    "code": "5393230f11dc2302",
     "judge_fingerprints": {
       "rubric": "0d9a96352a305529",
       "pairwise": "4c3d3c5b48b908ce"
@@ -24,9 +24,9 @@
     "pending_judgments": 0,
     "anchor_baseline": null,
     "pairwise_coverage": {
-      "comparisons": 445,
-      "pairs": 253,
-      "possible_pairs": 253
+      "comparisons": 645,
+      "pairs": 378,
+      "possible_pairs": 378
     }
   },
   "weights": {
@@ -62,7 +62,7 @@
       "refusal_rate": 0.0,
       "cost_per_1k": null,
       "speed_per_1k": 4.949308725038402,
-      "value": null,
+      "value": 7496.975590036912,
       "slop": 0.5497526113249038,
       "repetition": 0.10750438526783775,
       "judge_errors": 0,
@@ -70,7 +70,150 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 0
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.08278964999999999,
+      "tokens_out_per_chapter": 16669.090909090908
+    },
+    {
+      "model_id": "opus-5",
+      "composite": 84.01185770750989,
+      "axis_means": {
+        "accuracy": 4.7272727272727275,
+        "terminology": 2.3478260869565215,
+        "register": 5.0,
+        "fluency": 5.0,
+        "fidelity": 4.7272727272727275,
+        "sanitization": 5.0
+      },
+      "axis_stdevs": {
+        "accuracy": 0.4453617714151233,
+        "terminology": 0.28747978728803447,
+        "register": 0.0,
+        "fluency": 0.0,
+        "fidelity": 0.8624393618641034,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": null,
+      "speed_per_1k": 17.54500768049055,
+      "value": null,
+      "slop": 0.2622263012980202,
+      "repetition": 0.10787406100670205,
+      "judge_errors": 0,
+      "failed_tasks": 0,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false,
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": null,
+      "tokens_out_per_chapter": null
+    },
+    {
+      "model_id": "sonnet-5",
+      "composite": 83.76623376623377,
+      "axis_means": {
+        "accuracy": 5.0,
+        "terminology": 2.571428571428571,
+        "register": 5.0,
+        "fluency": 5.0,
+        "fidelity": 3.909090909090909,
+        "sanitization": 5.0
+      },
+      "axis_stdevs": {
+        "accuracy": 0.0,
+        "terminology": 0.0,
+        "register": 0.0,
+        "fluency": 0.0,
+        "fidelity": 1.7814470856604931,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": null,
+      "speed_per_1k": 142.98792519510943,
+      "value": null,
+      "slop": 0.32099293815536056,
+      "repetition": 0.10395487619938826,
+      "judge_errors": 0,
+      "failed_tasks": 0,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false,
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": null,
+      "tokens_out_per_chapter": null
+    },
+    {
+      "model_id": "kimi-k3",
+      "composite": 82.9594861660079,
+      "axis_means": {
+        "accuracy": 4.454545454545454,
+        "terminology": 2.4782608695652173,
+        "register": 4.818181818181818,
+        "fluency": 5.0,
+        "fidelity": 4.909090909090909,
+        "sanitization": 5.0
+      },
+      "axis_stdevs": {
+        "accuracy": 0.655554777357089,
+        "terminology": 0.0,
+        "register": 0.5749595745760689,
+        "fluency": 0.0,
+        "fidelity": 0.28747978728803447,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": null,
+      "speed_per_1k": 54.08345221112696,
+      "value": 1158.9014383074086,
+      "slop": 0.5241639584862144,
+      "repetition": 0.1035289434269494,
+      "judge_errors": 0,
+      "failed_tasks": 0,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false,
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.5051269090909091,
+      "tokens_out_per_chapter": 32392.545454545456
+    },
+    {
+      "model_id": "glm-5.3",
+      "composite": 82.0405138339921,
+      "axis_means": {
+        "accuracy": 4.2727272727272725,
+        "terminology": 2.5217391304347827,
+        "register": 5.0,
+        "fluency": 5.0,
+        "fidelity": 4.7272727272727275,
+        "sanitization": 5.0
+      },
+      "axis_stdevs": {
+        "accuracy": 0.7496555682941201,
+        "terminology": 0.655554777357089,
+        "register": 0.0,
+        "fluency": 0.0,
+        "fidelity": 0.4453617714151233,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": null,
+      "speed_per_1k": 158.36221198157048,
+      "value": 2446.143377487428,
+      "slop": 0.2906225781451821,
+      "repetition": 0.10623938346610438,
+      "judge_errors": 0,
+      "failed_tasks": 0,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false,
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.23666139272727274,
+      "tokens_out_per_chapter": 87781.45454545454
     },
     {
       "model_id": "gpt-5.6-luna",
@@ -94,7 +237,7 @@
       "refusal_rate": 0.0,
       "cost_per_1k": null,
       "speed_per_1k": 59.880239520958085,
-      "value": null,
+      "value": 7583.772940795592,
       "slop": 0.333555703802535,
       "repetition": 0.11057454695699896,
       "judge_errors": 0,
@@ -102,7 +245,10 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 0
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.07469907272727273,
+      "tokens_out_per_chapter": 61481.181818181816
     },
     {
       "model_id": "muse-spark-1.2-contributor",
@@ -126,7 +272,7 @@
       "refusal_rate": 0.0,
       "cost_per_1k": null,
       "speed_per_1k": 5.024757804091038,
-      "value": null,
+      "value": 258702.63156061163,
       "slop": 0.9029798334503862,
       "repetition": 0.11178085639915243,
       "judge_errors": 0,
@@ -134,7 +280,10 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 0
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.0021707454545454546,
+      "tokens_out_per_chapter": 8684.272727272728
     },
     {
       "model_id": "muse-spark-1.3-contributor",
@@ -158,7 +307,7 @@
       "refusal_rate": 0.0,
       "cost_per_1k": null,
       "speed_per_1k": 12.914550641938392,
-      "value": null,
+      "value": 229443.26205195766,
       "slop": 0.30952299067991884,
       "repetition": 0.10975537627647843,
       "judge_errors": 0,
@@ -166,7 +315,10 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 0
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.0024399818181818182,
+      "tokens_out_per_chapter": 10030.454545454546
     },
     {
       "model_id": "deepseek-v4-pro",
@@ -190,7 +342,7 @@
       "refusal_rate": 0.0,
       "cost_per_1k": null,
       "speed_per_1k": 22.447255113024937,
-      "value": null,
+      "value": 11787.312185381536,
       "slop": 0.7514687798879628,
       "repetition": 0.10887267860721224,
       "judge_errors": 0,
@@ -198,7 +350,10 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 0
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.04697796138236363,
+      "tokens_out_per_chapter": 22122.727272727272
     },
     {
       "model_id": "deepseek-v4.1-flash",
@@ -222,7 +377,7 @@
       "refusal_rate": 0.0,
       "cost_per_1k": null,
       "speed_per_1k": 27.067000441761945,
-      "value": null,
+      "value": 23338.9931509954,
       "slop": 0.5280760429501848,
       "repetition": 0.10509955712178475,
       "judge_errors": 0,
@@ -230,7 +385,10 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 0
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.022598636363636362,
+      "tokens_out_per_chapter": 44149.90909090909
     },
     {
       "model_id": "qwen3.8-flash",
@@ -254,7 +412,7 @@
       "refusal_rate": 9.090909090909092,
       "cost_per_1k": null,
       "speed_per_1k": 66.33413400758552,
-      "value": null,
+      "value": 20924.592421016696,
       "slop": 0.6446414182111201,
       "repetition": 0.10561468471404996,
       "judge_errors": 0,
@@ -262,7 +420,10 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 1
+      "refused_tasks": 1,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.024440999999999997,
+      "tokens_out_per_chapter": 50640.0
     },
     {
       "model_id": "deepseek-v4-flash",
@@ -286,7 +447,7 @@
       "refusal_rate": 0.0,
       "cost_per_1k": null,
       "speed_per_1k": 19.833161537328536,
-      "value": null,
+      "value": 92029.34335976804,
       "slop": 0.4134651827860662,
       "repetition": 0.105055296102263,
       "judge_errors": 0,
@@ -294,7 +455,10 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 0
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.0055726542963636366,
+      "tokens_out_per_chapter": 31171.636363636364
     },
     {
       "model_id": "glm-5.2",
@@ -318,7 +482,7 @@
       "refusal_rate": 27.272727272727273,
       "cost_per_1k": null,
       "speed_per_1k": 18.82313527180733,
-      "value": null,
+      "value": 22745.494957172457,
       "slop": 0.7333170373991689,
       "repetition": 0.10810840401495658,
       "judge_errors": 0,
@@ -326,7 +490,10 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 3
+      "refused_tasks": 3,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.0217579808,
+      "tokens_out_per_chapter": 8837.0
     },
     {
       "model_id": "hy4-preview",
@@ -350,7 +517,7 @@
       "refusal_rate": 0.0,
       "cost_per_1k": null,
       "speed_per_1k": 57.504932999557646,
-      "value": null,
+      "value": 4691.271693371739,
       "slop": 0.7188602797019997,
       "repetition": 0.11438678427293454,
       "judge_errors": 0,
@@ -358,7 +525,10 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 0
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.10719679118181817,
+      "tokens_out_per_chapter": 41127.545454545456
     },
     {
       "model_id": "glm-5.3-flash",
@@ -382,7 +552,7 @@
       "refusal_rate": 0.0,
       "cost_per_1k": null,
       "speed_per_1k": 65.09138137738155,
-      "value": null,
+      "value": 24051.88108177448,
       "slop": 0.3620803159973667,
       "repetition": 0.10446632794029771,
       "judge_errors": 0,
@@ -390,7 +560,10 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 0
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.020385413636363637,
+      "tokens_out_per_chapter": 39014.27272727273
     },
     {
       "model_id": "hy3",
@@ -414,7 +587,7 @@
       "refusal_rate": 0.0,
       "cost_per_1k": null,
       "speed_per_1k": 21.480636136062436,
-      "value": null,
+      "value": 67634.45667657668,
       "slop": 0.5079457223713809,
       "repetition": 0.10469807620673273,
       "judge_errors": 0,
@@ -422,7 +595,10 @@
       "total_tasks": 11,
       "anchor": "weak",
       "incomplete": false,
-      "refused_tasks": 0
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.006787755,
+      "tokens_out_per_chapter": 19230.454545454544
     },
     {
       "model_id": "nemotron-3-ultra",
@@ -446,7 +622,7 @@
       "refusal_rate": 0.0,
       "cost_per_1k": null,
       "speed_per_1k": 2.1490207627738656,
-      "value": null,
+      "value": 36998.39142204579,
       "slop": 0.845438475136423,
       "repetition": 0.09862249038639316,
       "judge_errors": 0,
@@ -454,7 +630,10 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 0
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.011390072727272728,
+      "tokens_out_per_chapter": 3781.5454545454545
     },
     {
       "model_id": "mimo-v2.5-pro",
@@ -478,7 +657,7 @@
       "refusal_rate": 18.181818181818183,
       "cost_per_1k": null,
       "speed_per_1k": 12.23399052422527,
-      "value": null,
+      "value": 78310.50889992097,
       "slop": 0.7147643511279875,
       "repetition": 0.10477347649332071,
       "judge_errors": 0,
@@ -486,7 +665,10 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 2
+      "refused_tasks": 2,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.0052376768181818184,
+      "tokens_out_per_chapter": 3512.181818181818
     },
     {
       "model_id": "mimo-v2.5",
@@ -510,7 +692,7 @@
       "refusal_rate": 9.090909090909092,
       "cost_per_1k": null,
       "speed_per_1k": 17.719052744886255,
-      "value": null,
+      "value": 241020.62474938776,
       "slop": 0.7905450808332345,
       "repetition": 0.10441869817141643,
       "judge_errors": 0,
@@ -518,7 +700,10 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 1
+      "refused_tasks": 1,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.0016862745454545457,
+      "tokens_out_per_chapter": 3514.2727272727275
     },
     {
       "model_id": "minimax-m3",
@@ -542,7 +727,7 @@
       "refusal_rate": 0.0,
       "cost_per_1k": null,
       "speed_per_1k": 4.812432723358889,
-      "value": null,
+      "value": 64162.588480193124,
       "slop": 0.5865507366387193,
       "repetition": 0.10270452835062908,
       "judge_errors": 0,
@@ -550,7 +735,10 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 0
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.0059641090909090914,
+      "tokens_out_per_chapter": 3857.909090909091
     },
     {
       "model_id": "qwen3.8-27b",
@@ -574,7 +762,7 @@
       "refusal_rate": 0.0,
       "cost_per_1k": null,
       "speed_per_1k": 33.431797235023545,
-      "value": null,
+      "value": 3002.1867139870023,
       "slop": 0.7188555819135936,
       "repetition": 0.10909909581859327,
       "judge_errors": 0,
@@ -582,7 +770,10 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 0
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.12695764363636364,
+      "tokens_out_per_chapter": 41713.09090909091
     },
     {
       "model_id": "solar-pro4",
@@ -614,7 +805,45 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 0
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.004401916363636364,
+      "tokens_out_per_chapter": 11376.90909090909
+    },
+    {
+      "model_id": "haiku-4.5",
+      "composite": 42.97348484848485,
+      "axis_means": {
+        "accuracy": 2.090909090909091,
+        "terminology": 1.2083333333333333,
+        "register": 3.272727272727273,
+        "fluency": 4.0,
+        "fidelity": 2.727272727272727,
+        "sanitization": 4.545454545454546
+      },
+      "axis_stdevs": {
+        "accuracy": 0.51425947722658,
+        "terminology": 0.28747978728803447,
+        "register": 0.616575453011388,
+        "fluency": 0.6030226891555273,
+        "fidelity": 1.2128785512842122,
+        "sanitization": 0.655554777357089
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": null,
+      "speed_per_1k": 18.005183312259543,
+      "value": null,
+      "slop": 0.5832717657580588,
+      "repetition": 0.10001237562213627,
+      "judge_errors": 0,
+      "failed_tasks": 0,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false,
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": null,
+      "tokens_out_per_chapter": null
     },
     {
       "model_id": "nemotron-3-super-120b",
@@ -638,7 +867,7 @@
       "refusal_rate": 0.0,
       "cost_per_1k": 0.0,
       "speed_per_1k": 10.808334464503869,
-      "value": null,
+      "value": 13845.239974443499,
       "slop": 0.6070263297670536,
       "repetition": 0.1073433947309846,
       "judge_errors": 0,
@@ -646,7 +875,10 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 0
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.020409681818181816,
+      "tokens_out_per_chapter": 8022.0
     },
     {
       "model_id": "inkling-small",
@@ -670,7 +902,7 @@
       "refusal_rate": 0.0,
       "cost_per_1k": null,
       "speed_per_1k": 7.593783638319538,
-      "value": null,
+      "value": 9002.98461648143,
       "slop": 0.6754340657157615,
       "repetition": 0.10591160484667017,
       "judge_errors": 0,
@@ -678,7 +910,10 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 0
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.02489346818181818,
+      "tokens_out_per_chapter": 19013.454545454544
     },
     {
       "model_id": "dots-3-note-preview",
@@ -710,7 +945,10 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 2
+      "refused_tasks": 2,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.0,
+      "tokens_out_per_chapter": 2998.3
     },
     {
       "model_id": "laguna-s-2.1",
@@ -734,7 +972,7 @@
       "refusal_rate": 0.0,
       "cost_per_1k": null,
       "speed_per_1k": 11.596230304815197,
-      "value": null,
+      "value": 94388.29843679615,
       "slop": 0.7690128303719593,
       "repetition": 0.10593570555741862,
       "judge_errors": 0,
@@ -742,7 +980,10 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 0
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.0013237936363636362,
+      "tokens_out_per_chapter": 4092.5454545454545
     },
     {
       "model_id": "nemotron-3.5-lightning",
@@ -766,7 +1007,7 @@
       "refusal_rate": 0.0,
       "cost_per_1k": 0.00017195606802370526,
       "speed_per_1k": 38.78830242510634,
-      "value": 94163.42852445401,
+      "value": 25011.098153680137,
       "slop": 0.6663792089686802,
       "repetition": 0.10339412033873317,
       "judge_errors": 0,
@@ -774,7 +1015,10 @@
       "total_tasks": 11,
       "anchor": null,
       "incomplete": false,
-      "refused_tasks": 0
+      "refused_tasks": 0,
+      "judge_composites": {},
+      "list_cost_per_chapter": 0.00456823,
+      "tokens_out_per_chapter": 21491.454545454544
     }
   ]
 }

@@ -1,0 +1,12 @@
+{
+  "a": "deepseek-v4-pro",
+  "b": "opus-5",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "c968016bb5282ed621af69e8d485f5dc95d3bb76fcd3464c189fc199217f6630",
+  "sha_b": "f7ce17f6d60b1c01ee472107ac57774c8f683685627c434bee0bf2374f137026"
+}

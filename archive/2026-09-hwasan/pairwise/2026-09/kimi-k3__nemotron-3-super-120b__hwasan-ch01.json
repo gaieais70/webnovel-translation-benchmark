@@ -1,0 +1,12 @@
+{
+  "a": "kimi-k3",
+  "b": "nemotron-3-super-120b",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "0677839fc396b93a645c88cc325a43872a13d55c43601e441a580a36e48bdd5f",
+  "sha_b": "031d5683584f247e5380cb5aeb37b15c523bee69bd2d8aa9f7b9e41f4e727ea7"
+}

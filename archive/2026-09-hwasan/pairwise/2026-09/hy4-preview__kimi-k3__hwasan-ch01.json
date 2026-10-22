@@ -1,0 +1,12 @@
+{
+  "a": "hy4-preview",
+  "b": "kimi-k3",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "9476c1ea201b89c19f473888cf185eaec250099f6416e14ecd9e81f3974ec139",
+  "sha_b": "0677839fc396b93a645c88cc325a43872a13d55c43601e441a580a36e48bdd5f"
+}

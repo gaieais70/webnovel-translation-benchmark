@@ -1,0 +1,12 @@
+{
+  "a": "glm-5.3-flash",
+  "b": "kimi-k3",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "d46acf78a9810a70a4835f5a24acc2ec0c0f485b146d3e355034ab56bf426d1d",
+  "sha_b": "0677839fc396b93a645c88cc325a43872a13d55c43601e441a580a36e48bdd5f"
+}

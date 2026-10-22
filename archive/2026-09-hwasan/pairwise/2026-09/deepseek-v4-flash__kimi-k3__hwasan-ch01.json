@@ -1,0 +1,12 @@
+{
+  "a": "deepseek-v4-flash",
+  "b": "kimi-k3",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "a9674f2c6cafa20344af8d1396d6c6d05008ac7a3c2e722d9c25751a61b88a6b",
+  "sha_b": "0677839fc396b93a645c88cc325a43872a13d55c43601e441a580a36e48bdd5f"
+}

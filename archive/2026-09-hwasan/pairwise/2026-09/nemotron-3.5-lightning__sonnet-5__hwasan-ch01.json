@@ -1,0 +1,12 @@
+{
+  "a": "nemotron-3.5-lightning",
+  "b": "sonnet-5",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "d9217cac1b26045fa9241dde7f8b8a6c9e53cd710cc4a93666b8e0dbf81b46ed",
+  "sha_b": "89499d9f84342dccfe21f9f0f0ff06ca0fb6de3883116a3d2161d5688ff018af"
+}

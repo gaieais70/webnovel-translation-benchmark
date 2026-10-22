@@ -1,0 +1,12 @@
+{
+  "a": "glm-5.2",
+  "b": "haiku-4.5",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "41d9c094effef2ec01a5e0691a82cc8f34965720ddfc258497cb84ba15c3c3c1",
+  "sha_b": "3ac8052b1173bea4a4722eec4f4a083e0dbf69ec980e1044d8bc1b54c2f2c782"
+}

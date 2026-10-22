@@ -1,0 +1,12 @@
+{
+  "a": "kimi-k3",
+  "b": "mimo-v2.5-pro",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "0677839fc396b93a645c88cc325a43872a13d55c43601e441a580a36e48bdd5f",
+  "sha_b": "6d1fcca0e2de6158f68da7b0cf8ced370f17552fbd01571da5defe7c638c65d5"
+}

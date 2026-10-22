@@ -1,0 +1,12 @@
+{
+  "a": "muse-spark-1.2-contributor",
+  "b": "opus-5",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "55e2d9399637e7a46a833ce8b7702230d5018823457b208a54f410b2654d478c",
+  "sha_b": "f7ce17f6d60b1c01ee472107ac57774c8f683685627c434bee0bf2374f137026"
+}

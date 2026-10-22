@@ -1,0 +1,12 @@
+{
+  "a": "gpt-5.6-luna",
+  "b": "sonnet-5",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "ca1b79debb7ac1e9edd3eec7782d6cf17c2860603c522bd31b766bb4e1db56da",
+  "sha_b": "d228205d3fcad96dd312871eecd318e07afc824643f322cc790dff7e80f26737"
+}

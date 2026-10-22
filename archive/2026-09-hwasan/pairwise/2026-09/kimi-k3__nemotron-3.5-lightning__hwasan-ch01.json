@@ -1,0 +1,12 @@
+{
+  "a": "kimi-k3",
+  "b": "nemotron-3.5-lightning",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "0677839fc396b93a645c88cc325a43872a13d55c43601e441a580a36e48bdd5f",
+  "sha_b": "d9217cac1b26045fa9241dde7f8b8a6c9e53cd710cc4a93666b8e0dbf81b46ed"
+}

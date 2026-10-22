@@ -524,5 +524,49 @@ among five models cannot separate from its neighbours.
   kimi-k3's ch07 on Go reports no reasoning count at all, but it emitted
   45,851 tokens for about 4k of text, so it reasoned like the others; the
   route omitted the breakdown on that call.
-- **Results: pending.** As of 2026-09-22 00:22 the chain - translate, rubric
-  judge, +80 head-to-head comparisons, report - was running.
+- **Results.** The chain finished on 2026-09-27: 28 models, 645 comparisons
+  covering all 378 pairs. Archived on 2026-10-22 in
+  `archive/2026-09-hwasan/` (until then the archive held the 23-model
+  version), with list-price cost per chapter added to the report (§15).
+
+## 15. The frontier column, a retired judge, and cost on the leaderboard
+
+- **Gemini 3.7 Flash is gone.** On 2026-10-22 agy answered
+  `gemini-3.7-flash-high` with "not recognized as a known model", so nothing
+  can be added to the Gemini-judged ranking above; it is closed as it stands.
+  By the operator's decision the run is re-judged in full by a panel of two
+  families, Haiku 5.5 (`haiku-judge`, Claude CLI) and Gemini 3.8 Flash
+  (`gemini-3.8-judge`, agy), each on both stages, each under its own
+  directories, averaged by `ati report --panel`. Each judge is also a
+  subject, so its own row and its family's are flagged, and every judge's
+  composite is shown beside the panel's.
+- **Seven rows added:** Claude Opus, Sonnet and Haiku 5.5 on the Claude CLI;
+  GPT-6.1-Sol, GPT-6-Astra and GPT-6-Luna on the Codex CLI under the
+  operator's ChatGPT subscription (no OpenAI key is held, and the metered-API
+  rows drafted on 2026-10-10 never ran); Gemini 4 Argon on agy, deferred by
+  the operator because agy's quota was spent until about 2026-10-25.
+- **Codex as a bare translator.** Its base instructions are replaced from a
+  file (`{system_prompt_file}`), and its skills list, environment, permission
+  and plugin blocks, AGENTS.md, tools and user config are switched off. Two
+  keys first tried for this (`include_skills_usage_instructions`,
+  `include_plugins_instructions`) are not ones Codex knows, and it ignores
+  unknown keys silently; `codex exec --json` reported it. The working switches
+  were each checked with `codex debug prompt-input`. That mattered: the
+  operator has a skill named novel-translation-engine, which Codex would
+  otherwise have listed to the model. Four chapters written before the fix
+  are in `runs/quarantine-2026-09/`.
+- **Cost is recorded for every route.** The CLI rows of this run recorded no
+  tokens, so opus-5, sonnet-5 and haiku-4.5 have no cost. New CLI rows ask for
+  structured output (`claude-json`, `codex-jsonl`) and record tokens, cached
+  input and reasoning. The leaderboard prices every record one way - the
+  route's own list figure where it gives one (the Claude CLI's matches
+  OpenRouter list to the cent), otherwise tokens at the roster's OpenRouter
+  list price - and shows list $ per chapter and output tokens per chapter.
+  CLI rows carry their harness's input overhead (about 12k cached tokens on
+  Claude, 7k on Codex per call).
+- **Two limit-detection defects fixed before they cost anything.** A CLI
+  failure kept the first 200 characters of stderr, where Codex prints a
+  banner and the Claude CLI now prints a tool notice, so neither's limit
+  message survived. And Codex's "usage limit ... Try again in 3 hours" matched
+  the transient marker "try again", so a spent quota would have burned every
+  pass in seconds. Explicit limit wording now wins.

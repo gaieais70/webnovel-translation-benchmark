@@ -1,0 +1,12 @@
+{
+  "a": "glm-5.2",
+  "b": "opus-5",
+  "passage_id": "hwasan-ch03",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "gemini-judge",
+  "judge_fingerprint": "4c3d3c5b48b908ce",
+  "sha_a": "fc37551f21a6a5b4c91d352c04376d2879cda5c3bdeb36acae609285f66e65c0",
+  "sha_b": "25804fd21c63e171fd948543331f52b9db7e675fea60dee2d4c0d13fe9e5975f"
+}
