@@ -102,6 +102,7 @@
 # `ati run` never runs an agy row unless it is named with --model.
 - id: gemini-3.8-flash
   runner: agy
+  price: {input: 0.825, output: 4.125, cached_input: 0.0825}   # google/gemini-3.8-flash, OpenRouter list 2026-10-22
   model: gemini-3.8-flash-high
   sandbox: true
   # Chapters take longer than judgments: the judge row uses 480s.
@@ -400,6 +401,7 @@
 
 - id: opus-5
   runner: cli
+  price: {input: 5, output: 25, cached_input: 0.5}   # anthropic/claude-opus-5, OpenRouter list 2026-10-22
   system_prompt_flag: --system-prompt
   sandbox: true
   timeout_s: 1800
@@ -418,6 +420,7 @@
 
 - id: sonnet-5
   runner: cli
+  price: {input: 2, output: 10, cached_input: 0.2}   # anthropic/claude-sonnet-5, OpenRouter list 2026-10-22
   system_prompt_flag: --system-prompt
   sandbox: true
   # 1800 was too short: at max effort sonnet-5 took 403s and 1,189s on the two
@@ -440,6 +443,7 @@
 
 - id: haiku-4.5
   runner: cli
+  price: {input: 1, output: 5, cached_input: 0.1}   # anthropic/claude-haiku-4.5, OpenRouter list 2026-10-22
   system_prompt_flag: --system-prompt
   sandbox: true
   timeout_s: 1800
@@ -465,6 +469,8 @@
 - id: opus-5.5
   runner: cli
   system_prompt_flag: --system-prompt
+  output_format: claude-json
+  price: {input: 4, output: 20, cached_input: 0.2}   # anthropic/claude-opus-5.5, OpenRouter list 2026-10-22
   sandbox: true
   timeout_s: 3600
   command:
@@ -474,6 +480,8 @@
     - claude-opus-5-5
     - --effort
     - max
+    - --output-format
+    - json
     - --disallowed-tools
     - Bash Edit Write Read Glob Grep WebFetch WebSearch Task NotebookEdit
     - --no-session-persistence
@@ -483,6 +491,8 @@
 - id: sonnet-5.5
   runner: cli
   system_prompt_flag: --system-prompt
+  output_format: claude-json
+  price: {input: 2, output: 10, cached_input: 0.1}   # anthropic/claude-sonnet-5.5, OpenRouter list 2026-10-22
   sandbox: true
   timeout_s: 3600
   command:
@@ -492,6 +502,8 @@
     - claude-sonnet-5-5
     - --effort
     - max
+    - --output-format
+    - json
     - --disallowed-tools
     - Bash Edit Write Read Glob Grep WebFetch WebSearch Task NotebookEdit
     - --no-session-persistence
@@ -501,6 +513,8 @@
 - id: haiku-5.5
   runner: cli
   system_prompt_flag: --system-prompt
+  output_format: claude-json
+  price: {input: 0.1, output: 0.5, cached_input: 0.01}   # anthropic/claude-haiku-5.5, OpenRouter list 2026-10-22
   sandbox: true
   timeout_s: 1800
   command:
@@ -510,6 +524,8 @@
     - claude-haiku-5-5
     - --effort
     - max
+    - --output-format
+    - json
     - --disallowed-tools
     - Bash Edit Write Read Glob Grep WebFetch WebSearch Task NotebookEdit
     - --no-session-persistence
@@ -532,8 +548,15 @@
 #     novel-translation-engine, which Codex lists to the model by default; a
 #     translator that can load a translation playbook is not under the same
 #     conditions as the others;
-#   - environment context, permissions, apps and plugin blocks, AGENTS.md and
-#     the shell, browser and image tools are off.
+#   - environment context, permissions, AGENTS.md, plugins and the shell,
+#     browser and image tools are off. (Codex silently ignores a config key
+#     it does not know; each switch here was checked to remove its block,
+#     with `codex debug prompt-input` and `codex exec --json`, 2026-10-22.)
+#
+# Every CLI row in this column asks for structured output (claude-json,
+# codex-jsonl) so its record carries token counts, and declares an OpenRouter
+# list price: cost is read alongside quality, and run 2026-09's CLI rows have
+# no tokens to price.
 # What remains, checked with `codex debug prompt-input`: two short developer
 # notes on collaboration and multi-agent mode that Codex always sends. These
 # rows are therefore a different route from every API row, and not directly
@@ -541,11 +564,14 @@
 
 - id: gpt-6.1-sol
   runner: cli
+  output_format: codex-jsonl
+  price: {input: 2, output: 10, cached_input: 0.1}   # openai/gpt-6.1-sol, OpenRouter list 2026-10-22
   sandbox: true
   timeout_s: 3600
   command:
     - codex
     - exec
+    - --json
     - --ignore-user-config
     - --ephemeral
     - --skip-git-repo-check
@@ -560,15 +586,11 @@
     - -c
     - model_instructions_file="{system_prompt_file}"
     - -c
-    - include_skills_usage_instructions=false
+    - skills.include_instructions=false
     - -c
     - include_environment_context=false
     - -c
     - include_permissions_instructions=false
-    - -c
-    - include_apps_instructions=false
-    - -c
-    - include_plugins_instructions=false
     - -c
     - project_doc_max_bytes=0
     - --disable
@@ -595,11 +617,14 @@
 
 - id: gpt-6-astra
   runner: cli
+  output_format: codex-jsonl
+  price: {input: 10, output: 50, cached_input: 1.0}   # openai/gpt-6-astra, OpenRouter list 2026-10-22
   sandbox: true
   timeout_s: 3600
   command:
     - codex
     - exec
+    - --json
     - --ignore-user-config
     - --ephemeral
     - --skip-git-repo-check
@@ -614,15 +639,11 @@
     - -c
     - model_instructions_file="{system_prompt_file}"
     - -c
-    - include_skills_usage_instructions=false
+    - skills.include_instructions=false
     - -c
     - include_environment_context=false
     - -c
     - include_permissions_instructions=false
-    - -c
-    - include_apps_instructions=false
-    - -c
-    - include_plugins_instructions=false
     - -c
     - project_doc_max_bytes=0
     - --disable
@@ -649,11 +670,14 @@
 
 - id: gpt-6-luna
   runner: cli
+  output_format: codex-jsonl
+  price: {input: 0.1, output: 0.5, cached_input: 0.01}   # openai/gpt-6-luna, OpenRouter list 2026-10-22
   sandbox: true
   timeout_s: 3600
   command:
     - codex
     - exec
+    - --json
     - --ignore-user-config
     - --ephemeral
     - --skip-git-repo-check
@@ -668,15 +692,11 @@
     - -c
     - model_instructions_file="{system_prompt_file}"
     - -c
-    - include_skills_usage_instructions=false
+    - skills.include_instructions=false
     - -c
     - include_environment_context=false
     - -c
     - include_permissions_instructions=false
-    - -c
-    - include_apps_instructions=false
-    - -c
-    - include_plugins_instructions=false
     - -c
     - project_doc_max_bytes=0
     - --disable
@@ -706,6 +726,7 @@
 # effort agy offers for it.
 - id: gemini-4-argon
   runner: agy
+  price: {input: 2, output: 10, cached_input: 0.1}   # google/gemini-4-argon, OpenRouter list 2026-10-22
   model: gemini-4-argon-high
   sandbox: true
   timeout_s: 900
