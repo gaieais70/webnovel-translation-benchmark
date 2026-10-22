@@ -184,6 +184,11 @@ def test_api_key_env_defaults_to_openrouter(tmp_path):
     assert load_models(p)[0].api_key_env == "OPENROUTER_API_KEY"
 
 
+def test_temperature_can_be_omitted_for_reasoning_models(tmp_path):
+    p = write(tmp_path, "models.yaml", "- id: m\n  runner: api\n  model: x\n  temperature: null\n")
+    assert load_models(p)[0].temperature is None
+
+
 def test_api_key_env_is_per_model(tmp_path):
     p = write(
         tmp_path,

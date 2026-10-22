@@ -100,7 +100,9 @@ class ModelConfig:
     model: str | None = None
     endpoint: str | None = None
     command: list[str] | None = None
-    temperature: float = DEFAULT_TEMPERATURE
+    # Explicit null omits temperature from API requests. Reasoning models such
+    # as GPT-6 reject sampling controls when reasoning effort is enabled.
+    temperature: float | None = DEFAULT_TEMPERATURE
     anchor: str | None = None
     json_schema: str | None = None
     sandbox: bool = True
@@ -271,7 +273,10 @@ def load_models(path: Path) -> list[ModelConfig]:
                 model=entry.get("model"),
                 endpoint=entry.get("endpoint"),
                 command=entry.get("command"),
-                temperature=float(entry.get("temperature", DEFAULT_TEMPERATURE)),
+                temperature=(
+                    None if entry.get("temperature", DEFAULT_TEMPERATURE) is None
+                    else float(entry.get("temperature", DEFAULT_TEMPERATURE))
+                ),
                 anchor=anchor,
                 json_schema=entry.get("json_schema"),
                 sandbox=bool(entry.get("sandbox", True)),

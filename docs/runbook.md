@@ -62,7 +62,9 @@ ati fetch
   `reasoning_tokens` in the run records.
 - **Provider output caps** bind silently. After the first pass, look for
   `finish_reason: length` at a round number (4,096, 5,120, ...) and set
-  `params.max_tokens` for that row (run-notes-2026-09 §4).
+  `params.max_tokens` for that row (run-notes-2026-09 §4). An endpoint that
+  takes `max_completion_tokens` instead (OpenAI's own) reports that limit in
+  the error; it includes reasoning tokens.
 - **Command Code rows must stream** (`stream: true`): its gateway drops a
   buffered request after ~125 s. `timeout_s` (default 900) bounds a silence on
   a stream; a stream is also cut at one hour in total.
@@ -180,7 +182,7 @@ Working directories (`runs/`, `judgments/`, `pairwise/`, `results/`,
 |---|---|---|
 | `<model>: not run - X_API_KEY is not set` | the key is missing | add it to `.env`; rerun |
 | HTTP 524 from Command Code | buffered request dropped at ~125 s | `stream: true` on the row |
-| `finish_reason: length` at a round number | provider default output cap | `params.max_tokens` on the row |
+| `finish_reason: length` at a round number | output token cap reached | `params.max_tokens` on the row (`params.max_completion_tokens` where the endpoint takes that) |
 | `stopping after N judgments: ... RESOURCE_EXHAUSTED ... Resets in ...` | judge quota spent | nothing: `--wait` resumes; or rerun after the reset |
 | `N items in a row got no parseable answer` | the judge's answers stopped matching the schema | check `agy` and the prompt before rerunning |
 | `6 stops in a row without progress; leaving it for the operator` | the limit is not lifting | check the account; rerun later |

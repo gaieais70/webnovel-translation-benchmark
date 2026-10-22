@@ -1,5 +1,6 @@
 import json
 import httpx
+import pytest
 
 from ati.runners.api import ApiRunner
 from ati.runners.base import RunResult, looks_like_refusal
@@ -517,6 +518,56 @@ def test_extra_params_can_impose_a_ceiling_on_a_metered_route():
     seen: list = []
     _capturing_runner(seen, extra_params={"max_tokens": 4096}).run("sys", "src")
     assert seen[0]["max_tokens"] == 4096
+
+
+@pytest.mark.parametrize("stream", [False, True])
+def test_unset_temperature_is_omitted_for_reasoning_models(stream):
+    def handler(request):
+        payload = json.loads(request.content)
+        assert "temperature" not in payload
+        assert payload["reasoning_effort"] == "max"
+        assert payload["max_completion_tokens"] == 128000
+        assert payload["messages"] == [
+            {"role": "system", "content": "translate"},
+            {"role": "user", "content": "source"},
+        ]
+        body = {
+            "choices": [{"message": {"content": "translated"}, "finish_reason": "stop"}],
+            "usage": {
+                "prompt_tokens": 20,
+                "completion_tokens": 30,
+                "completion_tokens_details": {"reasoning_tokens": 10},
+            },
+        }
+        if stream:
+            body["choices"][0]["delta"] = body["choices"][0].pop("message")
+            return httpx.Response(200, text=f"data: {json.dumps(body)}\n\ndata: [DONE]\n\n")
+        return httpx.Response(200, json=body)
+
+    runner = ApiRunner(
+        "https://api.openai.com/v1/chat/completions", "gpt-6-luna", "key", None,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+        extra_params={"reasoning_effort": "max", "max_completion_tokens": 128000},
+        stream=stream,
+    )
+    result = runner.run("translate", "source")
+    assert result.text == "translated" and result.error is None
+    assert (result.tokens_in, result.tokens_out, result.reasoning_tokens) == (20, 30, 10)
+    assert result.route == "gpt-6-luna"
+
+
+def test_completion_token_limit_is_reported_when_translation_is_truncated():
+    client = httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(
+        200, json={"choices": [{"message": {"content": "fragment"}, "finish_reason": "length"}]}
+    )))
+    runner = ApiRunner(
+        "http://x", "m", "k", 0.3, client=client,
+        extra_params={"max_completion_tokens": 128000},
+    )
+    result = runner.run("sys", "src")
+    assert result.text == ""
+    assert result.finish_reason == "length"
+    assert "128000 tokens" in result.error
 
 
 # --- free-to-paid fallback --------------------------------------------------

@@ -163,7 +163,7 @@ class ApiRunner:
         endpoint: str,
         model: str,
         api_key: str,
-        temperature: float,
+        temperature: float | None,
         client: httpx.Client | None = None,
         timeout_s: float = DEFAULT_TIMEOUT_S,
         attempts: int = ATTEMPTS,
@@ -309,9 +309,10 @@ class ApiRunner:
         messages.append({"role": "user", "content": source_text})
         payload = {
             "model": self._model,
-            "temperature": self._temperature,
             "messages": messages,
         }
+        if self._temperature is not None:
+            payload["temperature"] = self._temperature
         # No max_tokens unless the roster row sets one in `params`; absent, the
         # provider's own default applies. Merged last so a roster entry can set
         # a ceiling for one model without a code change. `model` and
@@ -419,6 +420,11 @@ class ApiRunner:
         # Scoring it would penalize the model on fidelity for text it was never
         # allowed to finish, so record it as a failure instead.
         if choice.get("finish_reason") == "length":
+            limit = (
+                payload.get("max_completion_tokens")
+                or payload.get("max_tokens")
+                or "provider default"
+            )
             return RunResult(
                 text="",
                 latency_s=latency,
@@ -430,7 +436,7 @@ class ApiRunner:
                 finish_reason="length",
                 error=(
                     f"truncated at the output limit "
-                    f"({payload.get('max_tokens') or 'provider default'} "
+                    f"({limit} "
                     f"tokens); translation incomplete"
                 ),
             )
