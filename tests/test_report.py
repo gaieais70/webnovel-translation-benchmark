@@ -655,13 +655,24 @@ def test_list_cost_and_tokens_per_chapter_come_from_the_roster_price(tmp_path):
     assert r.value == pytest.approx(r.composite / 2.5)
 
 
-def test_a_model_with_unpriced_chapters_has_no_list_cost(tmp_path):
+def test_a_model_with_no_usage_recorded_has_no_list_cost(tmp_path):
     seed(tmp_path, "m1", "t.cn-01.0", run={"tokens_in": None, "tokens_out": None})
     [r] = aggregate(
         run_id="r1", runs_root=tmp_path / "runs", judgments_root=tmp_path / "judgments",
         weights=WEIGHTS, slop_list=[], anchors={}, prices={"m1": {"input": 1, "output": 1}},
     )
     assert r.list_cost_per_chapter is None and r.tokens_out_per_chapter is None
+
+
+def test_list_cost_averages_over_the_chapters_whose_cost_is_known(tmp_path):
+    seed(tmp_path, "m1", "t.cn-01.0", run={"tokens_in": 0, "tokens_out": 1_000_000})
+    seed(tmp_path, "m1", "t.cn-02.0",
+         run={"passage_id": "cn-02", "tokens_in": None, "tokens_out": None})
+    [r] = aggregate(
+        run_id="r1", runs_root=tmp_path / "runs", judgments_root=tmp_path / "judgments",
+        weights=WEIGHTS, slop_list=[], anchors={}, prices={"m1": {"input": 1, "output": 1}},
+    )
+    assert r.list_cost_per_chapter == pytest.approx(1.0)
 
 
 def test_the_ranking_shows_list_cost_and_output_tokens(tmp_path):

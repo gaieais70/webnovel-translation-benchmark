@@ -31,6 +31,7 @@
 # qwen3.8-flash failed 8 of 8, hy3 4 of 6 before this was changed.
 - id: laguna-s-2.1
   runner: api
+  price: {input: 0.09, output: 0.18}   # poolside/laguna-s-2.1 (paid listing; this row ran the free route), OpenRouter list 2026-10-22
   endpoint: https://api.commandcode.ai/provider/v1/chat/completions
   api_key_env: COMMANDCODE_API_KEY
   stream: true
@@ -324,6 +325,7 @@
 
 - id: nemotron-3-super-120b
   runner: api
+  price: {input: 0.3, output: 2.4}   # nvidia/nemotron-3-super-120b-a12b (paid listing; this row ran the free route), OpenRouter list 2026-10-22
   endpoint: https://openrouter.ai/api/v1/chat/completions
   api_key_env: OPENROUTER_API_KEY
   model: nvidia/nemotron-3-super-120b-a12b:free
@@ -335,6 +337,7 @@
 
 - id: nemotron-3.5-lightning
   runner: api
+  price: {input: 0.07, output: 0.2}   # nvidia/nemotron-3.5-lightning, OpenRouter list 2026-10-22
   endpoint: https://openrouter.ai/api/v1/chat/completions
   api_key_env: OPENROUTER_API_KEY
   model: nvidia/nemotron-3.5-lightning:free
@@ -349,6 +352,7 @@
 # choice. A 429 from it is the route, not the model.
 - id: dots-3-note-preview
   runner: api
+  price: {input: 0, output: 0}   # dots-studio/dots-3-note-preview is listed only as :free, OpenRouter 2026-10-22
   endpoint: https://openrouter.ai/api/v1/chat/completions
   api_key_env: OPENROUTER_API_KEY
   model: dots-studio/dots-3-note-preview:free

@@ -213,13 +213,16 @@ def aggregate(
         cost_1k = cost_per_1k_chars(total_cost, total_chars)
 
         # --- list-price cost and output tokens, per scored chapter ---
+        # Over the chapters whose cost is known: one record a route returned
+        # without usage should not blank a row priced on the other ten.
         price = (prices or {}).get(model_id)
-        list_costs = [record_cost(r, price) for r in scored_runs]
-        list_total = (
-            sum(list_costs)
-            if list_costs and all(c is not None for c in list_costs)
-            else None
-        )
+        priced = [
+            (cost, r.get("source_chars", 0))
+            for r in scored_runs
+            if (cost := record_cost(r, price)) is not None
+        ]
+        list_total = sum(c for c, _ in priced) if priced else None
+        priced_chars = sum(n for _, n in priced)
         outs = [r["tokens_out"] for r in scored_runs if r.get("tokens_out") is not None]
         failed = sum(
             1 for r in model_runs if r.get("unavailable") or r.get("error")
@@ -241,7 +244,7 @@ def aggregate(
                 ),
                 # Per list dollar: a billed figure is zero or unknown for
                 # nearly every route here, so it cannot rank value.
-                value=value_score(comp, cost_per_1k_chars(list_total, total_chars)),
+                value=value_score(comp, cost_per_1k_chars(list_total, priced_chars)),
                 slop=slop_score(joined, slop_list),
                 repetition=repetition_score(joined),
                 judge_errors=sum(
@@ -259,7 +262,7 @@ def aggregate(
                 and failed / len(model_runs) > FAILURE_THRESHOLD,
                 judge_composites=judge_composites,
                 list_cost_per_chapter=(
-                    list_total / len(scored_runs) if list_total is not None else None
+                    list_total / len(priced) if list_total is not None else None
                 ),
                 tokens_out_per_chapter=sum(outs) / len(outs) if outs else None,
             )
