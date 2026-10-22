@@ -456,6 +456,260 @@
     - --strict-mcp-config
     - --disable-slash-commands
 
+# --- Frontier column, added 2026-10-22 ---------------------------------------
+# Claude 5.5 runs exactly as the Claude column above: the local Claude Code
+# CLI on the operator's subscription, its prompt replaced, every tool denied,
+# from an empty directory, at max effort. Model ids checked against the CLI on
+# 2026-10-22 (each answered a one-line translation).
+
+- id: opus-5.5
+  runner: cli
+  system_prompt_flag: --system-prompt
+  sandbox: true
+  timeout_s: 3600
+  command:
+    - claude
+    - -p
+    - --model
+    - claude-opus-5-5
+    - --effort
+    - max
+    - --disallowed-tools
+    - Bash Edit Write Read Glob Grep WebFetch WebSearch Task NotebookEdit
+    - --no-session-persistence
+    - --strict-mcp-config
+    - --disable-slash-commands
+
+- id: sonnet-5.5
+  runner: cli
+  system_prompt_flag: --system-prompt
+  sandbox: true
+  timeout_s: 3600
+  command:
+    - claude
+    - -p
+    - --model
+    - claude-sonnet-5-5
+    - --effort
+    - max
+    - --disallowed-tools
+    - Bash Edit Write Read Glob Grep WebFetch WebSearch Task NotebookEdit
+    - --no-session-persistence
+    - --strict-mcp-config
+    - --disable-slash-commands
+
+- id: haiku-5.5
+  runner: cli
+  system_prompt_flag: --system-prompt
+  sandbox: true
+  timeout_s: 1800
+  command:
+    - claude
+    - -p
+    - --model
+    - claude-haiku-5-5
+    - --effort
+    - max
+    - --disallowed-tools
+    - Bash Edit Write Read Glob Grep WebFetch WebSearch Task NotebookEdit
+    - --no-session-persistence
+    - --strict-mcp-config
+    - --disable-slash-commands
+
+# GPT-6 through the Codex CLI on the operator's ChatGPT subscription, not the
+# metered OpenAI API (no key is held, and subscription routes come first).
+# Slugs from `codex debug models` on 2026-10-22: gpt-6.1-sol is the flagship
+# and Codex's own default, gpt-6-astra the other listed GPT-6 tier, gpt-6-luna
+# the small one. Max effort, as every row here; `ultra` exists on two of them
+# but not on luna, so max is the one setting all three share.
+#
+# Codex is an agent, so the row strips what it can, as the Claude rows do:
+#   - its base instructions are REPLACED by the translation prompt, delivered
+#     as a file ({system_prompt_file}; see ati/runners/cli.py);
+#   - --ignore-user-config drops the operator's config.toml (its notify hook,
+#     full-access sandbox and default model); the sandbox is read-only;
+#   - the skills list is switched off. The operator has a skill named
+#     novel-translation-engine, which Codex lists to the model by default; a
+#     translator that can load a translation playbook is not under the same
+#     conditions as the others;
+#   - environment context, permissions, apps and plugin blocks, AGENTS.md and
+#     the shell, browser and image tools are off.
+# What remains, checked with `codex debug prompt-input`: two short developer
+# notes on collaboration and multi-agent mode that Codex always sends. These
+# rows are therefore a different route from every API row, and not directly
+# comparable to them, as with the Claude column.
+
+- id: gpt-6.1-sol
+  runner: cli
+  sandbox: true
+  timeout_s: 3600
+  command:
+    - codex
+    - exec
+    - --ignore-user-config
+    - --ephemeral
+    - --skip-git-repo-check
+    - --sandbox
+    - read-only
+    - --color
+    - never
+    - --model
+    - gpt-6.1-sol
+    - -c
+    - model_reasoning_effort="max"
+    - -c
+    - model_instructions_file="{system_prompt_file}"
+    - -c
+    - include_skills_usage_instructions=false
+    - -c
+    - include_environment_context=false
+    - -c
+    - include_permissions_instructions=false
+    - -c
+    - include_apps_instructions=false
+    - -c
+    - include_plugins_instructions=false
+    - -c
+    - project_doc_max_bytes=0
+    - --disable
+    - shell_tool
+    - --disable
+    - unified_exec
+    - --disable
+    - apps
+    - --disable
+    - plugins
+    - --disable
+    - image_generation
+    - --disable
+    - browser_use
+    - --disable
+    - computer_use
+    - --disable
+    - view_image
+    - --disable
+    - goals
+    - --disable
+    - hooks
+    - "-"
+
+- id: gpt-6-astra
+  runner: cli
+  sandbox: true
+  timeout_s: 3600
+  command:
+    - codex
+    - exec
+    - --ignore-user-config
+    - --ephemeral
+    - --skip-git-repo-check
+    - --sandbox
+    - read-only
+    - --color
+    - never
+    - --model
+    - gpt-6-astra
+    - -c
+    - model_reasoning_effort="max"
+    - -c
+    - model_instructions_file="{system_prompt_file}"
+    - -c
+    - include_skills_usage_instructions=false
+    - -c
+    - include_environment_context=false
+    - -c
+    - include_permissions_instructions=false
+    - -c
+    - include_apps_instructions=false
+    - -c
+    - include_plugins_instructions=false
+    - -c
+    - project_doc_max_bytes=0
+    - --disable
+    - shell_tool
+    - --disable
+    - unified_exec
+    - --disable
+    - apps
+    - --disable
+    - plugins
+    - --disable
+    - image_generation
+    - --disable
+    - browser_use
+    - --disable
+    - computer_use
+    - --disable
+    - view_image
+    - --disable
+    - goals
+    - --disable
+    - hooks
+    - "-"
+
+- id: gpt-6-luna
+  runner: cli
+  sandbox: true
+  timeout_s: 3600
+  command:
+    - codex
+    - exec
+    - --ignore-user-config
+    - --ephemeral
+    - --skip-git-repo-check
+    - --sandbox
+    - read-only
+    - --color
+    - never
+    - --model
+    - gpt-6-luna
+    - -c
+    - model_reasoning_effort="max"
+    - -c
+    - model_instructions_file="{system_prompt_file}"
+    - -c
+    - include_skills_usage_instructions=false
+    - -c
+    - include_environment_context=false
+    - -c
+    - include_permissions_instructions=false
+    - -c
+    - include_apps_instructions=false
+    - -c
+    - include_plugins_instructions=false
+    - -c
+    - project_doc_max_bytes=0
+    - --disable
+    - shell_tool
+    - --disable
+    - unified_exec
+    - --disable
+    - apps
+    - --disable
+    - plugins
+    - --disable
+    - image_generation
+    - --disable
+    - browser_use
+    - --disable
+    - computer_use
+    - --disable
+    - view_image
+    - --disable
+    - goals
+    - --disable
+    - hooks
+    - "-"
+
+# Gemini 4 Argon, through Antigravity - the only route Gemini may take - like
+# gemini-3.8-flash above, and with the same caveats. High is the highest
+# effort agy offers for it.
+- id: gemini-4-argon
+  runner: agy
+  model: gemini-4-argon-high
+  sandbox: true
+  timeout_s: 900
+
 # --- held back --------------------------------------------------------------
 # The expensive tier below the blank row in the routing sheet. The operator
 # splits it into middle and high; the middle half is released and declared
