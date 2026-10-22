@@ -772,6 +772,57 @@
   price: {input: 2, output: 6}   # x-ai/grok-4.6, OpenRouter list 2026-09-23
   json_schema: config/schemas/judgment.json
 
+# --- the judge panel, from 2026-10-22 -----------------------------------------
+# gemini-judge's model (gemini-3.7-flash-high) is gone from Antigravity: on
+# 2026-10-22 agy answered "not recognized as a known model" and listed only
+# Gemini 4 Argon and 3.8 Flash. Its 2026-09 scores cannot be extended to new
+# rows, so by the operator's decision the whole run is re-judged by a panel of
+# two families, each scoring every row on both stages, and the leaderboard is
+# their mean (`ati report --panel ...`). Each judge writes under its own
+# subdirectory (judgments/<id>/, pairwise/<id>/), so neither touches the other
+# or the gemini-judge records, which are kept as they were published.
+#
+# Self-preference is symmetric and stated, not removed: each judge is also a
+# translation subject (haiku-5.5, gemini-3.8-flash) and shares a family with
+# others (the Claude column; gemini-4-argon). The leaderboard shows each
+# judge's composite beside the panel's, so it stays visible.
+
+# Haiku 5.5 on the operator's Claude subscription, through the CLI with the
+# same isolation as the Claude subject rows. High effort, matching the Gemini
+# judge's High. An empty system prompt replaces Claude Code's own; the judge
+# prompt arrives on stdin.
+- id: haiku-judge
+  role: judge
+  runner: cli
+  system_prompt_flag: --system-prompt
+  sandbox: true
+  timeout_s: 900
+  command:
+    - claude
+    - -p
+    - --model
+    - claude-haiku-5-5
+    - --effort
+    - high
+    - --disallowed-tools
+    - Bash Edit Write Read Glob Grep WebFetch WebSearch Task NotebookEdit
+    - --no-session-persistence
+    - --strict-mcp-config
+    - --disable-slash-commands
+
+# Gemini 3.8 Flash (High), through Antigravity under CallGate like every agy
+# call. The nearest successor agy serves to the retired 3.7 Flash judge.
+- id: gemini-3.8-judge
+  role: judge
+  runner: agy
+  model: gemini-3.8-flash-high
+  json_schema: config/schemas/pairwise.json
+  sandbox: true
+  timeout_s: 480
+
+# RETIRED 2026-10-22 (its model is no longer served; see the panel above).
+# Kept declared because it judged the published 2026-09 leaderboard.
+#
 # Gemini, through the Antigravity CLI on the operator's own Google account and
 # by no other route - config.load_models refuses a Gemini slug on any runner
 # but agy. Every call goes through CallGate (ati/runners/agy.py): one at a time

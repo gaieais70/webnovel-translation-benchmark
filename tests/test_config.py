@@ -368,7 +368,10 @@ def test_the_real_roster_loads_and_its_judges_are_not_subjects():
     assert len(ids) >= 20
     defaults = load_defaults(REPO / "config" / "ati.yaml")
     judge = next(m for m in roster if m.id == defaults["judge_model"])
-    assert judge.runner == "agy" and judge.role == "judge"
+    # The default judge is a declared judge row, so a bare `ati judge` never
+    # falls through to an undeclared API call.
+    assert judge.role == "judge"
+    assert "haiku-judge" not in ids and "gemini-3.8-judge" not in ids
 
 
 def test_system_prompt_flag_reaches_the_runner(tmp_path):
