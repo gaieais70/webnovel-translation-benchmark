@@ -61,6 +61,29 @@ def test_the_report_records_what_produced_it(tmp_path, monkeypatch):
     assert meta["judge_id"] and meta["date"]
 
 
+def test_a_panel_report_reads_each_judge_and_pools_their_comparisons(tmp_path, monkeypatch):
+    import shutil
+
+    _seed_report(tmp_path, monkeypatch)
+    # The same judgment filed under two panel judges, plus one comparison each.
+    for judge in ("ja", "jb"):
+        shutil.copytree(tmp_path / "judgments" / "r1", tmp_path / "judgments" / judge / "r1")
+        cmp_dir = tmp_path / "pairwise" / judge / "r1"
+        cmp_dir.mkdir(parents=True)
+        (cmp_dir / "m1__m2__cn-01.json").write_text(
+            json.dumps({"a": "m1", "b": "m2", "passage_id": "cn-01", "outcome": "a"}),
+            encoding="utf-8",
+        )
+    assert main(["report", "--run", "r1", "--panel", "ja", "--panel", "jb"]) == 0
+    data = json.loads((tmp_path / "results" / "r1.json").read_text(encoding="utf-8"))
+    assert data["metadata"]["judge_id"] == "ja + jb"
+    assert data["metadata"]["pairwise_coverage"]["comparisons"] == 2
+    [m1] = [r for r in data["results"] if r["model_id"] == "m1"]
+    assert set(m1["judge_composites"]) == {"ja", "jb"}
+    leaderboard = (tmp_path / "results" / "leaderboard.md").read_text(encoding="utf-8")
+    assert "| ja | jb |" in leaderboard
+
+
 def test_a_second_report_does_not_measure_the_run_against_itself(tmp_path, monkeypatch):
     """Rerunning `ati report` after the head-to-head pass used to read this
     run's own anchors back as the previous run's, so drift was always 0."""

@@ -545,3 +545,93 @@ def test_a_torn_or_stray_record_is_skipped_not_fatal(tmp_path, capsys):
     assert results[0].total_tasks == 1
     out = capsys.readouterr().out
     assert "skipping unreadable" in out and "missing model_id" in out
+
+
+# --- judge panel ------------------------------------------------------------
+
+
+def seed_panel_judgment(tmp_path, judge, model_id, instance_id, scores, **extra):
+    """A second judge's record of the same item, under judgments/<judge>/."""
+    passage = instance_id.split(".")[1]
+    payload = {
+        "model_id": model_id,
+        "task_id": instance_id.split(".")[0],
+        "task_type": extra.pop("task_type", "passage"),
+        "passage_id": passage,
+        "iteration": 0,
+        "judge_id": judge,
+        "scores": scores,
+        "rationales": {axis: "ok" for axis in AXES},
+        "term_table": extra.pop("term_table", None),
+        "refused": False,
+        "skipped": False,
+        "judge_error": None,
+        "quote_violations": [],
+    }
+    jp = judgment_output_path(tmp_path / "panel" / judge, "r1", model_id, instance_id)
+    jp.parent.mkdir(parents=True, exist_ok=True)
+    jp.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def run_panel(tmp_path, judges):
+    return aggregate(
+        run_id="r1",
+        runs_root=tmp_path / "runs",
+        judgments_root=None,
+        weights=WEIGHTS,
+        slop_list=[],
+        anchors={},
+        judge_roots={j: tmp_path / "panel" / j for j in judges},
+    )
+
+
+def test_a_panel_averages_its_judges_item_by_item(tmp_path):
+    seed(tmp_path, "m1", "t.cn-01.0")  # the run record; judgments go under panel/
+    seed_panel_judgment(tmp_path, "ja", "m1", "t.cn-01.0", {a: 5 for a in AXES})
+    seed_panel_judgment(tmp_path, "jb", "m1", "t.cn-01.0", {a: 3 for a in AXES})
+    [result] = run_panel(tmp_path, ["ja", "jb"])
+    assert result.axis_means["accuracy"] == pytest.approx(4.0)
+    assert result.composite == pytest.approx(75.0)
+    assert result.judge_composites == {
+        "ja": pytest.approx(100.0), "jb": pytest.approx(50.0),
+    }
+
+
+def test_a_panel_of_one_matches_the_single_judge_report(tmp_path):
+    seed(tmp_path, "m1", "t.cn-01.0", scores={a: 4 for a in AXES})
+    seed_panel_judgment(tmp_path, "ja", "m1", "t.cn-01.0", {a: 4 for a in AXES})
+    [single] = run_aggregate(tmp_path)
+    [panel] = run_panel(tmp_path, ["ja"])
+    assert panel.composite == pytest.approx(single.composite)
+    assert panel.axis_means == pytest.approx(single.axis_means)
+
+
+def test_terminology_stability_is_computed_per_judge_then_averaged(tmp_path):
+    """Two judges extract a term table differently. Pooled, the difference
+    would read as the translator rendering one term two ways."""
+    for ch in ("ch01", "ch02"):
+        seed(tmp_path, "m1", f"c.{ch}.0", run={"task_id": "c", "passage_id": ch})
+        seed_panel_judgment(
+            tmp_path, "ja", "m1", f"c.{ch}.0", {a: 4 for a in AXES},
+            task_type="consistency", term_table={"청명": "Chung Myung"},
+        )
+        seed_panel_judgment(
+            tmp_path, "jb", "m1", f"c.{ch}.0", {a: 4 for a in AXES},
+            task_type="consistency", term_table={"청명": "Cheongmyeong"},
+        )
+    [result] = run_panel(tmp_path, ["ja", "jb"])
+    # Each judge alone sees one rendering throughout: perfectly stable.
+    assert result.axis_means["terminology"] == pytest.approx(5.0)
+
+
+def test_the_leaderboard_shows_each_panel_judge(tmp_path):
+    r = ModelResult(
+        model_id="m1", composite=75.0, axis_means={a: 4.0 for a in AXES},
+        axis_stdevs={a: 0.0 for a in AXES}, refusal_rate=0.0, cost_per_1k=None,
+        speed_per_1k=1.0, value=None, slop=0.0, repetition=0.0, judge_errors=0,
+        failed_tasks=0, total_tasks=1,
+        judge_composites={"haiku-judge": 70.0, "gemini-judge": 80.0},
+    )
+    md = render_markdown("r1", [r], {}, True, {"judge_id": "haiku-judge + gemini-judge"})
+    assert "| haiku-judge | gemini-judge |" in md
+    assert "| 70.0 | 80.0 |" in md

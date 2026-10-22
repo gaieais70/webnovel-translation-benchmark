@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from ati.config import AXES
@@ -41,6 +41,10 @@ class ModelResult:
     anchor: str | None = None
     incomplete: bool = False
     refused_tasks: int = 0
+    # Each panel judge's own composite, when more than one judge scored the
+    # run. Shown beside the panel's, so a judge favouring its own family is
+    # visible in the table rather than averaged out of sight.
+    judge_composites: dict[str, float | None] = field(default_factory=dict)
 
 
 def fmt(value: float | None, places: int = 1) -> str:
@@ -76,51 +80,108 @@ def _load_all(root: Path) -> list[dict]:
     ]
 
 
+def _item_key(judgment: dict) -> tuple:
+    """Which translation a judgment scored, so panel judges can be paired."""
+    return (
+        judgment.get("task_id"),
+        judgment.get("passage_id"),
+        judgment.get("iteration"),
+    )
+
+
+def _computed_terminology(judgments: list[dict]) -> float | None:
+    """Terminology on consistency tasks is computed from term tables, not judged.
+
+    Always from one judge's tables at a time: two judges extract a table
+    differently, and pooled, that difference reads as the translator
+    rendering one term two ways.
+    """
+    tables_by_task: dict[str, list[dict]] = {}
+    for j in judgments:
+        if j.get("task_type") == "consistency" and j.get("term_table"):
+            tables_by_task.setdefault(j.get("task_id"), []).append(j["term_table"])
+    stabilities = [
+        s
+        for s in (term_stability(tables) for tables in tables_by_task.values())
+        if s is not None
+    ]
+    if not stabilities:
+        return None
+    return stability_to_axis_score(sum(stabilities) / len(stabilities))
+
+
+def _judged_axes(
+    judgments_by_judge: dict[str, list[dict]], weights: dict[str, float]
+) -> tuple[dict, dict, dict[str, float | None]]:
+    """Axis means and spreads over a panel's judgments of one model.
+
+    Each item's axis score is the mean of the judges that scored it, and the
+    spread is across items. A panel of one is the single-judge report.
+    Returns (axis_means, axis_stdevs, each judge's own composite).
+    """
+    by_item: dict[tuple, dict[str, list[int]]] = {}
+    for judgments in judgments_by_judge.values():
+        for j in judgments:
+            item = by_item.setdefault(_item_key(j), {axis: [] for axis in AXES})
+            for axis, score in (j.get("scores") or {}).items():
+                if axis in item:
+                    item[axis].append(int(score))
+    per_axis: dict[str, list[float]] = {axis: [] for axis in AXES}
+    for item in by_item.values():
+        for axis, scores in item.items():
+            if scores:
+                per_axis[axis].append(sum(scores) / len(scores))
+    stats = {axis: aggregate_axis(scores) for axis, scores in per_axis.items()}
+    axis_means = {axis: s.mean for axis, s in stats.items()}
+    axis_stdevs = {axis: s.stdev for axis, s in stats.items()}
+
+    computed = [
+        t
+        for t in (_computed_terminology(js) for js in judgments_by_judge.values())
+        if t is not None
+    ]
+    if computed:
+        axis_means["terminology"] = sum(computed) / len(computed)
+
+    judge_composites: dict[str, float | None] = {}
+    if len(judgments_by_judge) > 1:
+        for judge, judgments in judgments_by_judge.items():
+            own, _, _ = _judged_axes({judge: judgments}, weights)
+            judge_composites[judge] = composite(own, weights)
+    return axis_means, axis_stdevs, judge_composites
+
+
 def aggregate(
     run_id: str,
     runs_root: Path,
-    judgments_root: Path,
+    judgments_root: Path | None,
     weights: dict[str, float],
     slop_list: list[str],
     anchors: dict[str, str],
+    judge_roots: dict[str, Path] | None = None,
 ) -> list[ModelResult]:
+    """Results per model. `judge_roots` names a panel, judge id to judgments
+    root; without it, `judgments_root` is the one judge."""
     runs = _load_all(Path(runs_root) / run_id)
-    judgments = _load_all(Path(judgments_root) / run_id)
+    roots = judge_roots or {"": Path(judgments_root)}
+    by_judge_model: dict[str, dict[str, list[dict]]] = {}
+    for judge, root in roots.items():
+        for j in _load_all(Path(root) / run_id):
+            by_judge_model.setdefault(j["model_id"], {}).setdefault(judge, []).append(j)
 
     by_model_runs: dict[str, list[dict]] = {}
     for r in runs:
         by_model_runs.setdefault(r["model_id"], []).append(r)
-    by_model_judgments: dict[str, list[dict]] = {}
-    for j in judgments:
-        by_model_judgments.setdefault(j["model_id"], []).append(j)
 
     results: list[ModelResult] = []
     for model_id, model_runs in by_model_runs.items():
-        model_judgments = by_model_judgments.get(model_id, [])
-
-        # --- axis scores, averaged across iterations ---
-        per_axis: dict[str, list[int]] = {axis: [] for axis in AXES}
-        for j in model_judgments:
-            for axis, score in (j.get("scores") or {}).items():
-                if axis in per_axis:
-                    per_axis[axis].append(int(score))
-        stats = {axis: aggregate_axis(scores) for axis, scores in per_axis.items()}
-        axis_means = {axis: s.mean for axis, s in stats.items()}
-        axis_stdevs = {axis: s.stdev for axis, s in stats.items()}
-
-        # --- terminology on consistency tasks is computed, not judged ---
-        tables_by_task: dict[str, list[dict]] = {}
-        for j in model_judgments:
-            if j.get("task_type") == "consistency" and j.get("term_table"):
-                tables_by_task.setdefault(j.get("task_id"), []).append(j["term_table"])
-        stabilities = [
-            s
-            for s in (term_stability(tables) for tables in tables_by_task.values())
-            if s is not None
-        ]
-        if stabilities:
-            computed = stability_to_axis_score(sum(stabilities) / len(stabilities))
-            axis_means["terminology"] = computed
+        judgments_by_judge = {
+            judge: by_judge_model.get(model_id, {}).get(judge, []) for judge in roots
+        }
+        model_judgments = [j for js in judgments_by_judge.values() for j in js]
+        axis_means, axis_stdevs, judge_composites = _judged_axes(
+            judgments_by_judge, weights
+        )
 
         # --- diagnostics and operational metrics ---
         scored_runs = [
@@ -169,6 +230,7 @@ def aggregate(
                 anchor=anchors.get(model_id),
                 incomplete=bool(model_runs)
                 and failed / len(model_runs) > FAILURE_THRESHOLD,
+                judge_composites=judge_composites,
             )
         )
 
@@ -364,11 +426,15 @@ def render_markdown(
             "",
         ]
 
+    # A panel shows each judge's own composite beside the panel's.
+    judges = list(next((r.judge_composites for r in ranked if r.judge_composites), {}))
+    judge_header = "".join(f" {j} |" for j in judges)
     lines += [
         "## Ranking",
         "",
-        "| # | Model | Composite | Scored | Refusal % | Cost /1k ch | Sec /1k ch | Value | Slop | Repetition |",
-        "|---|---|---|---|---|---|---|---|---|---|",
+        "| # | Model | Composite |" + judge_header
+        + " Scored | Refusal % | Cost /1k ch | Sec /1k ch | Value | Slop | Repetition |",
+        "|---" * (10 + len(judges)) + "|",
     ]
     for i, r in enumerate(ranked, start=1):
         label = r.model_id + (f" _{r.anchor} anchor_" if r.anchor else "")
@@ -378,8 +444,9 @@ def render_markdown(
         scored = (
             f"{r.total_tasks - r.failed_tasks - r.refused_tasks}/{r.total_tasks}"
         )
+        judge_cells = "".join(f" {fmt(r.judge_composites.get(j))} |" for j in judges)
         lines.append(
-            f"| {i} | {label} | {fmt(r.composite)} | {scored} | {fmt(r.refusal_rate)} | "
+            f"| {i} | {label} | {fmt(r.composite)} |{judge_cells} {scored} | {fmt(r.refusal_rate)} | "
             f"{fmt_cost(r.cost_per_1k)} | {fmt(r.speed_per_1k)} | "
             f"{fmt(r.value, 0)} | {fmt(r.slop, 2)} | {fmt(r.repetition, 3)} |"
         )

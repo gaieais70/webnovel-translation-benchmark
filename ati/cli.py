@@ -635,6 +635,9 @@ def cmd_report(args) -> int:
         m.id: m.anchor for m in load_models(Path(args.models)) if m.anchor
     }
 
+    # A panel reads each judge from its own subdirectory, so no judge's
+    # records can overwrite another's, and pools them only at this stage.
+    panel = args.panel or []
     results = aggregate(
         run_id=args.run,
         runs_root=Path(args.runs),
@@ -642,6 +645,7 @@ def cmd_report(args) -> int:
         weights=weights,
         slop_list=slop_list,
         anchors=anchors,
+        judge_roots={j: Path(args.judgments) / j for j in panel} or None,
     )
 
     results_dir = Path(args.results)
@@ -663,13 +667,19 @@ def cmd_report(args) -> int:
     drift = anchor_drift(results, previous)
     comparable = is_comparable(drift)
     metadata = {
-        "judge_id": args.judge_model,
+        "judge_id": " + ".join(panel) if panel else args.judge_model,
         "date": date.today().isoformat(),
         **report_provenance(args),
         "anchor_baseline": baseline_run,
     }
 
-    comparisons = load_comparisons(Path(args.pairwise), args.run)
+    # Every panel judge's verdicts enter one fit: each is an observation of
+    # the same pair, as a second iteration would be.
+    comparisons = (
+        [c for j in panel for c in load_comparisons(Path(args.pairwise) / j, args.run)]
+        if panel
+        else load_comparisons(Path(args.pairwise), args.run)
+    )
     pairwise_ratings, pairwise_intervals = {}, {}
     anchor = None
     if comparisons:
@@ -879,6 +889,12 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="report: an earlier run's anchors.json to measure anchor drift "
         "against (default: <results>/anchors.json)",
+    )
+    common.add_argument(
+        "--panel",
+        action="append",
+        help="report: a judge on a panel (repeatable); its judgments are read "
+        "from <judgments>/<judge> and its comparisons from <pairwise>/<judge>",
     )
 
     parser = argparse.ArgumentParser(
