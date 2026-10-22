@@ -165,9 +165,82 @@ def test_failure_with_no_output_says_so():
     assert result.error == "exit 1 with no output on either stream"
 
 
-def test_stderr_still_wins_when_both_are_present():
+def test_both_streams_are_kept_when_both_are_present():
     runner = CliRunner(
         command=["no-such-cli-for-tests"],
         runner_fn=fake_run_factory(stdout="noise", stderr="the real error", returncode=2),
     )
-    assert runner.run("S", "T").error == "exit 2: the real error"
+    assert runner.run("S", "T").error == "exit 2: the real error | noise"
+
+
+def test_a_limit_on_stdout_survives_a_notice_on_stderr():
+    """The Claude CLI now prints a tool notice on stderr; its limit message is
+    still on stdout and must reach is_usage_limit."""
+    from ati.runstage import is_usage_limit
+
+    runner = CliRunner(
+        command=["no-such-cli-for-tests"],
+        runner_fn=fake_run_factory(
+            stdout="You've hit your session limit · resets 12am (America/New_York)",
+            stderr="Denying Bash also turns off the PowerShell tool, so Claude has neither.",
+            returncode=1,
+        ),
+    )
+    assert is_usage_limit(runner.run("S", "T").error)
+
+
+def test_a_limit_after_a_long_stderr_banner_is_kept():
+    """`codex exec` opens stderr with a banner and states its limit last."""
+    from ati.runstage import is_usage_limit
+
+    banner = "OpenAI Codex v0.163.0\n--------\n" + "workdir: C:\\x\n" * 40
+    runner = CliRunner(
+        command=["no-such-cli-for-tests"],
+        runner_fn=fake_run_factory(
+            stderr=banner + "ERROR: You've hit your usage limit. Try again in 3 hours.",
+            returncode=1,
+        ),
+    )
+    assert is_usage_limit(runner.run("S", "T").error)
+
+
+def test_system_prompt_file_placeholder_delivers_the_prompt_as_a_file(tmp_path):
+    """`codex exec` takes no system prompt argument, only a file named in a
+    config override. The placeholder is replaced with the path of a file
+    holding the prompt, outside the empty workspace, and the source goes on
+    stdin alone - the same separation the --system-prompt flag gives claude.
+    """
+    capture = []
+    workspace = tmp_path / "ws"
+    runner = CliRunner(
+        command=["no-such-cli-for-tests", "-c", 'instructions="{system_prompt_file}"', "-"],
+        workspace=workspace,
+        prompt_dir=tmp_path / "prompts",
+        runner_fn=fake_run_factory(stdout="translated\n", capture=capture),
+    )
+    assert runner.run("SYSTEM PROMPT", "SOURCE TEXT").text == "translated"
+    cmd, kwargs = capture[0]
+    written = list((tmp_path / "prompts").iterdir())
+    assert len(written) == 1
+    assert written[0].read_text(encoding="utf-8") == "SYSTEM PROMPT"
+    assert cmd[2] == f'instructions="{written[0].as_posix()}"'
+    assert cmd[-1] == "-"
+    assert kwargs["input"].strip() == "SOURCE TEXT"
+    assert list(workspace.iterdir()) == []
+
+
+def test_each_distinct_system_prompt_gets_its_own_file(tmp_path):
+    """Named by content, so concurrent tasks with different prompts never
+    overwrite each other's file mid-call."""
+    capture = []
+    runner = CliRunner(
+        command=["x", "{system_prompt_file}"],
+        prompt_dir=tmp_path,
+        runner_fn=fake_run_factory(stdout="t", capture=capture),
+    )
+    runner.run("ONE", "s")
+    runner.run("TWO", "s")
+    runner.run("ONE", "s")
+    paths = [cmd[1] for cmd, _ in capture]
+    assert paths[0] == paths[2] != paths[1]
+    assert len(list(tmp_path.iterdir())) == 2

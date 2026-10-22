@@ -1,18 +1,25 @@
 """Subprocess runner for subscription-backed CLIs (claude -p, opencode run).
 
 The system prompt and source text are concatenated and delivered on stdin,
-because CLI entry points vary too much to assume a system-prompt flag.
+because CLI entry points vary too much to assume a system-prompt flag. A row
+can instead name a flag (`system_prompt_flag`), or put `{system_prompt_file}`
+in its command for a CLI that reads the prompt only from a file.
 """
 
 from __future__ import annotations
 
+import hashlib
 import shutil
+import tempfile
 from pathlib import Path
 import subprocess
 import time
 
 from ati.config import DEFAULT_TIMEOUT_S
+from ati.fileio import write_text_atomic
 from ati.runners.base import RunResult, looks_like_refusal
+
+SYSTEM_PROMPT_FILE = "{system_prompt_file}"
 
 
 def resolve_executable(command: list[str], which=shutil.which) -> list[str]:
@@ -39,12 +46,31 @@ class CliRunner:
         runner_fn=None,
         system_prompt_flag: str | None = None,
         workspace: Path | None = None,
+        prompt_dir: Path | None = None,
     ) -> None:
         self._command = resolve_executable(list(command))
         self._timeout_s = timeout_s
         self._runner_fn = runner_fn or subprocess.run
         self._system_prompt_flag = system_prompt_flag
         self._workspace = workspace
+        # Outside the workspace, which stays empty: the CLI under test is run
+        # from a directory with nothing in it to read.
+        self._prompt_dir = prompt_dir or (
+            Path(tempfile.gettempdir()) / "ati-cli" / "_prompts"
+        )
+
+    def _system_prompt_path(self, system_prompt: str) -> Path:
+        """A file holding the prompt, named by its content.
+
+        Content-addressed so tasks with different prompts running at once
+        never overwrite each other's file while a call is reading it.
+        """
+        digest = hashlib.sha256(system_prompt.encode("utf-8")).hexdigest()[:16]
+        path = self._prompt_dir / f"{digest}.txt"
+        if not path.exists():
+            self._prompt_dir.mkdir(parents=True, exist_ok=True)
+            write_text_atomic(path, system_prompt)
+        return path
 
     def run(self, system_prompt: str, source_text: str) -> RunResult:
         command = list(self._command)
@@ -53,6 +79,13 @@ class CliRunner:
             # Appending would leave the coding-agent framing in place, and the
             # row would measure that agent rather than the model.
             command += [self._system_prompt_flag, system_prompt]
+            stdin_text = f"{source_text}\n"
+        elif any(SYSTEM_PROMPT_FILE in arg for arg in command):
+            # `codex exec` has no system-prompt argument; its base
+            # instructions come from a file named in a config override. Same
+            # separation as the flag: prompt replaced, source alone on stdin.
+            path = self._system_prompt_path(system_prompt).as_posix()
+            command = [arg.replace(SYSTEM_PROMPT_FILE, path) for arg in command]
             stdin_text = f"{source_text}\n"
         else:
             stdin_text = f"{system_prompt}\n\n---\n\n{source_text}\n"
@@ -93,9 +126,20 @@ class CliRunner:
             # "exit 1: " - is_usage_limit had nothing to match, so the stage
             # treated a rate limit as ordinary failure and spent passes 2 and 3
             # on it in seconds instead of waiting.
-            detail = (
-                (completed.stderr or "").strip() or (completed.stdout or "").strip()
-            )[:200]
+            #
+            # Both streams, and the END of stderr: `codex exec` opens stderr
+            # with a banner (version, workdir, model) and states its limit
+            # last, and the Claude CLI now prints a notice on stderr while its
+            # limit message stays on stdout. Keeping the first 200 characters
+            # of stderr alone dropped the limit message in both.
+            detail = " | ".join(
+                part
+                for part in (
+                    (completed.stderr or "").strip()[-300:],
+                    (completed.stdout or "").strip()[:300],
+                )
+                if part
+            )
             return RunResult(
                 text="",
                 latency_s=latency,

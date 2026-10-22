@@ -41,6 +41,20 @@ USAGE_LIMIT_MARKERS = (
     "session limit",
 )
 
+# Wording that names a spent allowance outright. These win over a transient
+# marker: `codex exec` reports "You've hit your usage limit ... Try again in 3
+# hours", and "try again" alone is how a busy upstream asks for a retry.
+# Without this the Codex rows' limit was read as a passing failure and the
+# remaining passes spent in seconds.
+EXPLICIT_LIMIT_MARKERS = (
+    "usage limit",
+    "session limit",
+    "quota",
+    "resource_exhausted",
+    "resource exhausted",
+    "insufficient credit",
+)
+
 # A translation is bounded in length by its source. The api runner already
 # refuses to score generation that hit its token ceiling; runners that expose
 # no such ceiling - the opencode CLI among them - need the same protection
@@ -142,13 +156,15 @@ def is_usage_limit(error: str | None) -> bool:
     temporarily unavailable" as well as for quota, and matching the bare string
     "429" cannot tell those apart - hy4-preview alone would have ended a
     twenty-model run at position thirteen. A transient body wins over the
-    status code.
+    status code, but not over wording that names a spent allowance.
     """
     if not error:
         return False
+    lowered = error.lower()
+    if any(marker in lowered for marker in EXPLICIT_LIMIT_MARKERS):
+        return True
     if is_transient_429(error):
         return False
-    lowered = error.lower()
     return any(marker in lowered for marker in USAGE_LIMIT_MARKERS)
 
 
