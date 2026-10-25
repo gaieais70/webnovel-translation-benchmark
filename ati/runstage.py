@@ -39,6 +39,10 @@ USAGE_LIMIT_MARKERS = (
     # 2026-09 spent all three passes retrying it in seconds and recorded five
     # sonnet-5 and ten haiku-4.5 tasks as ordinary failures.
     "session limit",
+    # The same CLI's weekly allowance: "You've hit your weekly limit - resets
+    # Oct 24, 6pm". Unmatched, the last two retry passes of opus-5.5 and
+    # sonnet-5.5 were spent in seconds as ordinary failures.
+    "weekly limit",
 )
 
 # Wording that names a spent allowance outright. These win over a transient
@@ -49,6 +53,7 @@ USAGE_LIMIT_MARKERS = (
 EXPLICIT_LIMIT_MARKERS = (
     "usage limit",
     "session limit",
+    "weekly limit",
     "quota",
     "resource_exhausted",
     "resource exhausted",

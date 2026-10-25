@@ -257,3 +257,62 @@ def test_a_closed_window_is_still_waited_out():
     stage = Script(Pass(1, QUOTA), Pass(0))
     assert drive(stage, sleep_fn=slept.append, log=lambda m: None) is True
     assert slept == [4655 + RESET_MARGIN_S]
+
+
+# --- the Claude weekly limit and Codex's usage limit (2026-10-22/24) ---------
+
+CLAUDE_WEEKLY = "exit 1: You've hit your weekly limit · resets Oct 24, 6pm (America/New_York)"
+CODEX_LIMIT = (
+    "exit 1: You've hit your usage limit. Upgrade to Pro "
+    "(https://chatgpt.com/explore/pro), visit https://chatgpt.com/settings/usage "
+    "to purchase more credits or try again at 9:30 PM."
+)
+
+
+def test_a_weekly_limit_is_a_usage_limit():
+    """Unmatched, opus-5.5 and sonnet-5.5 spent their last retry passes in
+    seconds on it, as an ordinary failure, and ended with five chapters undone."""
+    from ati.runstage import is_usage_limit
+
+    assert is_usage_limit(CLAUDE_WEEKLY)
+
+
+def test_a_dated_clock_reset_waits_until_that_date_in_that_zone():
+    now = datetime(2026, 10, 23, 18, 0, tzinfo=timezone.utc)  # 14:00 EDT, Oct 23
+    assert reset_wait_s(CLAUDE_WEEKLY, now=now) == 28 * 3600
+
+
+def test_a_dated_reset_already_past_means_the_window_is_open():
+    now = datetime(2026, 10, 25, 14, 0, tzinfo=timezone.utc)
+    assert reset_wait_s(CLAUDE_WEEKLY, now=now) == 0
+
+
+def test_a_dated_reset_without_a_zone_name_is_not_guessed():
+    assert reset_wait_s("resets Oct 24, 6pm") is None
+
+
+def test_a_codex_limit_that_offers_credits_is_a_window_not_an_empty_balance():
+    """`purchase more credits` is Codex's upsell. It also says when to try
+    again, so it is a window: waiting reopens it. Read as an empty balance,
+    the run gave up on gpt-6-astra with two chapters left."""
+    from ati.runstage import is_usage_limit
+    from ati.waiting import out_of_credit
+
+    assert is_usage_limit(CODEX_LIMIT)
+    assert not out_of_credit(CODEX_LIMIT)
+    assert out_of_credit(CREDITS)  # a bare empty balance still stops the run
+
+
+def test_try_again_at_a_local_time_is_waited_out_to_that_time():
+    now = datetime(2026, 10, 22, 21, 0).astimezone()  # 21:00 local
+    assert reset_wait_s(CODEX_LIMIT, now=now) == 30 * 60
+
+
+def test_try_again_at_a_local_time_is_the_next_occurrence():
+    now = datetime(2026, 10, 22, 22, 0).astimezone()
+    assert reset_wait_s(CODEX_LIMIT, now=now) == 23 * 3600 + 30 * 60
+
+
+def test_try_again_in_a_duration_is_read():
+    assert reset_wait_s("You've hit your usage limit. Try again in 3 hours.") == 3 * 3600
+    assert reset_wait_s("try again in 2 hours 15 minutes") == 2 * 3600 + 15 * 60

@@ -49,9 +49,27 @@ ABSOLUTE_RESET_RE = re.compile(
 # ("You've hit your session limit - resets 12am (America/New_York)"). Unparsed
 # it fell back to the hourly backoff, and MAX_STOPS gave up six hours in - so a
 # limit hit in the afternoon ended the run hours before the midnight reset.
+# Its weekly limit adds a date ("resets Oct 24, 6pm (America/New_York)"), which
+# the pattern above could not read: opus-5.5 and sonnet-5.5 backed off an hour
+# at a time instead of waiting for it.
 CLOCK_RESET_RE = re.compile(
-    r"resets?\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)\s*"
+    r"resets?\s+(?:at\s+)?"
+    r"(?:(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2}),?\s+)?"
+    r"(\d{1,2})(?::(\d{2}))?\s*(am|pm)\s*"
     r"\(([A-Za-z_]+(?:/[A-Za-z0-9_+\-]+)+)\)",
+    re.IGNORECASE,
+)
+
+# The fourth spelling, Codex's: "You've hit your usage limit ... or try again at
+# 9:30 PM" (the operator's local time, no zone named) and "Try again in 3
+# hours". It also says "purchase more credits", an upsell and not an empty
+# balance, so a stated retry time rules out the credit stop below.
+RETRY_AT_RE = re.compile(
+    r"try\s+again\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)", re.IGNORECASE
+)
+RETRY_IN_RE = re.compile(
+    r"try\s+again\s+in\s+"
+    r"(?:(\d+)\s*(?:hours?|hrs?|h)\b)?\s*(?:(\d+)\s*(?:minutes?|mins?|m)\b)?",
     re.IGNORECASE,
 )
 # A provider saying the balance is empty is not saying a window is closed.
@@ -94,7 +112,10 @@ def reset_wait_s(message: str | None, now: datetime | None = None) -> int | None
     absolute = _absolute_reset_wait_s(message, now)
     if absolute is not None:
         return absolute
-    return _clock_reset_wait_s(message, now)
+    clock = _clock_reset_wait_s(message, now)
+    if clock is not None:
+        return clock
+    return _retry_wait_s(message, now)
 
 
 def _absolute_reset_wait_s(message: str | None, now: datetime | None) -> int | None:
@@ -121,9 +142,15 @@ def _absolute_reset_wait_s(message: str | None, now: datetime | None) -> int | N
 
 
 def out_of_credit(message: str | None) -> bool:
-    """Whether the provider says the account has no balance left to spend."""
+    """Whether the provider says the account has no balance left to spend.
+
+    Not when it also says when to try again: that is a window with a purchase
+    offered beside it (Codex), and waiting reopens it.
+    """
     lowered = (message or "").lower()
-    return any(marker in lowered for marker in CREDIT_MARKERS)
+    if not any(marker in lowered for marker in CREDIT_MARKERS):
+        return False
+    return reset_wait_s(message) is None
 
 
 def backoff_s(message: str | None) -> int:
@@ -201,7 +228,7 @@ def _clock_reset_wait_s(message: str | None, now: datetime | None) -> int | None
     match = CLOCK_RESET_RE.search(message or "")
     if not match:
         return None
-    hour, minute, meridiem, zone_name = match.groups()
+    month_name, day, hour, minute, meridiem, zone_name = match.groups()
     hour, minute = int(hour) % 12, int(minute or 0)
     if meridiem.lower() == "pm":
         hour += 12
@@ -215,8 +242,47 @@ def _clock_reset_wait_s(message: str | None, now: datetime | None) -> int | None
     if now.tzinfo is None:
         now = now.replace(tzinfo=timezone.utc)
     local = now.astimezone(zone)
+    if month_name:
+        # A dated reset is that moment, and one already past means the window
+        # is open. A date more than half a year back is next year's.
+        month = _MONTHS.index(month_name.lower()[:3]) + 1
+        try:
+            when = local.replace(
+                month=month, day=int(day), hour=hour, minute=minute,
+                second=0, microsecond=0,
+            )
+        except ValueError:
+            return None
+        if when < local - timedelta(days=183):
+            when = when.replace(year=when.year + 1)
+        return max(0, int((when - local).total_seconds()))
     when = local.replace(hour=hour, minute=minute, second=0, microsecond=0)
     # "resets 12am" names the next midnight, never the one already past.
+    if when <= local:
+        when += timedelta(days=1)
+    return int((when - local).total_seconds())
+
+
+_MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+
+
+def _retry_wait_s(message: str | None, now: datetime | None) -> int | None:
+    """Codex: "try again in 3 hours" or "try again at 9:30 PM" (local time)."""
+    text = message or ""
+    match = RETRY_IN_RE.search(text)
+    if match and any(match.groups()):
+        hours, minutes = (int(g or 0) for g in match.groups())
+        return hours * 3600 + minutes * 60
+    match = RETRY_AT_RE.search(text)
+    if not match:
+        return None
+    hour, minute, meridiem = match.groups()
+    hour, minute = int(hour) % 12, int(minute or 0)
+    if meridiem.lower() == "pm":
+        hour += 12
+    now = now or datetime.now(timezone.utc)
+    local = now.astimezone() if now.tzinfo else now.astimezone(timezone.utc).astimezone()
+    when = local.replace(hour=hour, minute=minute, second=0, microsecond=0)
     if when <= local:
         when += timedelta(days=1)
     return int((when - local).total_seconds())
