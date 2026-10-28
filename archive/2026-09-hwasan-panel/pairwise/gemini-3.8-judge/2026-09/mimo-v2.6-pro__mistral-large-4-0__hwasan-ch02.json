@@ -1,0 +1,12 @@
+{
+  "a": "mimo-v2.6-pro",
+  "b": "mistral-large-4-0",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "526a150758bacd5722b0ab453b5e66c0f74ff8b2794c5da066f44195769175d5",
+  "sha_b": "ff73f98acf2dd1a5876c58eb2d82caa161f70eac5651167a68f7af03ed0cc740"
+}

@@ -1015,3 +1015,46 @@
   # slow call observed hung for the full 900s default, then succeeded on retry
   # in 1.5. Eight minutes is ~3x a normal call and wastes far less on a hang.
   timeout_s: 480
+
+# OpenRouter, 2026-10 second batch (budget key; list prices 2026-10-28)
+
+- id: lfm-2.5-24b-a2b
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: liquid/lfm-2.5-24b-a2b
+  price: {input: 0.05, output: 0.7}
+
+- id: solar-mini4
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: upstage/solar-mini4
+  price: {input: 0.05, output: 0.2}
+  params:
+    reasoning:
+      effort: max
+
+- id: mercury-3
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: inception/mercury-3
+  price: {input: 0.1, output: 0.35}
+
+- id: mistral-large-4-0
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: mistralai/mistral-large-4-0
+  price: {input: 1.36, output: 4.18}
+
+- id: step-5-preview
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: stepfun/step-5-preview
+  price: {input: 1.0, output: 2.7}
+  params:
+    reasoning:
+      effort: max

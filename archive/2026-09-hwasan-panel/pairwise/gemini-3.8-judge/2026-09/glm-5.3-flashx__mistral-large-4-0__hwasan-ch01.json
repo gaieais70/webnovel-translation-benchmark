@@ -1,0 +1,12 @@
+{
+  "a": "glm-5.3-flashx",
+  "b": "mistral-large-4-0",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "829f1c83fc26aecfa99389867d118c5e01ae90f007a8b97de7659a96e9a0e1c3",
+  "sha_b": "bee62d9855c371ee5ec9d5c0a8db8888c158f3411a2d13389a4e39b786114137"
+}

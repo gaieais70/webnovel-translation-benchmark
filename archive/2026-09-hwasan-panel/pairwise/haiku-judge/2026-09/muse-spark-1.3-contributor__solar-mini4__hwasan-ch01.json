@@ -1,0 +1,12 @@
+{
+  "a": "muse-spark-1.3-contributor",
+  "b": "solar-mini4",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "1ccb315814777d3c0153632bbdea5828f9629cdfb5df848ff2a3697100d11c00",
+  "sha_b": "2547d9845b9ea36a255e681baf18abcfa0ab33b33176b093996febedb4e2c294"
+}

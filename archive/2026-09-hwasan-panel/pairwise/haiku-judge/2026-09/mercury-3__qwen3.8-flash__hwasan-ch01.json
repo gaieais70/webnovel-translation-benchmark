@@ -1,0 +1,12 @@
+{
+  "a": "mercury-3",
+  "b": "qwen3.8-flash",
+  "passage_id": "hwasan-ch01",
+  "forward": "tie",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "3f78d625b47919f4523c02dc3dc781ba2ef39f0b18a7b711d265b5aeaf1071f8",
+  "sha_b": "cb6e7125c17ee9519b37a894efe049ff1e7bc30f9697a108199c66992556fad5"
+}

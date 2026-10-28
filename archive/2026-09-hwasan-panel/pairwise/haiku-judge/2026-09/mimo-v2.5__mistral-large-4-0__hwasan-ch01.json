@@ -1,0 +1,12 @@
+{
+  "a": "mimo-v2.5",
+  "b": "mistral-large-4-0",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "46a30a1bff29ad0d07442e953b1d9b9e44b2f668cfafd8a84c1f7cf55247bd34",
+  "sha_b": "bee62d9855c371ee5ec9d5c0a8db8888c158f3411a2d13389a4e39b786114137"
+}

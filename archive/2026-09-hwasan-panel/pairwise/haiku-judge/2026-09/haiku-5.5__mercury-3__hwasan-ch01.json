@@ -1,0 +1,12 @@
+{
+  "a": "haiku-5.5",
+  "b": "mercury-3",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "258f77379802c4b2a0d35a205ba1bb934d657e73566927942ebb19c8f8e03884",
+  "sha_b": "3f78d625b47919f4523c02dc3dc781ba2ef39f0b18a7b711d265b5aeaf1071f8"
+}

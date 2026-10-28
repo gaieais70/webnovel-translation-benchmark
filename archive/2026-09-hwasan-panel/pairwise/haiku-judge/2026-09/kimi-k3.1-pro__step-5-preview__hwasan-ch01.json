@@ -1,0 +1,12 @@
+{
+  "a": "kimi-k3.1-pro",
+  "b": "step-5-preview",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "tie",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "52d31055384b0a3cc2d5beceb827b036deb0010ffd86b6f010e164e1d607137d",
+  "sha_b": "60fb085170114618ba8033488610b4e02e5e3111d700a1d10589a53d45ab92a1"
+}

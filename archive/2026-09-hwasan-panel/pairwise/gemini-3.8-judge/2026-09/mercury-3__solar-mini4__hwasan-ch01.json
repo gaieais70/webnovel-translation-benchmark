@@ -1,0 +1,12 @@
+{
+  "a": "mercury-3",
+  "b": "solar-mini4",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "3f78d625b47919f4523c02dc3dc781ba2ef39f0b18a7b711d265b5aeaf1071f8",
+  "sha_b": "2547d9845b9ea36a255e681baf18abcfa0ab33b33176b093996febedb4e2c294"
+}

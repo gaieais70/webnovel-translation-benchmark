@@ -1,0 +1,12 @@
+{
+  "a": "mistral-large-4-0",
+  "b": "nemotron-3-ultra",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "bee62d9855c371ee5ec9d5c0a8db8888c158f3411a2d13389a4e39b786114137",
+  "sha_b": "58e8f5ae4633c7236178fcd7928350ff8beff5ff69a29a531efbb8796501d620"
+}

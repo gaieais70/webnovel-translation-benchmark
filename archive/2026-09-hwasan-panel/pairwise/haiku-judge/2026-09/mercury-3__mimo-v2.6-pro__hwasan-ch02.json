@@ -1,0 +1,12 @@
+{
+  "a": "mercury-3",
+  "b": "mimo-v2.6-pro",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "tie",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "da925fc3e411097cf08a8db1aefc49ef00299a5e6e675113c625a90fe357d7a0",
+  "sha_b": "526a150758bacd5722b0ab453b5e66c0f74ff8b2794c5da066f44195769175d5"
+}

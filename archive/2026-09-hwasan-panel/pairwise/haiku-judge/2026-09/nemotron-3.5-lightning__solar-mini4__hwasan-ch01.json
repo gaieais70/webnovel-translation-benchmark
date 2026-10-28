@@ -1,0 +1,12 @@
+{
+  "a": "nemotron-3.5-lightning",
+  "b": "solar-mini4",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "d9217cac1b26045fa9241dde7f8b8a6c9e53cd710cc4a93666b8e0dbf81b46ed",
+  "sha_b": "2547d9845b9ea36a255e681baf18abcfa0ab33b33176b093996febedb4e2c294"
+}

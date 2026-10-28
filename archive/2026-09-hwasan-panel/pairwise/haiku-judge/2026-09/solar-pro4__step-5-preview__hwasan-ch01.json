@@ -1,0 +1,12 @@
+{
+  "a": "solar-pro4",
+  "b": "step-5-preview",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "ceb1acb3a34a08f2ab4d030aa36b418150a0b4d5c9a803fddf48e69cf0d051e1",
+  "sha_b": "60fb085170114618ba8033488610b4e02e5e3111d700a1d10589a53d45ab92a1"
+}

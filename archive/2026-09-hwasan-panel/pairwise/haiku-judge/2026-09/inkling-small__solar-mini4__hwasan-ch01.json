@@ -1,0 +1,12 @@
+{
+  "a": "inkling-small",
+  "b": "solar-mini4",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "6039072994da1828ae10185f92ef9bfc344a457fb1a3f476ef21a08f641ca924",
+  "sha_b": "2547d9845b9ea36a255e681baf18abcfa0ab33b33176b093996febedb4e2c294"
+}

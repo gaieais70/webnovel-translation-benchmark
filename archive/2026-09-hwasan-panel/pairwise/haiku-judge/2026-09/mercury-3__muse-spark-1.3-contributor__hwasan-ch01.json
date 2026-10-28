@@ -1,0 +1,12 @@
+{
+  "a": "mercury-3",
+  "b": "muse-spark-1.3-contributor",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "3f78d625b47919f4523c02dc3dc781ba2ef39f0b18a7b711d265b5aeaf1071f8",
+  "sha_b": "1ccb315814777d3c0153632bbdea5828f9629cdfb5df848ff2a3697100d11c00"
+}

@@ -1,0 +1,12 @@
+{
+  "a": "inkling-small",
+  "b": "mistral-large-4-0",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "6039072994da1828ae10185f92ef9bfc344a457fb1a3f476ef21a08f641ca924",
+  "sha_b": "bee62d9855c371ee5ec9d5c0a8db8888c158f3411a2d13389a4e39b786114137"
+}

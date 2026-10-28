@@ -1,0 +1,12 @@
+{
+  "a": "mimo-v2.6-pro",
+  "b": "solar-mini4",
+  "passage_id": "hwasan-ch06",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "bfd2dc187d70ca39b3ab137393201f9d35bed0ddabc04aa69bf07030ebe5f0ea",
+  "sha_b": "8596d5f43e34c1829fb719701d187847c99b5e8d2d4ae61e63a05907808f9c64"
+}

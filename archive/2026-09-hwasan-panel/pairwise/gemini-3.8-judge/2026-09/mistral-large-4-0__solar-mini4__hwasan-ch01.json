@@ -1,0 +1,12 @@
+{
+  "a": "mistral-large-4-0",
+  "b": "solar-mini4",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "bee62d9855c371ee5ec9d5c0a8db8888c158f3411a2d13389a4e39b786114137",
+  "sha_b": "2547d9845b9ea36a255e681baf18abcfa0ab33b33176b093996febedb4e2c294"
+}

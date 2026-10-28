@@ -1,0 +1,12 @@
+{
+  "a": "glm-5.3-flash",
+  "b": "mistral-large-4-0",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "d46acf78a9810a70a4835f5a24acc2ec0c0f485b146d3e355034ab56bf426d1d",
+  "sha_b": "bee62d9855c371ee5ec9d5c0a8db8888c158f3411a2d13389a4e39b786114137"
+}

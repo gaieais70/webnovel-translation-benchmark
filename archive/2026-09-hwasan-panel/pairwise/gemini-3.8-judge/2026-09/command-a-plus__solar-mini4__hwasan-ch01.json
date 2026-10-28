@@ -1,0 +1,12 @@
+{
+  "a": "command-a-plus",
+  "b": "solar-mini4",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "tie",
+  "outcome": "tie",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "d29fcd45b8af9d42762c4d9d497dcd09d1dd25865b30779b26237d5316dd3d91",
+  "sha_b": "2547d9845b9ea36a255e681baf18abcfa0ab33b33176b093996febedb4e2c294"
+}

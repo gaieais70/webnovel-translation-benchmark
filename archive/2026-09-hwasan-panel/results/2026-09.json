@@ -2,9 +2,9 @@
   "run_id": "2026-09",
   "metadata": {
     "judge_id": "haiku-judge + gemini-3.8-judge",
-    "date": "2026-10-27",
+    "date": "2026-10-28",
     "inputs": {
-      "models": "e45b7ce5220d3a68f15f1f7f2237c31076274582baf5d5b15d18b2866c4fae1a",
+      "models": "609e3971a2f03c58eff9006d6a6bd5a97b54ddf050a3655b8444f8d3a8fb76f5",
       "weights": "afb5c698ea565900c370eeb82e75afac581d2abd0dcc3038af6d0315b94fd887",
       "tasks": "625461c5080c47d7ab710b501a3934d0357713494739f1958f7d3d3c0282a3e2",
       "manifest": "5abc050ba298775eb78ecf5d83894ff5dd6051c7a066271e7c403c75e892c4e6",
@@ -30,9 +30,9 @@
     "pending_judgments": 0,
     "anchor_baseline": null,
     "pairwise_coverage": {
-      "comparisons": 1470,
-      "pairs": 838,
-      "possible_pairs": 1081
+      "comparisons": 1610,
+      "pairs": 942,
+      "possible_pairs": 1275
     }
   },
   "weights": {
@@ -883,6 +883,44 @@
       "tokens_out_per_chapter": 41127.545454545456
     },
     {
+      "model_id": "mercury-3",
+      "composite": 70.06614514561898,
+      "axis_means": {
+        "accuracy": 3.5,
+        "terminology": 2.1041381200328857,
+        "register": 4.363636363636363,
+        "fluency": 4.545454545454546,
+        "fidelity": 4.5,
+        "sanitization": 4.954545454545454
+      },
+      "axis_stdevs": {
+        "accuracy": 0.4767312946227962,
+        "terminology": 0.616575453011388,
+        "register": 0.308287726505694,
+        "fluency": 0.39626354032187944,
+        "fidelity": 0.4767312946227962,
+        "sanitization": 0.14373989364401724
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": 0.0017813701365627416,
+      "speed_per_1k": 13.135471456061588,
+      "value": 39332.47091634242,
+      "slop": 0.6823242117359765,
+      "repetition": 0.10685036545846975,
+      "judge_errors": 0,
+      "failed_tasks": 0,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false,
+      "refused_tasks": 0,
+      "judge_composites": {
+        "haiku-judge": 68.69382022471909,
+        "gemini-3.8-judge": 71.43847006651885
+      },
+      "list_cost_per_chapter": 0.012570077272727272,
+      "tokens_out_per_chapter": 34451.0
+    },
+    {
       "model_id": "glm-5.3-flashx",
       "composite": 69.89224137931035,
       "axis_means": {
@@ -1033,6 +1071,44 @@
       },
       "list_cost_per_chapter": 0.0217579808,
       "tokens_out_per_chapter": 8837.0
+    },
+    {
+      "model_id": "step-5-preview",
+      "composite": 67.36498044965786,
+      "axis_means": {
+        "accuracy": 3.3636363636363638,
+        "terminology": 2.075268817204301,
+        "register": 4.181818181818182,
+        "fluency": 4.318181818181818,
+        "fidelity": 4.454545454545454,
+        "sanitization": 4.954545454545454
+      },
+      "axis_stdevs": {
+        "accuracy": 0.4312196809320517,
+        "terminology": 0.4499770425732575,
+        "register": 0.32141217326661253,
+        "fluency": 0.38569460791993504,
+        "fidelity": 0.3340213285613425,
+        "sanitization": 0.14373989364401724
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": 0.009440467662973462,
+      "speed_per_1k": 28.752287405812698,
+      "value": 7135.767300371212,
+      "slop": 0.3901677721420211,
+      "repetition": 0.10859754500537944,
+      "judge_errors": 0,
+      "failed_tasks": 0,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false,
+      "refused_tasks": 0,
+      "judge_composites": {
+        "haiku-judge": 67.39736070381231,
+        "gemini-3.8-judge": 67.33260019550342
+      },
+      "list_cost_per_chapter": 0.06661537272727273,
+      "tokens_out_per_chapter": 22736.636363636364
     },
     {
       "model_id": "beam-1.0",
@@ -1377,6 +1453,44 @@
       "tokens_out_per_chapter": 3514.2727272727275
     },
     {
+      "model_id": "mistral-large-4-0",
+      "composite": 56.89205372940312,
+      "axis_means": {
+        "accuracy": 3.0454545454545454,
+        "terminology": 1.7875016549715343,
+        "register": 3.5454545454545454,
+        "fluency": 3.590909090909091,
+        "fidelity": 4.0,
+        "sanitization": 4.863636363636363
+      },
+      "axis_stdevs": {
+        "accuracy": 0.3340213285613425,
+        "terminology": 0.5677270907634907,
+        "register": 0.14373989364401724,
+        "fluency": 0.28747978728803447,
+        "fidelity": 0.7071067811865476,
+        "sanitization": 0.308287726505694
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": 0.010381518938417933,
+      "speed_per_1k": 31.442921134790293,
+      "value": 5480.128107156645,
+      "slop": 1.220081099508379,
+      "repetition": 0.10771491542069332,
+      "judge_errors": 0,
+      "failed_tasks": 0,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": false,
+      "refused_tasks": 0,
+      "judge_composites": {
+        "haiku-judge": 63.7828587075575,
+        "gemini-3.8-judge": 50.00124875124875
+      },
+      "list_cost_per_chapter": 0.07325577272727272,
+      "tokens_out_per_chapter": 16010.818181818182
+    },
+    {
       "model_id": "solar-pro4",
       "composite": 56.29454022988506,
       "axis_means": {
@@ -1643,6 +1757,44 @@
       "tokens_out_per_chapter": 14963.363636363636
     },
     {
+      "model_id": "solar-mini4",
+      "composite": 41.69811320754717,
+      "axis_means": {
+        "accuracy": 2.2142857142857144,
+        "terminology": 1.6253369272237195,
+        "register": 3.0714285714285716,
+        "fluency": 3.142857142857143,
+        "fidelity": 2.7142857142857144,
+        "sanitization": 4.5
+      },
+      "axis_stdevs": {
+        "accuracy": 0.3642156795423418,
+        "terminology": 0.6226998490772391,
+        "register": 0.4164965639175215,
+        "fluency": 0.22587697572631282,
+        "fidelity": 0.7953949089757174,
+        "sanitization": 0.6546536707079772
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": 0.0012142711649890245,
+      "speed_per_1k": 49.1307857911733,
+      "value": 34340.03409602835,
+      "slop": 0.522405386579986,
+      "repetition": 0.1085068499807289,
+      "judge_errors": 0,
+      "failed_tasks": 4,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": true,
+      "refused_tasks": 0,
+      "judge_composites": {
+        "haiku-judge": 52.5033692722372,
+        "gemini-3.8-judge": 30.892857142857146
+      },
+      "list_cost_per_chapter": 0.00877172142857143,
+      "tokens_out_per_chapter": 42979.28571428572
+    },
+    {
       "model_id": "nemotron-3.5-lightning",
       "composite": 30.12768817204301,
       "axis_means": {
@@ -1831,6 +1983,44 @@
       },
       "list_cost_per_chapter": 0.0,
       "tokens_out_per_chapter": 24749.454545454544
+    },
+    {
+      "model_id": "lfm-2.5-24b-a2b",
+      "composite": null,
+      "axis_means": {
+        "accuracy": null,
+        "terminology": null,
+        "register": null,
+        "fluency": null,
+        "fidelity": null,
+        "sanitization": null
+      },
+      "axis_stdevs": {
+        "accuracy": 0.0,
+        "terminology": 0.0,
+        "register": 0.0,
+        "fluency": 0.0,
+        "fidelity": 0.0,
+        "sanitization": 0.0
+      },
+      "refusal_rate": 0.0,
+      "cost_per_1k": null,
+      "speed_per_1k": null,
+      "value": null,
+      "slop": 0.0,
+      "repetition": 0.0,
+      "judge_errors": 0,
+      "failed_tasks": 11,
+      "total_tasks": 11,
+      "anchor": null,
+      "incomplete": true,
+      "refused_tasks": 0,
+      "judge_composites": {
+        "haiku-judge": null,
+        "gemini-3.8-judge": null
+      },
+      "list_cost_per_chapter": null,
+      "tokens_out_per_chapter": null
     }
   ]
 }

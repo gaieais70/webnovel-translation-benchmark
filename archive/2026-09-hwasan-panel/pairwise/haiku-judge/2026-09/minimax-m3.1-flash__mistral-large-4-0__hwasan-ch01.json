@@ -1,0 +1,12 @@
+{
+  "a": "minimax-m3.1-flash",
+  "b": "mistral-large-4-0",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "7837818a00ba9ea04173834b02db5b0eba446c23f090317ff83e1816a695f7da",
+  "sha_b": "bee62d9855c371ee5ec9d5c0a8db8888c158f3411a2d13389a4e39b786114137"
+}

@@ -1,0 +1,12 @@
+{
+  "a": "opus-5.5",
+  "b": "step-5-preview",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "ad645327c84782d8f4f268922ad4d63692c52c9c7b5ba2e657243d44d78bb669",
+  "sha_b": "60fb085170114618ba8033488610b4e02e5e3111d700a1d10589a53d45ab92a1"
+}

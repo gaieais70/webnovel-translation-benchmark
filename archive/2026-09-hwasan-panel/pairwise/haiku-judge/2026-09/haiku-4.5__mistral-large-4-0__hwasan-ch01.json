@@ -1,0 +1,12 @@
+{
+  "a": "haiku-4.5",
+  "b": "mistral-large-4-0",
+  "passage_id": "hwasan-ch01",
+  "forward": "tie",
+  "reverse": "B",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "7307afd8e1ae39cb9544b6fed1badd80a182ea9b2f622b478c9f3533a2491a98",
+  "sha_b": "bee62d9855c371ee5ec9d5c0a8db8888c158f3411a2d13389a4e39b786114137"
+}

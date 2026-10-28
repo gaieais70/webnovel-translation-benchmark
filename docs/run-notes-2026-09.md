@@ -625,3 +625,12 @@ judges and pooled into the pairwise fit; the panel archive was refreshed.
 - xing4.0-29b-a4b finished 5/11 (free-route 429s) and is not ranked; the free
   rows carry routing noise.
 - Both judges are also subjects of the ranking.
+
+### Second batch (2026-10-28)
+
+Five more open models on the same key ($2.30 of it spent in this batch,
+about $8.4 in total): mercury-3 70.1 (#22, $0.013/chapter), step-5-preview 67.4
+(#27), mistral-large-4-0 56.9 (#37). solar-mini4 spends its whole 65k output on
+reasoning and finished 7/11 translated (4 truncated), so it is unranked.
+lfm-2.5-24b-a2b was cut off at the provider's 8,192-token output cap on all 11
+chapters and is unranked. Both are listed under "Incomplete".

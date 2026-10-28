@@ -1,0 +1,12 @@
+{
+  "a": "kimi-k3.1-pro",
+  "b": "mercury-3",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "tie",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "52d31055384b0a3cc2d5beceb827b036deb0010ffd86b6f010e164e1d607137d",
+  "sha_b": "3f78d625b47919f4523c02dc3dc781ba2ef39f0b18a7b711d265b5aeaf1071f8"
+}

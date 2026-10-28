@@ -1,0 +1,12 @@
+{
+  "a": "mistral-large-4-0",
+  "b": "solar-pro4",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "bee62d9855c371ee5ec9d5c0a8db8888c158f3411a2d13389a4e39b786114137",
+  "sha_b": "ceb1acb3a34a08f2ab4d030aa36b418150a0b4d5c9a803fddf48e69cf0d051e1"
+}
