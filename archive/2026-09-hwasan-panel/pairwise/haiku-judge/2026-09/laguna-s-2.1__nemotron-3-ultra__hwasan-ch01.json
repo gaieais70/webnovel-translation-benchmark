@@ -1,0 +1,12 @@
+{
+  "a": "laguna-s-2.1",
+  "b": "nemotron-3-ultra",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "147e2cb3f1cd21e5bf38b750784a4ae6367b869e696f38bc29161a8744a16e23",
+  "sha_b": "58e8f5ae4633c7236178fcd7928350ff8beff5ff69a29a531efbb8796501d620"
+}

@@ -1,0 +1,12 @@
+{
+  "a": "command-a-plus",
+  "b": "nemotron-3.5-lightning",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "d29fcd45b8af9d42762c4d9d497dcd09d1dd25865b30779b26237d5316dd3d91",
+  "sha_b": "d9217cac1b26045fa9241dde7f8b8a6c9e53cd710cc4a93666b8e0dbf81b46ed"
+}

@@ -1,0 +1,12 @@
+{
+  "a": "minimax-m3.1-flash",
+  "b": "xing4.0-29b-a4b",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "c1604a6658a00c947a33774fa5eeec8d4e3ebe7a92168895b57eb27205a3e750",
+  "sha_b": "005afb16e5bb16b5e29343b760e10d84768617090fb301efe48dbb738336a2db"
+}

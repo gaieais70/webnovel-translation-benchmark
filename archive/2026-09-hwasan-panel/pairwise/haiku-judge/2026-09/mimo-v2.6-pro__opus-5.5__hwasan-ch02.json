@@ -1,0 +1,12 @@
+{
+  "a": "mimo-v2.6-pro",
+  "b": "opus-5.5",
+  "passage_id": "hwasan-ch02",
+  "forward": "tie",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "526a150758bacd5722b0ab453b5e66c0f74ff8b2794c5da066f44195769175d5",
+  "sha_b": "ae8b907310ac23a12137fbd00ccdc7eb67544a6eef35fc834aed13b57c16f3c9"
+}

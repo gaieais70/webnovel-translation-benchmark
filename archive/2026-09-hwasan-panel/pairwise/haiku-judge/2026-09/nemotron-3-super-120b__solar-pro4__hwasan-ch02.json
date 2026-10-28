@@ -1,0 +1,12 @@
+{
+  "a": "nemotron-3-super-120b",
+  "b": "solar-pro4",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "9f286d344de6b78b2bf3a0511c6936c778fa6b755a3b6e0ad53a2ac1e0e15c4b",
+  "sha_b": "4aaf841729533c1cca09a4421b4f237835b31e9e36ba5ebea311ce6051278b33"
+}

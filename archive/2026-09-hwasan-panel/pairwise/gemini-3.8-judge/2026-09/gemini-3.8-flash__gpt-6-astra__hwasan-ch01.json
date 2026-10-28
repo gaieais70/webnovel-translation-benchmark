@@ -1,0 +1,12 @@
+{
+  "a": "gemini-3.8-flash",
+  "b": "gpt-6-astra",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "36aa9ecd0123b6bfc6f2c1592404aff166a9dbeb373ac8ecaa740fb15973abc3",
+  "sha_b": "cef27fc4aa346dc22990df3b512b69afe5daac72f4d05127e4f8df2a040ed8db"
+}

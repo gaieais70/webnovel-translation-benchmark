@@ -1,0 +1,12 @@
+{
+  "a": "laguna-s-2.1",
+  "b": "mimo-v2.5-pro",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "147e2cb3f1cd21e5bf38b750784a4ae6367b869e696f38bc29161a8744a16e23",
+  "sha_b": "6d1fcca0e2de6158f68da7b0cf8ced370f17552fbd01571da5defe7c638c65d5"
+}

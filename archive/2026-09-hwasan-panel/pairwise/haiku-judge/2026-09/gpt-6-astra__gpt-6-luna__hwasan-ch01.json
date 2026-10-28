@@ -1,0 +1,12 @@
+{
+  "a": "gpt-6-astra",
+  "b": "gpt-6-luna",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "tie",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "cef27fc4aa346dc22990df3b512b69afe5daac72f4d05127e4f8df2a040ed8db",
+  "sha_b": "db653a1a5a47aaff49ab838e18372fcf978e3ae86c8dd143ceb8b89a70f4453f"
+}

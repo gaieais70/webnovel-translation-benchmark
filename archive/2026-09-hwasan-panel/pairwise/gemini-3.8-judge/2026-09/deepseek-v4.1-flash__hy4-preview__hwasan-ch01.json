@@ -1,0 +1,12 @@
+{
+  "a": "deepseek-v4.1-flash",
+  "b": "hy4-preview",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "c31602969b1b5f2b5561eaf35320ce7d75de8d7ff52352fd11fff27971fe1b69",
+  "sha_b": "9476c1ea201b89c19f473888cf185eaec250099f6416e14ecd9e81f3974ec139"
+}

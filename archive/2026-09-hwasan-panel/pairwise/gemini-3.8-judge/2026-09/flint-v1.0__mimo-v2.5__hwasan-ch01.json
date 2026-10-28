@@ -1,0 +1,12 @@
+{
+  "a": "flint-v1.0",
+  "b": "mimo-v2.5",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "0c8fa6d0e163040bd82d6081a4ecf55cde7e09fdad18ecffc488c3c55f470a3c",
+  "sha_b": "46a30a1bff29ad0d07442e953b1d9b9e44b2f668cfafd8a84c1f7cf55247bd34"
+}

@@ -1,0 +1,12 @@
+{
+  "a": "minimax-m3.1-flash",
+  "b": "nemotron-3.5-lightning",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "tie",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "7837818a00ba9ea04173834b02db5b0eba446c23f090317ff83e1816a695f7da",
+  "sha_b": "d9217cac1b26045fa9241dde7f8b8a6c9e53cd710cc4a93666b8e0dbf81b46ed"
+}

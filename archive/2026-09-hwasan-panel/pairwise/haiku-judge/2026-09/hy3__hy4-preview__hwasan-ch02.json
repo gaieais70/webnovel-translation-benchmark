@@ -1,0 +1,12 @@
+{
+  "a": "hy3",
+  "b": "hy4-preview",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "fb08a9cd624abfa651579279e88e95c4d3b66a4619cd071db2c62fe6801fbaa2",
+  "sha_b": "e7beda24b93b99a543965b490da7f67977961e81e75133b812d18a31c9b4c5a6"
+}

@@ -1,0 +1,12 @@
+{
+  "a": "glm-5.3-flash",
+  "b": "nemotron-3.5-super-vl",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "tie",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "d46acf78a9810a70a4835f5a24acc2ec0c0f485b146d3e355034ab56bf426d1d",
+  "sha_b": "eac9da793e33e8216a90b07dfa69de551f0f2e9dfca172fbc4fdb4ed247a7088"
+}

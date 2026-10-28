@@ -1,0 +1,12 @@
+{
+  "a": "minimax-m3",
+  "b": "nemotron-3-ultra",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "f399e69a6ac160ab625b611a00a1eb7b8bb20b2c9c27e30002b974dbf719a994",
+  "sha_b": "58e8f5ae4633c7236178fcd7928350ff8beff5ff69a29a531efbb8796501d620"
+}

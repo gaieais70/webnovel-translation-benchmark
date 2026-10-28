@@ -1,0 +1,12 @@
+{
+  "a": "glm-5.2",
+  "b": "mimo-v2.5-pro",
+  "passage_id": "hwasan-ch03",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "fc37551f21a6a5b4c91d352c04376d2879cda5c3bdeb36acae609285f66e65c0",
+  "sha_b": "31d0b0ec206e2de95672f437f78d0d2a054645685a8669707a9e88a0365951f3"
+}

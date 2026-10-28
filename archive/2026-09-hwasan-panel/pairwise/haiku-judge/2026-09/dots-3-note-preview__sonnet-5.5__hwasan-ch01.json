@@ -1,0 +1,12 @@
+{
+  "a": "dots-3-note-preview",
+  "b": "sonnet-5.5",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "22736361bd9e521a967b13e9e8bf6eef82686829a1b8a4c60904fe55dd1dc750",
+  "sha_b": "dafc899d42281668c6b11f0c88bc1a5f7055cefce248056255b9cf599224cbe7"
+}

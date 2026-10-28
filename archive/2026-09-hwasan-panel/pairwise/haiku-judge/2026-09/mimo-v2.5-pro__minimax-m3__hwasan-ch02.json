@@ -1,0 +1,12 @@
+{
+  "a": "mimo-v2.5-pro",
+  "b": "minimax-m3",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "eb76cad763cfae7399fa8ccc75d20e2b56610a7f77a16ad945a83746415db5f6",
+  "sha_b": "74df69cd8fd87147b098071b89a0bc950ccadfa302fd12a1e015a8cf07d6fba9"
+}

@@ -1,0 +1,12 @@
+{
+  "a": "deepseek-v4-pro",
+  "b": "sonnet-5.5",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "a61ece9f782b964595124c93a5fd1bda4a01b088f585dcc3138d9f2b632b3d71",
+  "sha_b": "dafc899d42281668c6b11f0c88bc1a5f7055cefce248056255b9cf599224cbe7"
+}

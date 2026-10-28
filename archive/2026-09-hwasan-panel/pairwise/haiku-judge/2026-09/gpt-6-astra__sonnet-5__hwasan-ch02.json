@@ -1,0 +1,12 @@
+{
+  "a": "gpt-6-astra",
+  "b": "sonnet-5",
+  "passage_id": "hwasan-ch02",
+  "forward": "tie",
+  "reverse": "tie",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "0277abb57af85fee50dfc7c5a4ce71881c2d2e4e87446e06107bd918ccdcf933",
+  "sha_b": "d228205d3fcad96dd312871eecd318e07afc824643f322cc790dff7e80f26737"
+}

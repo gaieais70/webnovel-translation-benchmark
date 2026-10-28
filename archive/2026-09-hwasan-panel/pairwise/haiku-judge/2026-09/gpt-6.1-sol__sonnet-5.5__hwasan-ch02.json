@@ -1,0 +1,12 @@
+{
+  "a": "gpt-6.1-sol",
+  "b": "sonnet-5.5",
+  "passage_id": "hwasan-ch02",
+  "forward": "tie",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "e3c9a036502fea16bcd7e2f9e4d0f6b0ad3a3afa9390f1cd96ef421ccfd26a33",
+  "sha_b": "6e2c5e64a4a3117c4b0736fd124d9cdc4bdadc9d3230caaf0773a5acfbfcea9f"
+}

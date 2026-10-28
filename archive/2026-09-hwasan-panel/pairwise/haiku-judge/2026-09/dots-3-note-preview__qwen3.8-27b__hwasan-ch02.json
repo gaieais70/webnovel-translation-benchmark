@@ -1,0 +1,12 @@
+{
+  "a": "dots-3-note-preview",
+  "b": "qwen3.8-27b",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "21c69b31baca4958adaff4107030fc6ad783208ca05bd8fc87f946f026209258",
+  "sha_b": "ebd83d20f3275d3558f3ee5353e4bdbf9b09129f978a12887f78a95c80f473b9"
+}

@@ -1,0 +1,12 @@
+{
+  "a": "hy4-preview",
+  "b": "laguna-s-2.1",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "9476c1ea201b89c19f473888cf185eaec250099f6416e14ecd9e81f3974ec139",
+  "sha_b": "147e2cb3f1cd21e5bf38b750784a4ae6367b869e696f38bc29161a8744a16e23"
+}

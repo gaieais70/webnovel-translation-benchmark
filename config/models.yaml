@@ -385,6 +385,157 @@
   params:
     reasoning_effort: max
 
+# --- OpenRouter, 2026-10 open-model additions --------------------------------
+# https://openrouter.ai/api/v1/chat/completions, OPENROUTER_BUDGET_KEY
+#
+# Added 2026-10-27 on a separate OpenRouter key with a hard $10 limit, so the
+# spend on these rows is capped by the provider and not by this file. The
+# criterion was recency: models released since the 2026-09 roster was fixed,
+# and newer versions of models already in it. The older rows stay in the
+# ranking as the baseline that shows the improvement; their routes are
+# unchanged. Models skipped as not relevant: older siblings of rows already
+# tested (qwen3.5, deepseek flash 0314), proprietary models, and anything
+# priced above the budget's reach.
+#
+# Ordered by list price, cheapest first, because the key can run out. Same
+# conditions as every other API row: reasoning effort at the top rung, no
+# output ceiling (add max_tokens only on evidence, as the runbook says).
+# Prices are OpenRouter list 2026-10-27.
+
+- id: ling-3.1-flash
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: inclusionai/ling-3.1-flash
+  price: {input: 0.075, output: 0.225}   # inclusionai/ling-3.1-flash, OpenRouter list 2026-10-27
+  params:
+    reasoning:
+      effort: max
+
+- id: mimo-v2.6-flash
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: xiaomi/mimo-v2.6-flash
+  price: {input: 0.14, output: 0.28}   # xiaomi/mimo-v2.6-flash, OpenRouter list 2026-10-27
+  # successor to mimo-v2.5
+  params:
+    reasoning:
+      effort: max
+
+- id: nemotron-3.5-super-vl
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: nvidia/nemotron-3.5-super-vl
+  price: {input: 0.15, output: 0.5}   # nvidia/nemotron-3.5-super-vl, OpenRouter list 2026-10-27
+  # successor to nemotron-3-super-120b
+  params:
+    reasoning:
+      effort: max
+
+- id: minimax-m3.1-flash
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: minimax/minimax-m3.1-flash
+  price: {input: 0.15, output: 0.6}   # minimax/minimax-m3.1-flash, OpenRouter list 2026-10-27
+  # successor to minimax-m3
+  params:
+    reasoning:
+      effort: max
+
+- id: beam-1.0
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: reflection/beam-1.0-501b-a23b
+  price: {input: 0.25, output: 1.0}   # reflection/beam-1.0-501b-a23b, OpenRouter list 2026-10-27
+  # new open-weights lab, 2026-10-16
+  params:
+    reasoning:
+      effort: max
+
+- id: deepseek-v4.1-flash-1017
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: deepseek/deepseek-v4.1-flash-1017
+  price: {input: 0.3, output: 1.2}   # deepseek/deepseek-v4.1-flash-1017, OpenRouter list 2026-10-27
+  # newer snapshot of deepseek-v4.1-flash
+  params:
+    reasoning:
+      effort: max
+
+- id: command-a-plus
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: cohere/command-a-plus
+  price: {input: 0.3, output: 1.5}   # cohere/command-a-plus, OpenRouter list 2026-10-27
+  # new open-weights release, 2026-09-22
+  params:
+    reasoning:
+      effort: max
+
+- id: glm-5.3-flashx
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: z-ai/glm-5.3-flashx
+  price: {input: 0.37, output: 1.25}   # z-ai/glm-5.3-flashx, OpenRouter list 2026-10-27
+  # faster tier of glm-5.3-flash
+  params:
+    reasoning:
+      effort: max
+
+- id: mimo-v2.6-pro
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: xiaomi/mimo-v2.6-pro
+  price: {input: 0.435, output: 0.87}   # xiaomi/mimo-v2.6-pro, OpenRouter list 2026-10-27
+  # successor to mimo-v2.5-pro
+  params:
+    reasoning:
+      effort: max
+
+- id: kimi-k3.1-pro
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: moonshotai/kimi-k3.1-pro
+  price: {input: 2, output: 10}   # moonshotai/kimi-k3.1-pro, OpenRouter list 2026-10-27
+  # successor to kimi-k3; most expensive row, run last
+  params:
+    reasoning:
+      effort: max
+
+# Free routes: zero price, but shared upstream rate limits (flint answered 429
+# on its first probe). A 429 is the route, not the model.
+
+- id: xing4.0-29b-a4b
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: xingchen-agi/xing4.0-29b-a4b:free
+  price: {input: 0, output: 0}   # xingchen-agi/xing4.0-29b-a4b:free is listed only as :free, OpenRouter 2026-10-27
+  # new open-weights lab, 2026-10-16
+  params:
+    reasoning:
+      effort: max
+
+- id: flint-v1.0
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: recursive/flint-v1.0:free
+  price: {input: 0, output: 0}   # recursive/flint-v1.0:free is listed only as :free, OpenRouter 2026-10-27
+  # new open-weights lab, 2026-10-21
+  params:
+    reasoning:
+      effort: max
+
 # --- Claude, through the local Claude Code CLI ----------------------------
 # Command Code serves no Claude model on this plan: every one answers
 # MODEL_NOT_IN_PLAN (Sonnet and Haiku want Pro+, Opus wants Provider+), so the

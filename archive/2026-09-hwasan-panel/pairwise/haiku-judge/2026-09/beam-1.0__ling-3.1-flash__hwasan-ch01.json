@@ -1,0 +1,12 @@
+{
+  "a": "beam-1.0",
+  "b": "ling-3.1-flash",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "ca32a2d140d00a706f834944ccdddbfbb2ec5a04f1c5f34451cccaa40f55b4c8",
+  "sha_b": "43dc7c4218dfb67ad276486034c1384c8283b347d4dd904f63ac74d29bb240e2"
+}

@@ -1,0 +1,12 @@
+{
+  "a": "gpt-6-astra",
+  "b": "kimi-k3",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "cef27fc4aa346dc22990df3b512b69afe5daac72f4d05127e4f8df2a040ed8db",
+  "sha_b": "0677839fc396b93a645c88cc325a43872a13d55c43601e441a580a36e48bdd5f"
+}

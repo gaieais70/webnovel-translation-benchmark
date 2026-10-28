@@ -1,0 +1,12 @@
+{
+  "a": "hy4-preview",
+  "b": "nemotron-3-ultra",
+  "passage_id": "hwasan-ch01",
+  "forward": "tie",
+  "reverse": "B",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "9476c1ea201b89c19f473888cf185eaec250099f6416e14ecd9e81f3974ec139",
+  "sha_b": "58e8f5ae4633c7236178fcd7928350ff8beff5ff69a29a531efbb8796501d620"
+}

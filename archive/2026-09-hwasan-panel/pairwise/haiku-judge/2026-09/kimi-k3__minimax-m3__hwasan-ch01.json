@@ -1,0 +1,12 @@
+{
+  "a": "kimi-k3",
+  "b": "minimax-m3",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "0677839fc396b93a645c88cc325a43872a13d55c43601e441a580a36e48bdd5f",
+  "sha_b": "f399e69a6ac160ab625b611a00a1eb7b8bb20b2c9c27e30002b974dbf719a994"
+}

@@ -1,0 +1,12 @@
+{
+  "a": "gpt-6.1-sol",
+  "b": "muse-spark-1.2-contributor",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "tie",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "d2e6ee5322fb28b3057111d072a5bb378f792f0f88843139bed6fa648f62097e",
+  "sha_b": "30c1b009bfadc77c307bc3dfbaba33272dac8202f50d52c855a5dce57a10e266"
+}

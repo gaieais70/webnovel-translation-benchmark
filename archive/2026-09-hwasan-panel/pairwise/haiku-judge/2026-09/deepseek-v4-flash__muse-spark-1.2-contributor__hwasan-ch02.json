@@ -1,0 +1,12 @@
+{
+  "a": "deepseek-v4-flash",
+  "b": "muse-spark-1.2-contributor",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "tie",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "ae23fae7ec6574c515c81eed444e95e58cf8706cb9b43b4447c752e9b5e55574",
+  "sha_b": "55e2d9399637e7a46a833ce8b7702230d5018823457b208a54f410b2654d478c"
+}

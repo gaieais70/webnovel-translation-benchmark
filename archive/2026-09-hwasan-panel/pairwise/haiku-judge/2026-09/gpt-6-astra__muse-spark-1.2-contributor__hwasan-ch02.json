@@ -1,0 +1,12 @@
+{
+  "a": "gpt-6-astra",
+  "b": "muse-spark-1.2-contributor",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "0277abb57af85fee50dfc7c5a4ce71881c2d2e4e87446e06107bd918ccdcf933",
+  "sha_b": "55e2d9399637e7a46a833ce8b7702230d5018823457b208a54f410b2654d478c"
+}

@@ -1,0 +1,12 @@
+{
+  "a": "mimo-v2.5-pro",
+  "b": "nemotron-3-ultra",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "6d1fcca0e2de6158f68da7b0cf8ced370f17552fbd01571da5defe7c638c65d5",
+  "sha_b": "58e8f5ae4633c7236178fcd7928350ff8beff5ff69a29a531efbb8796501d620"
+}

@@ -1,0 +1,12 @@
+{
+  "a": "beam-1.0",
+  "b": "xing4.0-29b-a4b",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "91f441b578c3a105cec93d20e2652b14607e0bcbd1941c99e93eacbcde714629",
+  "sha_b": "005afb16e5bb16b5e29343b760e10d84768617090fb301efe48dbb738336a2db"
+}

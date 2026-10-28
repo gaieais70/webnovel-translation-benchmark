@@ -1,0 +1,12 @@
+{
+  "a": "minimax-m3",
+  "b": "nemotron-3-ultra",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "74df69cd8fd87147b098071b89a0bc950ccadfa302fd12a1e015a8cf07d6fba9",
+  "sha_b": "6510142ac1088344ce20ac3a80a66e0dd0a8bf5d3580ac51224271a184e56a4f"
+}

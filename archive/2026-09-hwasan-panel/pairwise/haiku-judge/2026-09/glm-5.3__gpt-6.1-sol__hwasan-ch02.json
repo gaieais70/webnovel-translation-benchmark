@@ -1,0 +1,12 @@
+{
+  "a": "glm-5.3",
+  "b": "gpt-6.1-sol",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "tie",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "a16853cb1a04963f488925b0f643ed8e1fe447d2cd11270e03b67440b65fdf74",
+  "sha_b": "e3c9a036502fea16bcd7e2f9e4d0f6b0ad3a3afa9390f1cd96ef421ccfd26a33"
+}

@@ -1,0 +1,12 @@
+{
+  "a": "gemini-4-argon",
+  "b": "kimi-k3.1-pro",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "60fc9b2aa1e8f08911e23c28659e5bea0fa10881cb3283cbce416e2d94e32bea",
+  "sha_b": "52d31055384b0a3cc2d5beceb827b036deb0010ffd86b6f010e164e1d607137d"
+}

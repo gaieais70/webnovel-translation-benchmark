@@ -1,0 +1,12 @@
+{
+  "a": "haiku-5.5",
+  "b": "nemotron-3-ultra",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "99f9094ed3de455ae8dfce6b7b1e0af5be2511e1532349d3aa3a652e329e0f84",
+  "sha_b": "6510142ac1088344ce20ac3a80a66e0dd0a8bf5d3580ac51224271a184e56a4f"
+}

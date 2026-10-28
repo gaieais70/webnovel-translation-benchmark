@@ -1,0 +1,12 @@
+{
+  "a": "ling-3.1-flash",
+  "b": "mimo-v2.6-pro",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "7e57e67b4eb18417c91998f4fc28d7fa09af622d76106200a96259aa9e1a1499",
+  "sha_b": "526a150758bacd5722b0ab453b5e66c0f74ff8b2794c5da066f44195769175d5"
+}

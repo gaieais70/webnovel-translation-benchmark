@@ -1,0 +1,12 @@
+{
+  "a": "gpt-5.6-luna",
+  "b": "kimi-k3",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "b2e646b660897482802504a4cf732bb52df8aa0a4c55a80a82552f055a852a6d",
+  "sha_b": "0677839fc396b93a645c88cc325a43872a13d55c43601e441a580a36e48bdd5f"
+}

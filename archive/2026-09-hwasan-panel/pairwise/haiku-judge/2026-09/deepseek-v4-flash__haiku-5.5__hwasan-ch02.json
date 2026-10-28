@@ -1,0 +1,12 @@
+{
+  "a": "deepseek-v4-flash",
+  "b": "haiku-5.5",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "ae23fae7ec6574c515c81eed444e95e58cf8706cb9b43b4447c752e9b5e55574",
+  "sha_b": "99f9094ed3de455ae8dfce6b7b1e0af5be2511e1532349d3aa3a652e329e0f84"
+}

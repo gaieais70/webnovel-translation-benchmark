@@ -1,0 +1,12 @@
+{
+  "a": "deepseek-v4-pro",
+  "b": "mimo-v2.5",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "a61ece9f782b964595124c93a5fd1bda4a01b088f585dcc3138d9f2b632b3d71",
+  "sha_b": "46a30a1bff29ad0d07442e953b1d9b9e44b2f668cfafd8a84c1f7cf55247bd34"
+}

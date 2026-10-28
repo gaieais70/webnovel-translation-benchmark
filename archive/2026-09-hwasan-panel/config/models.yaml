@@ -1,0 +1,1017 @@
+# Models under test for run 2026-09. Routing is from "Models to be tested and
+# routing.xlsx" (2026-08-29); every slug below was resolved against the live
+# provider catalogue rather than transcribed from the sheet's display names,
+# because the sheet names models the way a person does and the APIs do not.
+#
+# Two routes only. The opencode-go endpoint that carried most of the 2026-08
+# roster is gone from the routing sheet, so models that ran there last time
+# (glm-5.3-flash, hy3, deepseek-v4-pro, mimo, minimax) are now reached through
+# Command Code. That is a route change, not a model change: their 2026-08 rows
+# are not directly comparable to what this run produces.
+#
+# Ordering is by route, then as listed in the sheet. glm-5.2 used to be held
+# last because its paid OpenRouter fallback was the one expensive route in the
+# roster; it now runs on Command Code by subscription, so nothing here is
+# ordered by price any more.
+#
+# `params` sets reasoning effort to each model's top rung. The spelling differs
+# by provider - OpenRouter nests it under `reasoning`, OpenAI-compatible routes
+# take a flat `reasoning_effort` - and neither provider errors on a field it
+# does not understand. Nothing in the harness verifies that the setting took:
+# a model that silently ignores it runs at its default while this file says
+# max. `reasoning_tokens` on each run record is the only evidence of what
+# actually happened; check it before reading a row as a max-effort result.
+
+# --- Command Code -----------------------------------------------------------
+# https://api.commandcode.ai/provider/v1/chat/completions, COMMANDCODE_API_KEY
+#
+# Every row streams. The gateway abandons a buffered request that has not
+# completed within ~125 seconds with a 524, so without streaming any model
+# that reasons longer than that at max effort cannot finish a chapter at all -
+# qwen3.8-flash failed 8 of 8, hy3 4 of 6 before this was changed.
+- id: laguna-s-2.1
+  runner: api
+  price: {input: 0.09, output: 0.18}   # poolside/laguna-s-2.1 (paid listing; this row ran the free route), OpenRouter list 2026-10-22
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: poolside/laguna-s-2.1-free
+  params:
+    reasoning_effort: max
+
+- id: minimax-m3
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  # The catalogue also lists `minimax/minimax-m3-free`. The sheet says
+  # "MiniMax M3" without qualification, so the paid row is used; the free one
+  # is a different rate-limit regime and would not be the same measurement.
+  model: MiniMaxAI/MiniMax-M3
+  price: {input: 0.3, output: 1.2}   # minimax/minimax-m3, OpenRouter list 2026-09-23
+  params:
+    reasoning_effort: max
+    # Command Code's default output cap for this model is ~5,120 tokens:
+    # chapters 3 and 10 both stopped at exactly 5,120/5,119 with
+    # finish_reason=length, reasoning included. A probe on 2026-09-18
+    # confirmed 65,536 is accepted.
+    max_tokens: 65536
+
+- id: muse-spark-1.2-contributor
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: meta/muse-spark-1.2-contributor
+  price: {input: 0.1, output: 0.2}   # meta/muse-spark-1.2-contributor, OpenRouter list 2026-09-23
+  params:
+    reasoning_effort: max
+
+# Added 2026-09-19, after the first twenty rows were scored. Same corpus,
+# prompts, judge and guards as the rest of the run, so they are comparable
+# within it; they simply entered late.
+- id: muse-spark-1.3-contributor
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: meta/muse-spark-1.3-contributor
+  price: {input: 0.1, output: 0.2}   # meta/muse-spark-1.3-contributor, OpenRouter list 2026-09-23
+  params:
+    reasoning_effort: max
+
+- id: deepseek-v4.1-flash
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: deepseek/deepseek-v4.1-flash
+  price: {input: 0.1, output: 0.5}   # deepseek/deepseek-v4.1-flash, OpenRouter list 2026-09-23
+  params:
+    reasoning_effort: max
+
+# Gemini as a translation SUBJECT, through Antigravity - the only route this
+# project reaches Gemini by. Two things follow from that and are disclosed in
+# the report rather than corrected:
+#   - The judge (gemini-3.7-flash-high) is the same model family. Self-
+#     preference is possible; it is not the same model, but it is not
+#     independent either.
+#   - agy is an agent, so this row's prompt carries the no-tools line every
+#     agy call carries (ati/runners/agy.py). No other row is told that.
+# It shares the operator's Antigravity quota with the judge, and the CallGate
+# serializes the two: a translation and a judge call never run at once.
+# `ati run` never runs an agy row unless it is named with --model.
+- id: gemini-3.8-flash
+  runner: agy
+  price: {input: 0.825, output: 4.125, cached_input: 0.0825}   # google/gemini-3.8-flash, OpenRouter list 2026-10-22
+  model: gemini-3.8-flash-high
+  sandbox: true
+  # Chapters take longer than judgments: the judge row uses 480s.
+  timeout_s: 900
+
+- id: mimo-v2.5
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: xiaomi/mimo-v2.5
+  price: {input: 0.14, output: 0.28}   # xiaomi/mimo-v2.5, OpenRouter list 2026-09-23
+  params:
+    reasoning_effort: max
+
+- id: qwen3.8-flash
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: Qwen/Qwen3.8-Flash
+  price: {input: 0.15, output: 0.47}   # qwen/qwen3.8-flash, OpenRouter list 2026-09-23
+  params:
+    reasoning_effort: max
+
+- id: glm-5.3-flash
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: z-ai/glm-5.3-flash
+  price: {input: 0.15, output: 0.5}   # z-ai/glm-5.3-flash, OpenRouter list 2026-09-23
+  params:
+    reasoning_effort: max
+
+# Anchor. Pinned at 1000 so ratings stay comparable across runs; see
+# ati/bradleyterry.py:to_elo. Note this is a route it has failed on before -
+# through Command Code in the 2026-08 diagnostics it reached only 5 of 11
+# chapters, the rest lost to 524 upstream timeouts, which is why that probe was
+# retired. It is the anchor, so it is the one row that cannot quietly fail:
+# check its completion count before trusting any rating in the run.
+- id: hy3
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: tencent/hy3-paid
+  price: {input: 0.0825, output: 0.33}   # tencent/hy3, OpenRouter list 2026-09-23
+  anchor: weak
+  params:
+    reasoning_effort: max
+
+- id: mimo-v2.5-pro
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: xiaomi/mimo-v2.5-pro
+  price: {input: 0.435, output: 0.87}   # xiaomi/mimo-v2.5-pro, OpenRouter list 2026-09-23
+  params:
+    reasoning_effort: max
+
+- id: gpt-5.6-luna
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: gpt-5.6-luna
+  price: {input: 0.2, output: 1.2}   # openai/gpt-5.6-luna, OpenRouter list 2026-09-23
+  params:
+    reasoning_effort: max
+
+- id: inkling-small
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: thinkingmachines/inkling-small
+  price: {input: 0.45, output: 1.2}   # thinkingmachines/inkling-small, OpenRouter list 2026-09-23
+  params:
+    reasoning_effort: max
+    # Command Code's default output cap for this model is 4,096 tokens, and at
+    # max effort it spent all of them reasoning: all eleven chapters stopped at
+    # exactly 4,096 with finish_reason=length and no translation.
+    max_tokens: 65536
+
+- id: deepseek-v4-pro
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: deepseek/deepseek-v4-pro
+  price: {input: 0.948126, output: 1.89625}   # deepseek/deepseek-v4-pro, OpenRouter list 2026-09-23
+  params:
+    reasoning_effort: max
+
+- id: nemotron-3-ultra
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: nvidia/nemotron-3-ultra-550b-a55b
+  price: {input: 0.6, output: 2.4}   # nvidia/nemotron-3-ultra-550b-a55b, OpenRouter list 2026-09-23
+  params:
+    reasoning_effort: max
+    # Command Code's default output cap for this model is 4,096 tokens:
+    # chapter 8 stopped at exactly 4,096 with finish_reason=length, and every
+    # completed chapter sat just under it (3,354-4,029). 65,536 was probed and
+    # accepted on 2026-09-18.
+    max_tokens: 65536
+
+- id: hy4-preview
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: tencent/hy4-preview
+  price: {input: 0.834, output: 2.501}   # tencent/hy4-preview, OpenRouter list 2026-09-23
+  params:
+    reasoning_effort: max
+
+- id: qwen3.8-27b
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: Qwen/Qwen3.8-27B
+  price: {input: 0.42, output: 3}   # qwen/qwen3.8-27b, OpenRouter list 2026-09-23
+  params:
+    reasoning_effort: max
+
+# Moved from OpenRouter on 2026-09-18, when the operator directed that the
+# translations go through Command Code. Its live catalogue serves both; the
+# four rows left under OpenRouter below are not in it at all. Note the
+# deepseek slug changes with the route: OpenRouter served a dated build
+# (`-0731`), Command Code serves the undated one.
+- id: deepseek-v4-flash
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: deepseek/deepseek-v4-flash
+  price: {input: 0.08246, output: 0.16492}   # deepseek/deepseek-v4-flash, OpenRouter list 2026-09-23
+  params:
+    reasoning_effort: max
+
+- id: glm-5.2
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  stream: true
+  model: zai-org/GLM-5.2
+  price: {input: 0.6496, output: 2.0416}   # z-ai/glm-5.2, OpenRouter list 2026-09-23
+  params:
+    reasoning_effort: max
+
+# Released from the held-back tier 2026-09-20, as the middle-priced step. At
+# $0.91/$2.86 per 1M tokens it is the cheapest of the four below the routing
+# sheet's blank row, and the only one close to the band that has already run
+# (glm-5.2 is $0.65/$2.04); the other three start at $1.70 in and $6.00 out.
+# Served by Command Code on subscription, so the list price is what sets the
+# tier, not what this run pays.
+- id: glm-5.3
+  runner: api
+  # Moved to opencode Go on 2026-09-23 after Command Code's monthly credit
+  # ran out mid-row. `route` on each record says which provider wrote it:
+  # the Command Code slug is zai-org/GLM-5.3, the Go slug glm-5.3. The Go plan refuses a
+  # request without x-opencode-session and asks clients to name themselves.
+  endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  api_key_env: OPENCODE_GO_API_KEY
+  headers: {User-Agent: ati-translation-index/1.0}
+  session_header: x-opencode-session
+  stream: true
+  model: glm-5.3
+  price: {input: 0.84, output: 2.64}   # z-ai/glm-5.3, OpenRouter list 2026-09-23
+  params:
+    reasoning_effort: max
+    # Command Code's default output ceiling for this model is not one number:
+    # on run 2026-09 one call stopped at 131,072 tokens and another at 65,535,
+    # each with finish_reason=length and every token spent on reasoning, and
+    # a third came back with no reasoning at all. Completed chapters used
+    # 64k-110k, so a 64k ceiling cannot fit one. Stating the ceiling makes it
+    # the same for every call. 131,072 is the largest default observed, and a
+    # probe on 2026-09-22 confirmed the route accepts it. It is a ceiling, not
+    # a target: a chapter that finishes below it is unaffected.
+    max_tokens: 131072
+
+# --- OpenRouter -------------------------------------------------------------
+# https://openrouter.ai/api/v1/chat/completions, OPENROUTER_API_KEY
+#
+# Only models Command Code does not serve. Everything it does serve goes
+# through it.
+#
+# Free tier first, paid only when the free route will not answer. A probe on
+# 2026-08-29 found `z-ai/glm-5.2:free` returning 429 on every call and
+# `Qwen/Qwen3.8-Flash` on one of two, so this is not hypothetical: free routes
+# carry their own rate limits and queueing, and they are worst placed to
+# survive max reasoning effort with no output ceiling.
+#
+# Only a route failure triggers the fallback - a 4xx/5xx, a timeout, or a
+# connection error. A refusal, a short answer or a runaway is the model's own
+# output, would be identical on the paid tier, and is left alone.
+#
+# `route` in each run record names the slug that answered. Check it before
+# reading any of these rows: a model served partly by each tier has its
+# chapters split across two providers, which this project has already found
+# it cannot read as one result (the retired hy3 drift probe).
+- id: solar-pro4
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_API_KEY
+  # Spent 4,427 reasoning tokens on a two-sentence probe, by far the highest in
+  # the roster. Expect this to be the longest call in the run on a full chapter.
+  model: upstage/solar-pro4
+  price: {input: 0.09, output: 0.36}   # upstage/solar-pro4, OpenRouter list 2026-09-23
+  params:
+    reasoning:
+      effort: max
+
+- id: nemotron-3-super-120b
+  runner: api
+  price: {input: 0.3, output: 2.4}   # nvidia/nemotron-3-super-120b-a12b (paid listing; this row ran the free route), OpenRouter list 2026-10-22
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_API_KEY
+  model: nvidia/nemotron-3-super-120b-a12b:free
+  fallback:
+    model: nvidia/nemotron-3-super-120b-a12b     # $0.08 / $0.40
+  params:
+    reasoning:
+      effort: max
+
+- id: nemotron-3.5-lightning
+  runner: api
+  price: {input: 0.07, output: 0.2}   # nvidia/nemotron-3.5-lightning, OpenRouter list 2026-10-22
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_API_KEY
+  model: nvidia/nemotron-3.5-lightning:free
+  fallback:
+    model: nvidia/nemotron-3.5-lightning         # $0.08 / $0.20
+  params:
+    reasoning:
+      effort: max
+
+# The one row with no paid variant on OpenRouter - `:free` is the only listing
+# there is, so free-tier rate limits are a property of this model here, not a
+# choice. A 429 from it is the route, not the model.
+- id: dots-3-note-preview
+  runner: api
+  price: {input: 0, output: 0}   # dots-studio/dots-3-note-preview is listed only as :free, OpenRouter 2026-10-22
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_API_KEY
+  model: dots-studio/dots-3-note-preview:free
+  params:
+    reasoning:
+      effort: max
+
+# Released from the held-back tier 2026-09-20 as the second middle-priced
+# step, on the operator's reading of the tiers ($1.70/$8.50 per 1M tokens).
+#
+# No max_tokens: three of the twenty-three models on this route turned out to
+# have silent output caps, and all three accepted 65,536 once probed - but the
+# weekly limit was spent when this row was added, so nothing could be probed,
+# and the roster only carries a cap it has evidence for. If pass 1 shows
+# finish_reason=length, that is the cap; set max_tokens and the two remaining
+# passes will redo the affected chapters.
+- id: kimi-k3
+  runner: api
+  # Moved to opencode Go on 2026-09-23 after Command Code's monthly credit
+  # ran out mid-row. `route` on each record says which provider wrote it:
+  # the Command Code slug is moonshotai/Kimi-K3, the Go slug kimi-k3. The Go plan refuses a
+  # request without x-opencode-session and asks clients to name themselves.
+  endpoint: https://opencode.ai/zen/go/v1/chat/completions
+  api_key_env: OPENCODE_GO_API_KEY
+  headers: {User-Agent: ati-translation-index/1.0}
+  session_header: x-opencode-session
+  stream: true
+  model: kimi-k3
+  price: {input: 3, output: 15}   # moonshotai/kimi-k3, OpenRouter list 2026-09-23
+  params:
+    reasoning_effort: max
+
+# --- OpenRouter, 2026-10 open-model additions --------------------------------
+# https://openrouter.ai/api/v1/chat/completions, OPENROUTER_BUDGET_KEY
+#
+# Added 2026-10-27 on a separate OpenRouter key with a hard $10 limit, so the
+# spend on these rows is capped by the provider and not by this file. The
+# criterion was recency: models released since the 2026-09 roster was fixed,
+# and newer versions of models already in it. The older rows stay in the
+# ranking as the baseline that shows the improvement; their routes are
+# unchanged. Models skipped as not relevant: older siblings of rows already
+# tested (qwen3.5, deepseek flash 0314), proprietary models, and anything
+# priced above the budget's reach.
+#
+# Ordered by list price, cheapest first, because the key can run out. Same
+# conditions as every other API row: reasoning effort at the top rung, no
+# output ceiling (add max_tokens only on evidence, as the runbook says).
+# Prices are OpenRouter list 2026-10-27.
+
+- id: ling-3.1-flash
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: inclusionai/ling-3.1-flash
+  price: {input: 0.075, output: 0.225}   # inclusionai/ling-3.1-flash, OpenRouter list 2026-10-27
+  params:
+    reasoning:
+      effort: max
+
+- id: mimo-v2.6-flash
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: xiaomi/mimo-v2.6-flash
+  price: {input: 0.14, output: 0.28}   # xiaomi/mimo-v2.6-flash, OpenRouter list 2026-10-27
+  # successor to mimo-v2.5
+  params:
+    reasoning:
+      effort: max
+
+- id: nemotron-3.5-super-vl
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: nvidia/nemotron-3.5-super-vl
+  price: {input: 0.15, output: 0.5}   # nvidia/nemotron-3.5-super-vl, OpenRouter list 2026-10-27
+  # successor to nemotron-3-super-120b
+  params:
+    reasoning:
+      effort: max
+
+- id: minimax-m3.1-flash
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: minimax/minimax-m3.1-flash
+  price: {input: 0.15, output: 0.6}   # minimax/minimax-m3.1-flash, OpenRouter list 2026-10-27
+  # successor to minimax-m3
+  params:
+    reasoning:
+      effort: max
+
+- id: beam-1.0
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: reflection/beam-1.0-501b-a23b
+  price: {input: 0.25, output: 1.0}   # reflection/beam-1.0-501b-a23b, OpenRouter list 2026-10-27
+  # new open-weights lab, 2026-10-16
+  params:
+    reasoning:
+      effort: max
+
+- id: deepseek-v4.1-flash-1017
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: deepseek/deepseek-v4.1-flash-1017
+  price: {input: 0.3, output: 1.2}   # deepseek/deepseek-v4.1-flash-1017, OpenRouter list 2026-10-27
+  # newer snapshot of deepseek-v4.1-flash
+  params:
+    reasoning:
+      effort: max
+
+- id: command-a-plus
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: cohere/command-a-plus
+  price: {input: 0.3, output: 1.5}   # cohere/command-a-plus, OpenRouter list 2026-10-27
+  # new open-weights release, 2026-09-22
+  params:
+    reasoning:
+      effort: max
+
+- id: glm-5.3-flashx
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: z-ai/glm-5.3-flashx
+  price: {input: 0.37, output: 1.25}   # z-ai/glm-5.3-flashx, OpenRouter list 2026-10-27
+  # faster tier of glm-5.3-flash
+  params:
+    reasoning:
+      effort: max
+
+- id: mimo-v2.6-pro
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: xiaomi/mimo-v2.6-pro
+  price: {input: 0.435, output: 0.87}   # xiaomi/mimo-v2.6-pro, OpenRouter list 2026-10-27
+  # successor to mimo-v2.5-pro
+  params:
+    reasoning:
+      effort: max
+
+- id: kimi-k3.1-pro
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: moonshotai/kimi-k3.1-pro
+  price: {input: 2, output: 10}   # moonshotai/kimi-k3.1-pro, OpenRouter list 2026-10-27
+  # successor to kimi-k3; most expensive row, run last
+  params:
+    reasoning:
+      effort: max
+
+# Free routes: zero price, but shared upstream rate limits (flint answered 429
+# on its first probe). A 429 is the route, not the model.
+
+- id: xing4.0-29b-a4b
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: xingchen-agi/xing4.0-29b-a4b:free
+  price: {input: 0, output: 0}   # xingchen-agi/xing4.0-29b-a4b:free is listed only as :free, OpenRouter 2026-10-27
+  # new open-weights lab, 2026-10-16
+  params:
+    reasoning:
+      effort: max
+
+- id: flint-v1.0
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_BUDGET_KEY
+  model: recursive/flint-v1.0:free
+  price: {input: 0, output: 0}   # recursive/flint-v1.0:free is listed only as :free, OpenRouter 2026-10-27
+  # new open-weights lab, 2026-10-21
+  params:
+    reasoning:
+      effort: max
+
+# --- Claude, through the local Claude Code CLI ----------------------------
+# Command Code serves no Claude model on this plan: every one answers
+# MODEL_NOT_IN_PLAN (Sonnet and Haiku want Pro+, Opus wants Provider+), so the
+# Messages-shaped runner that /provider/v1/messages needs would not have helped.
+# These run on the operator's own Claude subscription instead, by subscription
+# and not per token.
+#
+# What that costs in comparability, stated plainly: this is a different route
+# from every other row, so these are not directly comparable to the API rows -
+# the same caveat the roster header makes about opencode-go in 2026-08.
+# `--system-prompt` REPLACES Claude Code's own system prompt rather than
+# appending to it, and the tool list is denied outright, so what runs is the
+# model on the text and not the coding agent around it. `sandbox: true` runs
+# each call from an empty directory, so the CLI cannot read this repository -
+# a translator that can see the benchmark scoring it is not under test
+# conditions. Full model names, not the `opus`/`sonnet` aliases, so a row
+# still names one model after the alias moves.
+
+- id: opus-5
+  runner: cli
+  price: {input: 5, output: 25, cached_input: 0.5}   # anthropic/claude-opus-5, OpenRouter list 2026-10-22
+  system_prompt_flag: --system-prompt
+  sandbox: true
+  timeout_s: 1800
+  command:
+    - claude
+    - -p
+    - --model
+    - claude-opus-5
+    - --effort
+    - max
+    - --disallowed-tools
+    - Bash Edit Write Read Glob Grep WebFetch WebSearch Task NotebookEdit
+    - --no-session-persistence
+    - --strict-mcp-config
+    - --disable-slash-commands
+
+- id: sonnet-5
+  runner: cli
+  price: {input: 2, output: 10, cached_input: 0.2}   # anthropic/claude-sonnet-5, OpenRouter list 2026-10-22
+  system_prompt_flag: --system-prompt
+  sandbox: true
+  # 1800 was too short: at max effort sonnet-5 took 403s and 1,189s on the two
+  # chapters that finished first, then a third ran past 1,800s and was killed
+  # (2026-09-21). A timeout is only how long the harness waits, not a
+  # generation setting, so raising it changes nothing about what is measured.
+  timeout_s: 3600
+  command:
+    - claude
+    - -p
+    - --model
+    - claude-sonnet-5
+    - --effort
+    - max
+    - --disallowed-tools
+    - Bash Edit Write Read Glob Grep WebFetch WebSearch Task NotebookEdit
+    - --no-session-persistence
+    - --strict-mcp-config
+    - --disable-slash-commands
+
+- id: haiku-4.5
+  runner: cli
+  price: {input: 1, output: 5, cached_input: 0.1}   # anthropic/claude-haiku-4.5, OpenRouter list 2026-10-22
+  system_prompt_flag: --system-prompt
+  sandbox: true
+  timeout_s: 1800
+  command:
+    - claude
+    - -p
+    - --model
+    - claude-haiku-4-5-20251001
+    - --effort
+    - max
+    - --disallowed-tools
+    - Bash Edit Write Read Glob Grep WebFetch WebSearch Task NotebookEdit
+    - --no-session-persistence
+    - --strict-mcp-config
+    - --disable-slash-commands
+
+# --- Frontier column, added 2026-10-22 ---------------------------------------
+# Claude 5.5 runs exactly as the Claude column above: the local Claude Code
+# CLI on the operator's subscription, its prompt replaced, every tool denied,
+# from an empty directory, at max effort. Model ids checked against the CLI on
+# 2026-10-22 (each answered a one-line translation).
+
+- id: opus-5.5
+  runner: cli
+  system_prompt_flag: --system-prompt
+  output_format: claude-json
+  price: {input: 4, output: 20, cached_input: 0.2}   # anthropic/claude-opus-5.5, OpenRouter list 2026-10-22
+  sandbox: true
+  timeout_s: 3600
+  command:
+    - claude
+    - -p
+    - --model
+    - claude-opus-5-5
+    - --effort
+    - max
+    - --output-format
+    - json
+    - --disallowed-tools
+    - Bash Edit Write Read Glob Grep WebFetch WebSearch Task NotebookEdit
+    - --no-session-persistence
+    - --strict-mcp-config
+    - --disable-slash-commands
+
+- id: sonnet-5.5
+  runner: cli
+  system_prompt_flag: --system-prompt
+  output_format: claude-json
+  price: {input: 2, output: 10, cached_input: 0.1}   # anthropic/claude-sonnet-5.5, OpenRouter list 2026-10-22
+  sandbox: true
+  timeout_s: 3600
+  command:
+    - claude
+    - -p
+    - --model
+    - claude-sonnet-5-5
+    - --effort
+    - max
+    - --output-format
+    - json
+    - --disallowed-tools
+    - Bash Edit Write Read Glob Grep WebFetch WebSearch Task NotebookEdit
+    - --no-session-persistence
+    - --strict-mcp-config
+    - --disable-slash-commands
+
+- id: haiku-5.5
+  runner: cli
+  system_prompt_flag: --system-prompt
+  output_format: claude-json
+  price: {input: 0.1, output: 0.5, cached_input: 0.01}   # anthropic/claude-haiku-5.5, OpenRouter list 2026-10-22
+  sandbox: true
+  timeout_s: 1800
+  command:
+    - claude
+    - -p
+    - --model
+    - claude-haiku-5-5
+    - --effort
+    - max
+    - --output-format
+    - json
+    - --disallowed-tools
+    - Bash Edit Write Read Glob Grep WebFetch WebSearch Task NotebookEdit
+    - --no-session-persistence
+    - --strict-mcp-config
+    - --disable-slash-commands
+
+# GPT-6 through the Codex CLI on the operator's ChatGPT subscription, not the
+# metered OpenAI API (no key is held, and subscription routes come first).
+# Slugs from `codex debug models` on 2026-10-22: gpt-6.1-sol is the flagship
+# and Codex's own default, gpt-6-astra the other listed GPT-6 tier, gpt-6-luna
+# the small one. Max effort, as every row here; `ultra` exists on two of them
+# but not on luna, so max is the one setting all three share.
+#
+# Codex is an agent, so the row strips what it can, as the Claude rows do:
+#   - its base instructions are REPLACED by the translation prompt, delivered
+#     as a file ({system_prompt_file}; see ati/runners/cli.py);
+#   - --ignore-user-config drops the operator's config.toml (its notify hook,
+#     full-access sandbox and default model); the sandbox is read-only;
+#   - the skills list is switched off. The operator has a skill named
+#     novel-translation-engine, which Codex lists to the model by default; a
+#     translator that can load a translation playbook is not under the same
+#     conditions as the others;
+#   - environment context, permissions, AGENTS.md, plugins and the shell,
+#     browser and image tools are off. (Codex silently ignores a config key
+#     it does not know; each switch here was checked to remove its block,
+#     with `codex debug prompt-input` and `codex exec --json`, 2026-10-22.)
+#
+# Every CLI row in this column asks for structured output (claude-json,
+# codex-jsonl) so its record carries token counts, and declares an OpenRouter
+# list price: cost is read alongside quality, and run 2026-09's CLI rows have
+# no tokens to price.
+# What remains, checked with `codex debug prompt-input`: two short developer
+# notes on collaboration and multi-agent mode that Codex always sends. These
+# rows are therefore a different route from every API row, and not directly
+# comparable to them, as with the Claude column.
+
+- id: gpt-6.1-sol
+  runner: cli
+  output_format: codex-jsonl
+  price: {input: 2, output: 10, cached_input: 0.1}   # openai/gpt-6.1-sol, OpenRouter list 2026-10-22
+  sandbox: true
+  timeout_s: 3600
+  command:
+    - codex
+    - exec
+    - --json
+    - --ignore-user-config
+    - --ephemeral
+    - --skip-git-repo-check
+    - --sandbox
+    - read-only
+    - --color
+    - never
+    - --model
+    - gpt-6.1-sol
+    - -c
+    - model_reasoning_effort="max"
+    - -c
+    - model_instructions_file="{system_prompt_file}"
+    - -c
+    - skills.include_instructions=false
+    - -c
+    - include_environment_context=false
+    - -c
+    - include_permissions_instructions=false
+    - -c
+    - project_doc_max_bytes=0
+    - --disable
+    - shell_tool
+    - --disable
+    - unified_exec
+    - --disable
+    - apps
+    - --disable
+    - plugins
+    - --disable
+    - image_generation
+    - --disable
+    - browser_use
+    - --disable
+    - computer_use
+    - --disable
+    - view_image
+    - --disable
+    - goals
+    - --disable
+    - hooks
+    - "-"
+
+- id: gpt-6-astra
+  runner: cli
+  output_format: codex-jsonl
+  price: {input: 10, output: 50, cached_input: 1.0}   # openai/gpt-6-astra, OpenRouter list 2026-10-22
+  sandbox: true
+  timeout_s: 3600
+  command:
+    - codex
+    - exec
+    - --json
+    - --ignore-user-config
+    - --ephemeral
+    - --skip-git-repo-check
+    - --sandbox
+    - read-only
+    - --color
+    - never
+    - --model
+    - gpt-6-astra
+    - -c
+    - model_reasoning_effort="max"
+    - -c
+    - model_instructions_file="{system_prompt_file}"
+    - -c
+    - skills.include_instructions=false
+    - -c
+    - include_environment_context=false
+    - -c
+    - include_permissions_instructions=false
+    - -c
+    - project_doc_max_bytes=0
+    - --disable
+    - shell_tool
+    - --disable
+    - unified_exec
+    - --disable
+    - apps
+    - --disable
+    - plugins
+    - --disable
+    - image_generation
+    - --disable
+    - browser_use
+    - --disable
+    - computer_use
+    - --disable
+    - view_image
+    - --disable
+    - goals
+    - --disable
+    - hooks
+    - "-"
+
+- id: gpt-6-luna
+  runner: cli
+  output_format: codex-jsonl
+  price: {input: 0.1, output: 0.5, cached_input: 0.01}   # openai/gpt-6-luna, OpenRouter list 2026-10-22
+  sandbox: true
+  timeout_s: 3600
+  command:
+    - codex
+    - exec
+    - --json
+    - --ignore-user-config
+    - --ephemeral
+    - --skip-git-repo-check
+    - --sandbox
+    - read-only
+    - --color
+    - never
+    - --model
+    - gpt-6-luna
+    - -c
+    - model_reasoning_effort="max"
+    - -c
+    - model_instructions_file="{system_prompt_file}"
+    - -c
+    - skills.include_instructions=false
+    - -c
+    - include_environment_context=false
+    - -c
+    - include_permissions_instructions=false
+    - -c
+    - project_doc_max_bytes=0
+    - --disable
+    - shell_tool
+    - --disable
+    - unified_exec
+    - --disable
+    - apps
+    - --disable
+    - plugins
+    - --disable
+    - image_generation
+    - --disable
+    - browser_use
+    - --disable
+    - computer_use
+    - --disable
+    - view_image
+    - --disable
+    - goals
+    - --disable
+    - hooks
+    - "-"
+
+# Gemini 4 Argon, through Antigravity - the only route Gemini may take - like
+# gemini-3.8-flash above, and with the same caveats. High is the highest
+# effort agy offers for it.
+- id: gemini-4-argon
+  runner: agy
+  price: {input: 2, output: 10, cached_input: 0.1}   # google/gemini-4-argon, OpenRouter list 2026-10-22
+  model: gemini-4-argon-high
+  sandbox: true
+  timeout_s: 900
+
+# --- held back --------------------------------------------------------------
+# The expensive tier below the blank row in the routing sheet. The operator
+# splits it into middle and high; the middle half is released and declared
+# above (glm-5.3, kimi-k3), and the high half stays held:
+#   xai/grok-4.6 ($2.00/$6.00), Qwen/Qwen3.8-Max ($2.00/$6.00)
+# The sheet marks one break, not three tiers: everything above row 16 has run,
+# and these are what is left. Prices are OpenRouter list, 2026-09-20.
+# Kimi K2.6 is dropped outright - it is not used enough to be worth a row.
+# The Claude column is no longer held: it is declared above, on the local CLI.
+# The Google column stays held as a translation subject - gemini-3.8-flash is
+# the one agy row under test, and it is named explicitly, never by default.
+
+# --- judges -----------------------------------------------------------------
+# Run 2026-09 uses Gemini for BOTH stages, rubric and pairwise, as the
+# operator set it (config/ati.yaml: judge_model). That has a cost worth
+# stating: with one judge on both stages, the rubric-versus-pairwise rank
+# correlation measures that judge agreeing with itself, not two methods
+# converging. The 2026-08 rho of 0.936 had the same limitation.
+#
+# sonnet-judge is kept declared but unused this run.
+#
+# `role: judge` keeps both rows out of `ati run` and the head-to-head pool: they
+# are judges, not translation subjects. (An agy row is never a subject unless
+# named with --model, whatever its role.)
+# UNUSABLE as configured, found 2026-09-19: Command Code serves Claude only on
+# /provider/v1/messages in the Anthropic Messages shape, and this harness speaks
+# the OpenAI-compatible /chat/completions shape. It answers HTTP 400
+# "must be called via /provider/v1/messages". Kept declared so the next attempt
+# starts from this note; using it needs a Messages-shaped runner.
+- id: sonnet-judge
+  role: judge
+  runner: api
+  endpoint: https://api.commandcode.ai/provider/v1/chat/completions
+  api_key_env: COMMANDCODE_API_KEY
+  model: claude-sonnet-5
+  json_schema: config/schemas/judgment.json
+
+# Secondary judge, for the self-preference check the methodology describes.
+# Deliberately a family that is in neither the judge's nor any subject's
+# lineage: the primary judge is Gemini and gemini-3.8-flash is now a subject,
+# so a Gemini judge cannot settle whether that row's scores are earned. grok is
+# not a subject in this run. Default reasoning effort: this judges a sample for
+# comparison, not the whole run.
+#
+# Moved to OpenRouter on 2026-09-23, by the operator's decision, after Command
+# Code's monthly credit ran out; opencode Go lists grok but its upstream
+# answered "Endpoint is unavailable". xAI is grok's only provider on every
+# route, so the model is the same. The route is part of the judge
+# fingerprint, so the 44 Command Code judgments (fingerprint 9b23c92da6f1ec08)
+# would read as stale: the remaining rubric work is scoped with --model to the
+# three unjudged rows so they are kept, and the two Command Code comparisons
+# are redone so head to head comes from one route.
+- id: grok-judge
+  role: judge
+  runner: api
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  api_key_env: OPENROUTER_API_KEY
+  stream: true
+  model: x-ai/grok-4.6
+  price: {input: 2, output: 6}   # x-ai/grok-4.6, OpenRouter list 2026-09-23
+  json_schema: config/schemas/judgment.json
+
+# --- the judge panel, from 2026-10-22 -----------------------------------------
+# gemini-judge's model (gemini-3.7-flash-high) is gone from Antigravity: on
+# 2026-10-22 agy answered "not recognized as a known model" and listed only
+# Gemini 4 Argon and 3.8 Flash. Its 2026-09 scores cannot be extended to new
+# rows, so by the operator's decision the whole run is re-judged by a panel of
+# two families, each scoring every row on both stages, and the leaderboard is
+# their mean (`ati report --panel ...`). Each judge writes under its own
+# subdirectory (judgments/<id>/, pairwise/<id>/), so neither touches the other
+# or the gemini-judge records, which are kept as they were published.
+#
+# Self-preference is symmetric and stated, not removed: each judge is also a
+# translation subject (haiku-5.5, gemini-3.8-flash) and shares a family with
+# others (the Claude column; gemini-4-argon). The leaderboard shows each
+# judge's composite beside the panel's, so it stays visible.
+
+# Haiku 5.5 on the operator's Claude subscription, through the CLI with the
+# same isolation as the Claude subject rows. High effort, matching the Gemini
+# judge's High. An empty system prompt replaces Claude Code's own; the judge
+# prompt arrives on stdin.
+- id: haiku-judge
+  role: judge
+  runner: cli
+  system_prompt_flag: --system-prompt
+  sandbox: true
+  timeout_s: 900
+  command:
+    - claude
+    - -p
+    - --model
+    - claude-haiku-5-5
+    - --effort
+    - high
+    - --disallowed-tools
+    - Bash Edit Write Read Glob Grep WebFetch WebSearch Task NotebookEdit
+    - --no-session-persistence
+    - --strict-mcp-config
+    - --disable-slash-commands
+
+# Gemini 3.8 Flash (High), through Antigravity under CallGate like every agy
+# call. The nearest successor agy serves to the retired 3.7 Flash judge.
+- id: gemini-3.8-judge
+  role: judge
+  runner: agy
+  model: gemini-3.8-flash-high
+  json_schema: config/schemas/pairwise.json
+  sandbox: true
+  timeout_s: 480
+
+# RETIRED 2026-10-22 (its model is no longer served; see the panel above).
+# Kept declared because it judged the published 2026-09 leaderboard.
+#
+# Gemini, through the Antigravity CLI on the operator's own Google account and
+# by no other route - config.load_models refuses a Gemini slug on any runner
+# but agy. Every call goes through CallGate (ati/runners/agy.py): one at a time
+# machine-wide, spaced apart, from an empty directory. --sandbox is deliberate:
+# a judge with tools could look up the source work while scoring a translation
+# of it, which stops it measuring the translation.
+- id: gemini-judge
+  role: judge
+  runner: agy
+  model: gemini-3.7-flash-high
+  json_schema: config/schemas/pairwise.json
+  sandbox: true
+  # Measured on this run: a rubric call takes 1.5-2.5 minutes, and the one
+  # slow call observed hung for the full 900s default, then succeeded on retry
+  # in 1.5. Eight minutes is ~3x a normal call and wastes far less on a hang.
+  timeout_s: 480

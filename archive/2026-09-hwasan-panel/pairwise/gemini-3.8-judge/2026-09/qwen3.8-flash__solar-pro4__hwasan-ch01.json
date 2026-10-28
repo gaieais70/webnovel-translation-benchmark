@@ -1,0 +1,12 @@
+{
+  "a": "qwen3.8-flash",
+  "b": "solar-pro4",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "cb6e7125c17ee9519b37a894efe049ff1e7bc30f9697a108199c66992556fad5",
+  "sha_b": "ceb1acb3a34a08f2ab4d030aa36b418150a0b4d5c9a803fddf48e69cf0d051e1"
+}

@@ -1,0 +1,12 @@
+{
+  "a": "mimo-v2.6-flash",
+  "b": "muse-spark-1.2-contributor",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "1ed965c554cc57d06eb9775ec50fa2e4d27c4505d3cd66310ebf5e333fb52b56",
+  "sha_b": "30c1b009bfadc77c307bc3dfbaba33272dac8202f50d52c855a5dce57a10e266"
+}

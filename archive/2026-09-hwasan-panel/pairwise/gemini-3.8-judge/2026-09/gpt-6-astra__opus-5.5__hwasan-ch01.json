@@ -1,0 +1,12 @@
+{
+  "a": "gpt-6-astra",
+  "b": "opus-5.5",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "cef27fc4aa346dc22990df3b512b69afe5daac72f4d05127e4f8df2a040ed8db",
+  "sha_b": "ad645327c84782d8f4f268922ad4d63692c52c9c7b5ba2e657243d44d78bb669"
+}

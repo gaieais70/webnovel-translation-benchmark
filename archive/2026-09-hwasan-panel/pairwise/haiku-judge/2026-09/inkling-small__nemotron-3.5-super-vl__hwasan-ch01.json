@@ -1,0 +1,12 @@
+{
+  "a": "inkling-small",
+  "b": "nemotron-3.5-super-vl",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "6039072994da1828ae10185f92ef9bfc344a457fb1a3f476ef21a08f641ca924",
+  "sha_b": "eac9da793e33e8216a90b07dfa69de551f0f2e9dfca172fbc4fdb4ed247a7088"
+}

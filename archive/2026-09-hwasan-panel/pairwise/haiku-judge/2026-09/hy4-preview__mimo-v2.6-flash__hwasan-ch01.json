@@ -1,0 +1,12 @@
+{
+  "a": "hy4-preview",
+  "b": "mimo-v2.6-flash",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "9476c1ea201b89c19f473888cf185eaec250099f6416e14ecd9e81f3974ec139",
+  "sha_b": "1ed965c554cc57d06eb9775ec50fa2e4d27c4505d3cd66310ebf5e333fb52b56"
+}

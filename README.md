@@ -14,36 +14,37 @@ translation text is committed or published.
 
 ## Latest results
 
-Run `2026-09`: 28 models, eleven chapters of 화산귀환 (*Return of the Mount Hua
-Sect*, a Korean murim novel), Korean → English. Quality is an AI judge's score
-out of 100; cost is one chapter (about 7,000 Korean characters) at the
-provider's list price, reasoning included.
+Run `2026-09`: 34 models, eleven chapters of 화산귀환 (*Return of the Mount Hua
+Sect*, a Korean murim novel), Korean → English. Quality is the average of two AI
+judges (Claude Haiku 5.5 and Gemini 3.8 Flash), out of 100; cost is one chapter
+(about 7,000 Korean characters) at the provider's list price, reasoning included.
 
 | Model | Quality | Cost per chapter | Per 100 chapters |
 |---|---|---|---|
-| Gemini 3.8 Flash ¹ | 88.0 | $0.083 | $8.28 |
-| Claude Opus 5 | 84.0 | not recorded | – |
-| Claude Sonnet 5 | 83.8 | not recorded | – |
-| Kimi K3 | 83.0 | $0.505 | $50.51 |
-| GLM-5.3 | 82.0 | $0.237 | $23.67 |
-| GPT-5.6 Luna | 80.3 | $0.075 | $7.47 |
-| Muse Spark 1.2 | 79.6 | $0.0022 | $0.22 |
-| DeepSeek V4 Pro | 78.5 | $0.047 | $4.70 |
+| Claude Opus 5.5 | 86.4 | $1.288 | $128.83 |
+| Claude Sonnet 5.5 | 83.5 | $0.846 | $84.59 |
+| GPT-6 Astra | 83.4 | $0.814 | $81.40 |
+| Gemini 3.8 Flash ¹ | 82.9 | $0.083 | $8.28 |
+| GPT-6.1 Sol | 81.9 | $0.170 | $17.02 |
+| GLM-5.3 | 79.8 | $0.237 | $23.67 |
+| Kimi K3 | 78.5 | $0.505 | $50.51 |
+| GPT-6 Luna | 77.5 | $0.0070 | $0.70 |
+| Muse Spark 1.2 | 76.9 | $0.0022 | $0.22 |
 
-¹ Judged by a model of its own family (Gemini 3.7 Flash). An independent judge
-(Grok 4.6) still ranked it first among the models it re-checked, by 2.8 points
-instead of 6.5; read it as among the best, not clearly first.
+¹ Also one of the two judges, so one of its scores comes from a judge of its own
+family (Claude Haiku 5.5 is in the same position). The two judges' composites
+correlate at 0.98. The head-to-head ratings order the top models differently
+(Claude Sonnet 5.5 first, Claude Opus 5.5 sixth) and their ranges overlap, so read
+the top five as a close group.
 
-All 28 models, per-quality scores and the head-to-head ratings:
-[leaderboard](archive/2026-09-hwasan/results/leaderboard.md) ·
-[run notes](docs/run-notes-2026-09.md). Earlier run:
+All 34 models, each judge's score, per-quality scores and the head-to-head ratings:
+[leaderboard](archive/2026-09-hwasan-panel/results/leaderboard.md) ·
+[run notes](docs/run-notes-2026-09.md). Earlier results:
+[`2026-09` under the retired Gemini 3.7 judge](archive/2026-09-hwasan/results/leaderboard.md),
 [`2026-08`](archive/2026-08-ghost-commute/results/leaderboard.md).
 
-**Now testing:** Claude Opus 5.5, Sonnet 5.5 and Haiku 5.5; GPT-6.1 Sol, GPT-6
-Astra and GPT-6 Luna; Gemini 4 Argon. The Gemini 3.7 judge has been retired,
-so the next edition re-judges every model with a panel of two judges from
-different families (Claude Haiku 5.5 and Gemini 3.8 Flash) and shows each
-judge's score beside the average.
+**Now testing:** Gemini 4 Argon. Claude Opus 5, Sonnet 5 and Haiku 4.5 have no
+recorded cost, because their September records carried no token counts.
 
 - [Methodology](docs/methodology.md)
 - [Rubric](docs/rubric.md): accuracy, terminology, register, fluency,
@@ -99,7 +100,7 @@ judge's safeguards.
 The public site is built from an archived run:
 
 ```bash
-python scripts/build_site.py --run 2026-09 --archive archive/2026-09-hwasan
+python scripts/build_site.py --run 2026-09 --archive archive/2026-09-hwasan-panel
 ```
 
 ## Configuration

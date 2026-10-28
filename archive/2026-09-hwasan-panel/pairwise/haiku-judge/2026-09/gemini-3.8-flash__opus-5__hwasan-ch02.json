@@ -1,0 +1,12 @@
+{
+  "a": "gemini-3.8-flash",
+  "b": "opus-5",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "01fc3e0872fb7e3f2529a771fec5658670aee02194d37041ba18b2b0849a4513",
+  "sha_b": "f7ce17f6d60b1c01ee472107ac57774c8f683685627c434bee0bf2374f137026"
+}

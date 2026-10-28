@@ -1,0 +1,12 @@
+{
+  "a": "command-a-plus",
+  "b": "mimo-v2.5",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "d29fcd45b8af9d42762c4d9d497dcd09d1dd25865b30779b26237d5316dd3d91",
+  "sha_b": "46a30a1bff29ad0d07442e953b1d9b9e44b2f668cfafd8a84c1f7cf55247bd34"
+}

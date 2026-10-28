@@ -1,0 +1,12 @@
+{
+  "a": "nemotron-3-ultra",
+  "b": "opus-5",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "58e8f5ae4633c7236178fcd7928350ff8beff5ff69a29a531efbb8796501d620",
+  "sha_b": "4a0f7e0b567a52e24438bdaf1ded05c963c793bc465f9e677f95d44ea8068899"
+}

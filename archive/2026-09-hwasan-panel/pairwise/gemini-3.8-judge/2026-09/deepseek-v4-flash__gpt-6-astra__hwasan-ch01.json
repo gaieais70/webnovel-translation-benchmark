@@ -1,0 +1,12 @@
+{
+  "a": "deepseek-v4-flash",
+  "b": "gpt-6-astra",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "a9674f2c6cafa20344af8d1396d6c6d05008ac7a3c2e722d9c25751a61b88a6b",
+  "sha_b": "cef27fc4aa346dc22990df3b512b69afe5daac72f4d05127e4f8df2a040ed8db"
+}

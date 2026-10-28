@@ -1,0 +1,12 @@
+{
+  "a": "glm-5.3-flash",
+  "b": "sonnet-5.5",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "d46acf78a9810a70a4835f5a24acc2ec0c0f485b146d3e355034ab56bf426d1d",
+  "sha_b": "dafc899d42281668c6b11f0c88bc1a5f7055cefce248056255b9cf599224cbe7"
+}

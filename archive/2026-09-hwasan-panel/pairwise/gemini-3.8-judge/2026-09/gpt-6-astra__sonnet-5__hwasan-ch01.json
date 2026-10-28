@@ -1,0 +1,12 @@
+{
+  "a": "gpt-6-astra",
+  "b": "sonnet-5",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "cef27fc4aa346dc22990df3b512b69afe5daac72f4d05127e4f8df2a040ed8db",
+  "sha_b": "89499d9f84342dccfe21f9f0f0ff06ca0fb6de3883116a3d2161d5688ff018af"
+}

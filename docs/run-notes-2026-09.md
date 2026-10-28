@@ -570,3 +570,58 @@ among five models cannot separate from its neighbours.
   message survived. And Codex's "usage limit ... Try again in 3 hours" matched
   the transient marker "try again", so a spent quota would have burned every
   pass in seconds. Explicit limit wording now wins.
+
+## 16. The frontier column finished, and the panel result
+
+- **Two more limit spellings.** The Claude subscription's weekly limit ("weekly
+  limit", with a dated reset such as "resets Oct 24, 9am (zone)") was not
+  recognised, which left Opus and Sonnet 5.5 at six chapters of eleven. And
+  Codex's "purchase more credits ... try again at 9:30 PM" was read as an empty
+  balance, so GPT-6 Astra stopped at nine. `out_of_credit` now defers to a
+  parsable reset time, and `reset_wait_s` reads "try again at/in". Both models
+  then finished all eleven.
+- **Translation cost of the frontier column** at list price: Opus 5.5 $14.17,
+  Sonnet 5.5 $9.31, GPT-6 Astra $8.95, GPT-6.1 Sol $1.87, Haiku 5.5 $0.45, GPT-6
+  Luna $0.08 (about $34.83). Haiku 5.5 refused chapter 9 ("copyrighted text from a
+  published web novel"); that is recorded as a refusal, not retried.
+- **The panel.** Claude Haiku 5.5 (Claude CLI, high effort) and Gemini 3.8 Flash
+  (agy) each scored every output on the rubric (376 records each) and judged
+  pairwise in both orders. Haiku: 780 comparisons over 34 models. Gemini: 300,
+  fewer because its calls run one at a time with a gap. The 1,080 comparisons
+  are pooled into one Bradley-Terry fit; the rubric composites are averaged item
+  by item. Gemini 4 Argon is not in the ranking (deferred).
+- **Result.** Opus 5.5 86.4, Sonnet 5.5 83.5, GPT-6 Astra 83.4, Gemini 3.8 Flash
+  82.9, GPT-6.1 Sol 81.9. The judges' composites correlate at 0.98 across the 34
+  models; Gemini spreads them wider (16 to 90 against 39 to 83). Pairwise orders
+  the top differently: Sonnet 5.5 1210, Astra 1201, Sol 1198, Sonnet 5 1185,
+  Gemini 3.8 Flash 1164, Opus 5.5 1160. The leading intervals overlap.
+- **Caveats.** Both judges are also subjects (haiku-5.5, gemini-3.8-flash), so
+  each is scored by one judge of its own family; the table shows each judge's own
+  score so this can be read off. Several Bradley-Terry intervals do not contain
+  their own point rating (Sonnet 5.5: 1210 against 1212 to 1311), which was not
+  investigated. 31 Haiku pairwise replies were malformed JSON and skipped.
+  opus-5, sonnet-5 and haiku-4.5 still have no cost.
+- **Harness fixes.** The report counted gaps against the default judge's folder
+  even for a panel, so it warned that 366 outputs were unjudged; it now checks
+  each panel judge against its own folder and fingerprint. The jobs were also
+  stopped twice by the host for low memory and resumed from their saved records.
+- **Archive.** `archive/2026-09-hwasan-panel/` holds this result (verdicts and
+  scores only). `archive/2026-09-hwasan/` is the earlier result under the
+  retired Gemini 3.7 judge and is left as published.
+
+## Open-model additions (2026-10-27)
+
+Twelve open models were added through a separate OpenRouter key with a $10 cap
+(`OPENROUTER_BUDGET_KEY`): the newest releases, plus newer versions of models
+already tested. Older rows stay in the roster. $6.12 of the $10 was spent.
+Each was translated at max reasoning effort, rubric-judged by both panel
+judges and pooled into the pairwise fit; the panel archive was refreshed.
+
+- kimi-k3.1-pro ranks #4 (83.1, $0.32/chapter list), the best open model.
+- deepseek-v4.1-flash-1017 77.7 (earlier V4.1 Flash 75.2); mimo-v2.6-pro 73.7
+  (V2.5 Pro 61.6) but refused 2 of 11 chapters; minimax-m3.1-flash 42.6 is a
+  regression from minimax-m3 (58.7).
+- ling-3.1-flash is 9/11: two chapters hit the provider's default output cap.
+- xing4.0-29b-a4b finished 5/11 (free-route 429s) and is not ranked; the free
+  rows carry routing noise.
+- Both judges are also subjects of the ranking.

@@ -1,0 +1,12 @@
+{
+  "a": "ling-3.1-flash",
+  "b": "muse-spark-1.2-contributor",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "43dc7c4218dfb67ad276486034c1384c8283b347d4dd904f63ac74d29bb240e2",
+  "sha_b": "30c1b009bfadc77c307bc3dfbaba33272dac8202f50d52c855a5dce57a10e266"
+}

@@ -1,0 +1,12 @@
+{
+  "a": "inkling-small",
+  "b": "laguna-s-2.1",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "b8002227c0a8d4d522adab4ec7e1fb7aced487c5da153b0abaf282214ef82280",
+  "sha_b": "c994f4c49c6dba9fc46514e0c2df81e019a28aabec5faae1264598aae028abe4"
+}

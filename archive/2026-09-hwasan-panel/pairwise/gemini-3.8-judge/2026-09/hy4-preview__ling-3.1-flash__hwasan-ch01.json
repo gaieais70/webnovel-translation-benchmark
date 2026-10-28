@@ -1,0 +1,12 @@
+{
+  "a": "hy4-preview",
+  "b": "ling-3.1-flash",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "9476c1ea201b89c19f473888cf185eaec250099f6416e14ecd9e81f3974ec139",
+  "sha_b": "43dc7c4218dfb67ad276486034c1384c8283b347d4dd904f63ac74d29bb240e2"
+}

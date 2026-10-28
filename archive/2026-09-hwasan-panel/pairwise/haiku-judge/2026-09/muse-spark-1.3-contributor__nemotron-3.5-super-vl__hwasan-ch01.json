@@ -1,0 +1,12 @@
+{
+  "a": "muse-spark-1.3-contributor",
+  "b": "nemotron-3.5-super-vl",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "B",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "1ccb315814777d3c0153632bbdea5828f9629cdfb5df848ff2a3697100d11c00",
+  "sha_b": "eac9da793e33e8216a90b07dfa69de551f0f2e9dfca172fbc4fdb4ed247a7088"
+}

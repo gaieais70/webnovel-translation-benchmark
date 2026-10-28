@@ -1,0 +1,12 @@
+{
+  "a": "inkling-small",
+  "b": "mimo-v2.5",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "b8002227c0a8d4d522adab4ec7e1fb7aced487c5da153b0abaf282214ef82280",
+  "sha_b": "c5a605ffc7b251d26900dd4f30a07de4b98c94ea3a5cce43cbcb136ad9a097d5"
+}

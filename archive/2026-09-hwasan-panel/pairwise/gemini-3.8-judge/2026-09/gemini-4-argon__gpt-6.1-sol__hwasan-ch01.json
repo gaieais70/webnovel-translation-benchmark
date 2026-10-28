@@ -1,0 +1,12 @@
+{
+  "a": "gemini-4-argon",
+  "b": "gpt-6.1-sol",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "60fc9b2aa1e8f08911e23c28659e5bea0fa10881cb3283cbce416e2d94e32bea",
+  "sha_b": "d2e6ee5322fb28b3057111d072a5bb378f792f0f88843139bed6fa648f62097e"
+}

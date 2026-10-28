@@ -1,0 +1,12 @@
+{
+  "a": "command-a-plus",
+  "b": "inkling-small",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "d29fcd45b8af9d42762c4d9d497dcd09d1dd25865b30779b26237d5316dd3d91",
+  "sha_b": "6039072994da1828ae10185f92ef9bfc344a457fb1a3f476ef21a08f641ca924"
+}

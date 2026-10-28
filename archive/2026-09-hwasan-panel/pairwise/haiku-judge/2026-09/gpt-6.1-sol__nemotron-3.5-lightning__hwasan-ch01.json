@@ -1,0 +1,12 @@
+{
+  "a": "gpt-6.1-sol",
+  "b": "nemotron-3.5-lightning",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "d2e6ee5322fb28b3057111d072a5bb378f792f0f88843139bed6fa648f62097e",
+  "sha_b": "d9217cac1b26045fa9241dde7f8b8a6c9e53cd710cc4a93666b8e0dbf81b46ed"
+}

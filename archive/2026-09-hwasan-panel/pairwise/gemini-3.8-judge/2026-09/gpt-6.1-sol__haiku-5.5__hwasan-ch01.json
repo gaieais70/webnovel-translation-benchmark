@@ -1,0 +1,12 @@
+{
+  "a": "gpt-6.1-sol",
+  "b": "haiku-5.5",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "d2e6ee5322fb28b3057111d072a5bb378f792f0f88843139bed6fa648f62097e",
+  "sha_b": "258f77379802c4b2a0d35a205ba1bb934d657e73566927942ebb19c8f8e03884"
+}

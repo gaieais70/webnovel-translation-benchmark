@@ -1,0 +1,12 @@
+{
+  "a": "hy4-preview",
+  "b": "minimax-m3",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "9476c1ea201b89c19f473888cf185eaec250099f6416e14ecd9e81f3974ec139",
+  "sha_b": "f399e69a6ac160ab625b611a00a1eb7b8bb20b2c9c27e30002b974dbf719a994"
+}

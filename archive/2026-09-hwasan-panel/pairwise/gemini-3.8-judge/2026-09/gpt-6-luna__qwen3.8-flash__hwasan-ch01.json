@@ -1,0 +1,12 @@
+{
+  "a": "gpt-6-luna",
+  "b": "qwen3.8-flash",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "db653a1a5a47aaff49ab838e18372fcf978e3ae86c8dd143ceb8b89a70f4453f",
+  "sha_b": "cb6e7125c17ee9519b37a894efe049ff1e7bc30f9697a108199c66992556fad5"
+}

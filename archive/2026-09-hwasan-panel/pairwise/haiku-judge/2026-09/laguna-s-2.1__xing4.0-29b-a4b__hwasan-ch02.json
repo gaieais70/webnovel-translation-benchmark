@@ -1,0 +1,12 @@
+{
+  "a": "laguna-s-2.1",
+  "b": "xing4.0-29b-a4b",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "c994f4c49c6dba9fc46514e0c2df81e019a28aabec5faae1264598aae028abe4",
+  "sha_b": "005afb16e5bb16b5e29343b760e10d84768617090fb301efe48dbb738336a2db"
+}

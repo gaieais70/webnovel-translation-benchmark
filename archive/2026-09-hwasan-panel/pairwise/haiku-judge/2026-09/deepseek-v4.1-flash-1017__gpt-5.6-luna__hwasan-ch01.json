@@ -1,0 +1,12 @@
+{
+  "a": "deepseek-v4.1-flash-1017",
+  "b": "gpt-5.6-luna",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "tie",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "7c5f69d192ca0e65e1e9e2ce8ae5f0af50940048db356c2f20ea5f4d731812da",
+  "sha_b": "b2e646b660897482802504a4cf732bb52df8aa0a4c55a80a82552f055a852a6d"
+}

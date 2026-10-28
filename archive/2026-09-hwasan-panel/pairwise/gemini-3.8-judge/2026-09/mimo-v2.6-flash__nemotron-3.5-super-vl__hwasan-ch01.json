@@ -1,0 +1,12 @@
+{
+  "a": "mimo-v2.6-flash",
+  "b": "nemotron-3.5-super-vl",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "1ed965c554cc57d06eb9775ec50fa2e4d27c4505d3cd66310ebf5e333fb52b56",
+  "sha_b": "eac9da793e33e8216a90b07dfa69de551f0f2e9dfca172fbc4fdb4ed247a7088"
+}

@@ -1,0 +1,12 @@
+{
+  "a": "haiku-5.5",
+  "b": "kimi-k3",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "99f9094ed3de455ae8dfce6b7b1e0af5be2511e1532349d3aa3a652e329e0f84",
+  "sha_b": "e0802c3000a493c46da7aabcc344387c3e2a81d50bfd14493d9babdf1b8918ef"
+}

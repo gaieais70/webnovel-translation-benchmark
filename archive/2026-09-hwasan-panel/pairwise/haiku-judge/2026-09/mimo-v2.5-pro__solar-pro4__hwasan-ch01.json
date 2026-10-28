@@ -1,0 +1,12 @@
+{
+  "a": "mimo-v2.5-pro",
+  "b": "solar-pro4",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "6d1fcca0e2de6158f68da7b0cf8ced370f17552fbd01571da5defe7c638c65d5",
+  "sha_b": "ceb1acb3a34a08f2ab4d030aa36b418150a0b4d5c9a803fddf48e69cf0d051e1"
+}

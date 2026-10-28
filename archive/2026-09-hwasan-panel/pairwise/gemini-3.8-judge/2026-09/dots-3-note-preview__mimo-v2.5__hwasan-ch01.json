@@ -1,0 +1,12 @@
+{
+  "a": "dots-3-note-preview",
+  "b": "mimo-v2.5",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "22736361bd9e521a967b13e9e8bf6eef82686829a1b8a4c60904fe55dd1dc750",
+  "sha_b": "46a30a1bff29ad0d07442e953b1d9b9e44b2f668cfafd8a84c1f7cf55247bd34"
+}

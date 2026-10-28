@@ -1,0 +1,12 @@
+{
+  "a": "beam-1.0",
+  "b": "minimax-m3.1-flash",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "ca32a2d140d00a706f834944ccdddbfbb2ec5a04f1c5f34451cccaa40f55b4c8",
+  "sha_b": "7837818a00ba9ea04173834b02db5b0eba446c23f090317ff83e1816a695f7da"
+}

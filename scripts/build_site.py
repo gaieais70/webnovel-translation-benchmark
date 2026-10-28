@@ -72,10 +72,11 @@ MODELS = {
     "dots-3-note-preview": ("dots.3 note preview", "dots studio"),
     "laguna-s-2.1": ("Laguna S 2.1", "Poolside"),
 }
-IN_TESTING = ["opus-5.5", "sonnet-5.5", "haiku-5.5", "gpt-6.1-sol", "gpt-6-astra",
-              "gpt-6-luna", "gemini-4-argon"]
-# Scored by a judge of its own family; the cross-judge check is in the run notes.
-SAME_FAMILY_AS_JUDGE = {"gemini-3.8-flash"}
+IN_TESTING = ["gemini-4-argon"]
+# Models that are also on the judging panel; each is scored by a judge of its own family.
+JUDGES = {"haiku-judge": ("Claude Haiku 5.5", "haiku-5.5"),
+          "gemini-3.8-judge": ("Gemini 3.8 Flash", "gemini-3.8-flash")}
+SAME_FAMILY_AS_JUDGE = {m for _, m in JUDGES.values()}
 AXES = ["accuracy", "terminology", "register", "fluency", "fidelity", "sanitization"]
 AXIS_HELP = {
     "accuracy": "meaning carried over correctly",
@@ -128,7 +129,7 @@ def load(run: str, archive: Path):
     data = json.loads((archive / "results" / f"{run}.json").read_text(encoding="utf-8"))
     rows = [r for r in data["results"] if not r.get("incomplete")]
     roster = {m.id: m for m in load_models(REPO / "config" / "models.yaml")}
-    comparisons = load_comparisons(archive / "pairwise", run)
+    comparisons = pooled_comparisons(archive, run, data)
     anchor = next((m.id for m in roster.values() if m.anchor == "weak"), None)
     ratings = to_elo(fit(comparisons), anchor_id=anchor) if comparisons else {}
     intervals = bootstrap_ci(comparisons, anchor_id=anchor) if comparisons else {}
@@ -141,6 +142,29 @@ def load(run: str, archive: Path):
         r["rank"] = i
     mark_frontier(rows)
     return data, rows, len(comparisons)
+
+
+def pooled_comparisons(archive: Path, run: str, data: dict):
+    """Every panel judge's verdicts in one fit, as `ati report --panel` pools them."""
+    judges = [j for j in data["metadata"].get("judge_id", "").split(" + ") if j]
+    root = archive / "pairwise"
+    if len(judges) > 1:
+        return [c for j in judges for c in load_comparisons(root / j, run)]
+    return load_comparisons(root, run)
+
+
+def judge_agreement(rows) -> tuple[float, tuple, tuple] | None:
+    """(correlation, haiku range, gemini range) of the two judges' composites."""
+    names = list(JUDGES)
+    pairs = [(r["judge_composites"][names[0]], r["judge_composites"][names[1]]) for r in rows
+             if all((r.get("judge_composites") or {}).get(n) is not None for n in names)]
+    if len(pairs) < 3:
+        return None
+    xs, ys = zip(*pairs)
+    mx, my = sum(xs) / len(xs), sum(ys) / len(ys)
+    cov = sum((x - mx) * (y - my) for x, y in pairs)
+    corr = cov / math.sqrt(sum((x - mx) ** 2 for x in xs) * sum((y - my) ** 2 for y in ys))
+    return corr, (min(xs), max(xs)), (min(ys), max(ys))
 
 
 def mark_frontier(rows) -> None:
@@ -388,6 +412,7 @@ def leaderboard_table(rows) -> str:
         ("#", 0, ""), ("Model", None, ""), ("Quality", 2, ""), ("Cost / chapter", 3, ""),
         ("Per 100 chapters", 4, "hide-sm"), ("Head-to-head", 5, "hide-sm"),
         ("Output tokens / ch.", 6, "hide-sm"), ("Chapters scored", 7, "hide-sm"),
+        ("Haiku 5.5 judge", 8, "hide-sm"), ("Gemini 3.8 judge", 9, "hide-sm"),
     ]
     th = []
     for label, col, cls in head:
@@ -401,8 +426,14 @@ def leaderboard_table(rows) -> str:
     for r in rows:
         mid = r["model_id"]
         cost = r.get("list_cost_per_chapter")
-        flag = (' <span class="flag" title="Judged by a model of its own family">same family as the judge</span>'
+        flag = (' <span class="flag" title="This model is also one of the two judges">also a judge</span>'
                 if mid in SAME_FAMILY_AS_JUDGE else "")
+        jc = r.get("judge_composites") or {}
+        judge_cells = "".join(
+            f'<td class="hide-sm" data-v="{jc[j] if jc.get(j) is not None else ""}">'
+            f'{f"{jc[j]:.1f}" if jc.get(j) is not None else "–"}</td>'
+            for j in JUDGES
+        )
         cost_cell = money(cost) if cost is not None else '<span title="not measured">n/a</span>'
         if r.get("frontier"):
             cost_cell = f'<span class="best-price" title="Best quality at this price">{cost_cell}</span>'
@@ -418,12 +449,12 @@ def leaderboard_table(rows) -> str:
             f'<td class="hide-sm" data-v="{r["rating"] or ""}">{f"{r["rating"]:.0f}" if r["rating"] else "–"}</td>'
             f'<td class="hide-sm" data-v="{tok if tok is not None else ""}">{f"{tok:,.0f}" if tok is not None else "n/a"}</td>'
             f'<td class="hide-sm" data-v="{r["scored"]}">{r["scored"]} of {r["total_tasks"]}</td>'
-            "</tr>"
+            f"{judge_cells}</tr>"
         )
     return (
         '<p class="table-note">Select a column heading to sort. Cost is what one chapter '
         "(about 7,000 Korean characters) costs at the provider's list price, reasoning "
-        "included.</p>"
+        "included. Quality is the average of two judges; each judge's own score is at the right.</p>"
         '<div class="table-wrap"><table class="board">'
         "<caption class=\"visually-hidden\">All models, ranked by quality</caption>"
         f"<thead><tr>{''.join(th)}</tr></thead><tbody>{''.join(trs)}</tbody></table></div>"
@@ -436,6 +467,7 @@ def faq(rows, n_comparisons: int) -> list[tuple[str, str]]:
     frontier = sorted((r for r in priced if r.get("frontier") and (r["composite"] or 0) >= 70),
                       key=lambda r: r["list_cost_per_chapter"])
     cheap_good = frontier[0] if frontier else None
+    h2h = sorted((r for r in rows if r.get("rating")), key=lambda r: -r["rating"])
     by_maker = {}
     for r in rows:
         by_maker.setdefault(maker(r["model_id"]), r)
@@ -449,11 +481,10 @@ def faq(rows, n_comparisons: int) -> list[tuple[str, str]]:
             "What is the best AI for translating Korean web novels?",
             f"In this benchmark, {name(top['model_id'])} scored highest ({top['composite']:.1f} "
             f"of 100) translating eleven chapters of Return of the Mount Hua Sect (화산귀환) from "
-            f"Korean to English. It was judged by a model of its own family; under an "
-            f"independent judge it still ranked first, by a smaller margin, so read it as "
-            f"among the best rather than clearly ahead. "
+            f"Korean to English, averaging two AI judges. "
             + ", ".join(f"{name(r['model_id'])} ({r['composite']:.1f})" for r in rows[1:4])
-            + " follow.",
+            + f" follow. In blind side-by-side comparisons the order differs: "
+            f"{name(h2h[0]['model_id'])} rated highest, so treat the top few as a close group.",
         ),
         (
             "What is the cheapest AI that translates web novels well?",
@@ -465,14 +496,14 @@ def faq(rows, n_comparisons: int) -> list[tuple[str, str]]:
         ),
         (
             "Is Claude or ChatGPT better for translating web novels?",
-            f"Best Claude model tested so far: {best_of('Anthropic')}. Best OpenAI model: "
-            f"{best_of('OpenAI')}. Best Google model: {best_of('Google')}. Claude Opus 5.5, "
-            f"Sonnet 5.5 and Haiku 5.5, GPT-6.1 Sol, GPT-6 Astra and GPT-6 Luna, and "
-            f"Gemini 4 Argon are being tested now, under the same conditions.",
+            f"Best Claude model tested: {best_of('Anthropic')}. Best OpenAI model: "
+            f"{best_of('OpenAI')}. Best Google model: {best_of('Google')}. Gemini 4 Argon "
+            f"has not been tested yet.",
         ),
         (
             "How much does it cost to translate a web novel chapter with AI?",
-            "From under a tenth of a cent to about fifty cents per chapter of roughly "
+            f"From {money(min(r['list_cost_per_chapter'] for r in priced if r['list_cost_per_chapter']))} to "
+            f"{money(max(r['list_cost_per_chapter'] for r in priced))} per chapter of roughly "
             "7,000 Korean characters at list price, depending on the model. Reasoning "
             "models spend most of that on thinking tokens before they write: compare the "
             "output-token column. Subscriptions change what you pay, not how many tokens "
@@ -480,9 +511,10 @@ def faq(rows, n_comparisons: int) -> list[tuple[str, str]]:
         ),
         (
             "How are the translations scored?",
-            f"An AI judge scores each chapter from 1 to 5 on six qualities (below), and "
-            f"compares translations two at a time, in both orders, blind to which model "
-            f"wrote them ({n_comparisons} comparisons here). Every model gets the same "
+            f"Two AI judges, Claude Haiku 5.5 and Gemini 3.8 Flash, each score every chapter "
+            f"from 1 to 5 on six qualities (below) and compare translations two at a time, "
+            f"in both orders, blind to which model wrote them ({n_comparisons} comparisons "
+            f"pooled). The quality score is their average. Every model gets the same "
             f"prompt, the same chapters and its maximum reasoning setting.",
         ),
     ]
@@ -508,10 +540,19 @@ def build_index(data, rows, n_comparisons, out: Path) -> None:
             f"<strong>{esc(name(good_cheap['model_id']))}</strong> came within "
             f"{top['composite'] - good_cheap['composite']:.0f} points for "
             f"{money(good_cheap['list_cost_per_chapter'])} a chapter: "
-            f"{per_100(good_cheap['list_cost_per_chapter'])} per hundred chapters."
+            f"{per_100(good_cheap['list_cost_per_chapter'])} per hundred chapters"
+            + (" (it is also one of the judges: <a href=\"#limits\">see the limits</a>)."
+               if good_cheap["model_id"] in SAME_FAMILY_AS_JUDGE else ".")
         )
     answer += "</p>"
 
+    agree = judge_agreement(rows)
+    agreement = (
+        f" The two judges' scores correlate at {agree[0]:.2f}, but Gemini spreads them "
+        f"wider ({agree[2][0]:.0f} to {agree[2][1]:.0f}, against {agree[1][0]:.0f} to "
+        f"{agree[1][1]:.0f} for Claude Haiku 5.5)."
+        if agree else ""
+    )
     body = f"""
 <h1>Which AI should translate your web novel?</h1>
 <p class="lede">{len(rows)} AI models translated the same eleven chapters of a Korean
@@ -532,12 +573,11 @@ at the provider's list price, whatever route the benchmark used.</p>
 {leaderboard_table(rows)}
 
 <h2>Now testing</h2>
-<p class="prose">These models are being run on the same chapters, with the same prompt,
-and will join the ranking once judged:</p>
+<p class="prose">Not ranked yet, to be run on the same chapters with the same prompt:</p>
 <ul class="testing">{"".join(f"<li>{esc(name(m))}</li>" for m in IN_TESTING)}</ul>
-<p class="prose">The judge behind the ranking above, Gemini 3.7 Flash, has since been
-retired. The next edition re-judges every model with two judges from different
-families, Claude Haiku 5.5 and Gemini 3.8 Flash, and shows each judge's score.</p>
+<p class="prose">Earlier editions were judged by Gemini 3.7 Flash, which is no longer
+available. Every model here was re-judged by two judges from different families, and
+each judge's own score is shown beside the average.</p>
 
 <h2>Questions</h2>
 <div class="prose">
@@ -551,11 +591,14 @@ families, Claude Haiku 5.5 and Gemini 3.8 Flash, and shows each judge's score.</
 <ul>
 <li>One novel, one language pair: eleven chapters of 화산귀환 (Return of the Mount Hua
 Sect), Korean to English. Chinese and Japanese works are next.</li>
-<li>The judge is an AI model, and judges favour their own family. Gemini 3.8 Flash
-was scored by a Gemini judge; an independent judge (Grok 4.6) still ranked it first
-among the models it re-checked, by 2.8 points instead of 6.5.</li>
-<li>Claude models ran through the Claude Code command line with every tool switched
-off; the others through their providers' APIs. The text sent was the same.</li>
+<li>The judges are AI models, and judges can favour their own family. Claude Haiku 5.5
+and Gemini 3.8 Flash are judges and are also ranked; compare their score from the other
+judge in the table.{agreement}</li>
+<li>The ordering is close at the top. The side-by-side comparisons rank the leading
+models differently from the quality score, and their rating ranges overlap.</li>
+<li>Claude and GPT models ran through their command-line tools with every tool
+switched off, Gemini through Google's Antigravity tool, and the rest through their
+providers' APIs. The text sent was the same.</li>
 <li>Models change under a stable name. These are the versions tested in run
 2026-09, reported {esc(run_date)}.</li>
 </ul>
@@ -622,9 +665,13 @@ def build_model_page(r, rows, out: Path) -> None:
         alt = max(better_cheaper, key=lambda o: o["composite"])
         verdict = (f"{name(alt['model_id'])} scored higher ({alt['composite']:.1f}) for "
                    f"{money(alt['list_cost_per_chapter'])} a chapter.")
-    caveat = ("<p>Scored by a judge of its own family. Under an independent judge it "
-              "still ranked first among the models re-checked, by a smaller margin.</p>"
-              if mid in SAME_FAMILY_AS_JUDGE else "")
+    jc = r.get("judge_composites") or {}
+    judge_line = " and ".join(
+        f"{JUDGES[j][0]} gave {jc[j]:.1f}" for j in JUDGES if jc.get(j) is not None
+    )
+    caveat = (f"<p>{esc(judge_line)}.</p>" if judge_line else "") + (
+        "<p>This model is also one of the two judges, so one of those scores comes "
+        "from a judge of its own family.</p>" if mid in SAME_FAMILY_AS_JUDGE else "")
     body = f"""
 <p><a href="../../">All models</a></p>
 <h1>{esc(n)} for web novel translation</h1>

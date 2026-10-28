@@ -1,0 +1,12 @@
+{
+  "a": "kimi-k3",
+  "b": "sonnet-5.5",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "0677839fc396b93a645c88cc325a43872a13d55c43601e441a580a36e48bdd5f",
+  "sha_b": "dafc899d42281668c6b11f0c88bc1a5f7055cefce248056255b9cf599224cbe7"
+}

@@ -1,0 +1,12 @@
+{
+  "a": "dots-3-note-preview",
+  "b": "inkling-small",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "21c69b31baca4958adaff4107030fc6ad783208ca05bd8fc87f946f026209258",
+  "sha_b": "b8002227c0a8d4d522adab4ec7e1fb7aced487c5da153b0abaf282214ef82280"
+}

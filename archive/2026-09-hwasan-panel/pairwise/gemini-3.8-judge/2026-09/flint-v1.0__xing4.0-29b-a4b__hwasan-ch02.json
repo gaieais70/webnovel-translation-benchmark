@@ -1,0 +1,12 @@
+{
+  "a": "flint-v1.0",
+  "b": "xing4.0-29b-a4b",
+  "passage_id": "hwasan-ch02",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "10e7a19f0d79ab4efaabe6485714f2070d177b5d23a78ad8795179fa5633fe02",
+  "sha_b": "005afb16e5bb16b5e29343b760e10d84768617090fb301efe48dbb738336a2db"
+}

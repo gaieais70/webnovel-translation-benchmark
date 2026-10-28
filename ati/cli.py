@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import tempfile
 import argparse
+import copy
+import tempfile
 import os
 import sys
 from dataclasses import asdict, replace
@@ -671,7 +672,7 @@ def cmd_report(args) -> int:
     metadata = {
         "judge_id": " + ".join(panel) if panel else args.judge_model,
         "date": date.today().isoformat(),
-        **report_provenance(args),
+        **report_provenance(args, panel),
         "anchor_baseline": baseline_run,
     }
 
@@ -753,7 +754,7 @@ def _docs_prefix(results_dir: Path) -> str:
     return rel.replace(os.sep, "/") + "/"
 
 
-def report_provenance(args) -> dict:
+def report_provenance(args, panel: list[str] | None = None) -> dict:
     """What produced a report: input hashes, judge fingerprints, code hash.
 
     Recorded so a published ranking can be tied to the exact roster, corpus,
@@ -780,25 +781,39 @@ def report_provenance(args) -> dict:
         pair_template = Path(args.pairwise_prompt).read_text(encoding="utf-8")
     except OSError:
         return provenance  # no prompts, so no fingerprint to compare against
-    rubric_fp = judge_fingerprint_for(
-        args, args.judge_schema, rubric_prompt_frame(rubric_template)
-    )
-    provenance["judge_fingerprints"] = {
-        "rubric": rubric_fp,
-        "pairwise": judge_fingerprint_for(
-            args, args.pairwise_schema, pairwise_prompt_frame(pair_template)
-        ),
-    }
-    provenance["pending_judgments"] = len(
-        pending_judgments(
-            args.run,
-            Path(args.runs),
-            Path(args.judgments),
-            judge_id=args.judge_model,
-            judge_fingerprint=rubric_fp,
-            warn=lambda _msg: None,  # aggregate has already reported them
+    # A panel's judges each keep their own records under judgments/<judge>/,
+    # so each is checked for gaps against its own fingerprint and directory.
+    panel = panel or []
+    judges = {
+        j: (copy.copy(args), Path(args.judgments) / j) for j in panel
+    } or {args.judge_model: (args, Path(args.judgments))}
+    fingerprints: dict[str, dict] = {}
+    pending = 0
+    for judge, (judge_args, root) in judges.items():
+        judge_args.judge_model = judge
+        rubric_fp = judge_fingerprint_for(
+            judge_args, args.judge_schema, rubric_prompt_frame(rubric_template)
         )
+        fingerprints[judge] = {
+            "rubric": rubric_fp,
+            "pairwise": judge_fingerprint_for(
+                judge_args, args.pairwise_schema, pairwise_prompt_frame(pair_template)
+            ),
+        }
+        pending += len(
+            pending_judgments(
+                args.run,
+                Path(args.runs),
+                root,
+                judge_id=judge,
+                judge_fingerprint=rubric_fp,
+                warn=lambda _msg: None,  # aggregate has already reported them
+            )
+        )
+    provenance["judge_fingerprints"] = (
+        fingerprints if panel else fingerprints[args.judge_model]
     )
+    provenance["pending_judgments"] = pending
     return provenance
 
 

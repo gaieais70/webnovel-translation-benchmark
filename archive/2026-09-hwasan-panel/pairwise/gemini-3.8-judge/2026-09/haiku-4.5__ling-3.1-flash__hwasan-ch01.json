@@ -1,0 +1,12 @@
+{
+  "a": "haiku-4.5",
+  "b": "ling-3.1-flash",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "7307afd8e1ae39cb9544b6fed1badd80a182ea9b2f622b478c9f3533a2491a98",
+  "sha_b": "43dc7c4218dfb67ad276486034c1384c8283b347d4dd904f63ac74d29bb240e2"
+}

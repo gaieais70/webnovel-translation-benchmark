@@ -1,0 +1,12 @@
+{
+  "a": "gpt-5.6-luna",
+  "b": "mimo-v2.6-flash",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "b2e646b660897482802504a4cf732bb52df8aa0a4c55a80a82552f055a852a6d",
+  "sha_b": "1ed965c554cc57d06eb9775ec50fa2e4d27c4505d3cd66310ebf5e333fb52b56"
+}

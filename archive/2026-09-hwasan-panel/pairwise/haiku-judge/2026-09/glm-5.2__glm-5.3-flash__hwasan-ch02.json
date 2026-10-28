@@ -1,0 +1,12 @@
+{
+  "a": "glm-5.2",
+  "b": "glm-5.3-flash",
+  "passage_id": "hwasan-ch02",
+  "forward": "tie",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "41d9c094effef2ec01a5e0691a82cc8f34965720ddfc258497cb84ba15c3c3c1",
+  "sha_b": "0042ad8038f6eb8413187bf00e235737f0b9396d8074ce975a3540dc45f7387f"
+}

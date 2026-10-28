@@ -1,0 +1,12 @@
+{
+  "a": "dots-3-note-preview",
+  "b": "nemotron-3-super-120b",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "21c69b31baca4958adaff4107030fc6ad783208ca05bd8fc87f946f026209258",
+  "sha_b": "9f286d344de6b78b2bf3a0511c6936c778fa6b755a3b6e0ad53a2ac1e0e15c4b"
+}

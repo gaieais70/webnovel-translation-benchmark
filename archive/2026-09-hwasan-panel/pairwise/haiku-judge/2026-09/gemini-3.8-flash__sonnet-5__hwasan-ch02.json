@@ -1,0 +1,12 @@
+{
+  "a": "gemini-3.8-flash",
+  "b": "sonnet-5",
+  "passage_id": "hwasan-ch02",
+  "forward": "tie",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "01fc3e0872fb7e3f2529a771fec5658670aee02194d37041ba18b2b0849a4513",
+  "sha_b": "d228205d3fcad96dd312871eecd318e07afc824643f322cc790dff7e80f26737"
+}

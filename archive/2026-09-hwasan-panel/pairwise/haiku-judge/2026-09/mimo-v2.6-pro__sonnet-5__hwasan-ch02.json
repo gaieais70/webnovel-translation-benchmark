@@ -1,0 +1,12 @@
+{
+  "a": "mimo-v2.6-pro",
+  "b": "sonnet-5",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "526a150758bacd5722b0ab453b5e66c0f74ff8b2794c5da066f44195769175d5",
+  "sha_b": "d228205d3fcad96dd312871eecd318e07afc824643f322cc790dff7e80f26737"
+}

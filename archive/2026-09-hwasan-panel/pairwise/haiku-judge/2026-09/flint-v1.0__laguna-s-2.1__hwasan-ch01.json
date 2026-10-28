@@ -1,0 +1,12 @@
+{
+  "a": "flint-v1.0",
+  "b": "laguna-s-2.1",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "0c8fa6d0e163040bd82d6081a4ecf55cde7e09fdad18ecffc488c3c55f470a3c",
+  "sha_b": "147e2cb3f1cd21e5bf38b750784a4ae6367b869e696f38bc29161a8744a16e23"
+}

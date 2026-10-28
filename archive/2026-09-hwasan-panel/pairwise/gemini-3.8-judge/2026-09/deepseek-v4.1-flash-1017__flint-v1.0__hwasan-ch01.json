@@ -1,0 +1,12 @@
+{
+  "a": "deepseek-v4.1-flash-1017",
+  "b": "flint-v1.0",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "7c5f69d192ca0e65e1e9e2ce8ae5f0af50940048db356c2f20ea5f4d731812da",
+  "sha_b": "0c8fa6d0e163040bd82d6081a4ecf55cde7e09fdad18ecffc488c3c55f470a3c"
+}

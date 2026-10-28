@@ -1,0 +1,12 @@
+{
+  "a": "command-a-plus",
+  "b": "kimi-k3.1-pro",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "gemini-3.8-judge",
+  "judge_fingerprint": "67764d2427684ed5",
+  "sha_a": "d29fcd45b8af9d42762c4d9d497dcd09d1dd25865b30779b26237d5316dd3d91",
+  "sha_b": "52d31055384b0a3cc2d5beceb827b036deb0010ffd86b6f010e164e1d607137d"
+}

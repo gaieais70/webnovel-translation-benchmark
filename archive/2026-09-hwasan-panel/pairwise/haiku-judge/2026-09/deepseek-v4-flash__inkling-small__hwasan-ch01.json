@@ -1,0 +1,12 @@
+{
+  "a": "deepseek-v4-flash",
+  "b": "inkling-small",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "a9674f2c6cafa20344af8d1396d6c6d05008ac7a3c2e722d9c25751a61b88a6b",
+  "sha_b": "6039072994da1828ae10185f92ef9bfc344a457fb1a3f476ef21a08f641ca924"
+}

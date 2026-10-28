@@ -1,0 +1,12 @@
+{
+  "a": "minimax-m3",
+  "b": "qwen3.8-flash",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "74df69cd8fd87147b098071b89a0bc950ccadfa302fd12a1e015a8cf07d6fba9",
+  "sha_b": "66e501050c3df584b395f7e0e3ea19583719032e42906a6e43a9f85a3cbd6e16"
+}

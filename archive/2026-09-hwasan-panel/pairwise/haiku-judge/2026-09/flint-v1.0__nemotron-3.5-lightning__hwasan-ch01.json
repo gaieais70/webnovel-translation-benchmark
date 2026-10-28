@@ -1,0 +1,12 @@
+{
+  "a": "flint-v1.0",
+  "b": "nemotron-3.5-lightning",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "0c8fa6d0e163040bd82d6081a4ecf55cde7e09fdad18ecffc488c3c55f470a3c",
+  "sha_b": "d9217cac1b26045fa9241dde7f8b8a6c9e53cd710cc4a93666b8e0dbf81b46ed"
+}

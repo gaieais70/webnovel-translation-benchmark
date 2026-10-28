@@ -1,0 +1,12 @@
+{
+  "a": "inkling-small",
+  "b": "minimax-m3",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "b8002227c0a8d4d522adab4ec7e1fb7aced487c5da153b0abaf282214ef82280",
+  "sha_b": "74df69cd8fd87147b098071b89a0bc950ccadfa302fd12a1e015a8cf07d6fba9"
+}

@@ -1,0 +1,12 @@
+{
+  "a": "gemini-3.8-flash",
+  "b": "gpt-6-astra",
+  "passage_id": "hwasan-ch02",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "01fc3e0872fb7e3f2529a771fec5658670aee02194d37041ba18b2b0849a4513",
+  "sha_b": "0277abb57af85fee50dfc7c5a4ce71881c2d2e4e87446e06107bd918ccdcf933"
+}

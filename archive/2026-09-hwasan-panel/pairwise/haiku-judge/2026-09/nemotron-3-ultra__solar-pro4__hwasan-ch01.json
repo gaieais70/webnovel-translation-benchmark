@@ -1,0 +1,12 @@
+{
+  "a": "nemotron-3-ultra",
+  "b": "solar-pro4",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "58e8f5ae4633c7236178fcd7928350ff8beff5ff69a29a531efbb8796501d620",
+  "sha_b": "ceb1acb3a34a08f2ab4d030aa36b418150a0b4d5c9a803fddf48e69cf0d051e1"
+}

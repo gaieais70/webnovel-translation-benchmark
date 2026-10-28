@@ -1,0 +1,12 @@
+{
+  "a": "gpt-6-luna",
+  "b": "kimi-k3.1-pro",
+  "passage_id": "hwasan-ch01",
+  "forward": "tie",
+  "reverse": "A",
+  "outcome": "tie",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "db653a1a5a47aaff49ab838e18372fcf978e3ae86c8dd143ceb8b89a70f4453f",
+  "sha_b": "52d31055384b0a3cc2d5beceb827b036deb0010ffd86b6f010e164e1d607137d"
+}

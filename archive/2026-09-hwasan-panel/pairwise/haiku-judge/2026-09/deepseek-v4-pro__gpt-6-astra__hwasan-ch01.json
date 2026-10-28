@@ -1,0 +1,12 @@
+{
+  "a": "deepseek-v4-pro",
+  "b": "gpt-6-astra",
+  "passage_id": "hwasan-ch01",
+  "forward": "B",
+  "reverse": "A",
+  "outcome": "b",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "a61ece9f782b964595124c93a5fd1bda4a01b088f585dcc3138d9f2b632b3d71",
+  "sha_b": "cef27fc4aa346dc22990df3b512b69afe5daac72f4d05127e4f8df2a040ed8db"
+}

@@ -1,0 +1,12 @@
+{
+  "a": "deepseek-v4-flash",
+  "b": "dots-3-note-preview",
+  "passage_id": "hwasan-ch01",
+  "forward": "A",
+  "reverse": "B",
+  "outcome": "a",
+  "judge_id": "haiku-judge",
+  "judge_fingerprint": "ee99eb5a9e8dbba4",
+  "sha_a": "a9674f2c6cafa20344af8d1396d6c6d05008ac7a3c2e722d9c25751a61b88a6b",
+  "sha_b": "22736361bd9e521a967b13e9e8bf6eef82686829a1b8a4c60904fe55dd1dc750"
+}
